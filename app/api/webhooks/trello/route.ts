@@ -4,6 +4,7 @@ import { STATUT_A_COMPTABILISER } from "@/lib/calc";
 import { getCardLabels } from "@/lib/trello";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // Trello envoie un HEAD pour vérifier l'URL lors de la création du webhook.
 export async function HEAD() {
@@ -14,11 +15,14 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
+type TrelloLabel = { id: string; name: string | null };
 type TrelloWebhookBody = {
   action?: {
+    type?: string;
     data?: {
       board?: { id?: string };
       card?: { id?: string; name?: string };
+      label?: { id?: string; name?: string | null };
     };
   };
 };
@@ -26,38 +30,64 @@ type TrelloWebhookBody = {
 // POST /api/webhooks/trello — déclenché à chaque action du board Trello.
 export async function POST(req: NextRequest) {
   try {
+    const body = (await req.json()) as TrelloWebhookBody;
+    const action = body.action ?? {};
+    const data = action.data ?? {};
+    const type = action.type;
+
+    console.log("Webhook reçu:", type, JSON.stringify(data?.card));
+
     const boardId = process.env.TRELLO_BOARD_ID;
     const labelId = process.env.TRELLO_LABEL_ID;
 
-    const body = (await req.json()) as TrelloWebhookBody;
-    const data = body.action?.data;
-
     // 1. L'action doit concerner notre board.
     if (!data?.board?.id || data.board.id !== boardId) {
-      return NextResponse.json({ ok: true, ignored: "board" });
+      return NextResponse.json({ ignored: "board" });
     }
+
     // 2. L'action doit concerner une carte.
     const card = data.card;
     if (!card?.id) {
-      return NextResponse.json({ ok: true, ignored: "no-card" });
+      return NextResponse.json({ ignored: "no-card" });
     }
 
-    // 3. Étiquettes de la carte → présence de « À comptabiliser » ?
-    const labels = await getCardLabels(card.id);
-    const hasComptabiliser = labels.some((l) => l.id === labelId);
+    // 3. Détection de l'étiquette « À comptabiliser » selon le type d'action.
+    let hasComptabiliser = false;
+    let labels: TrelloLabel[] | null = null;
+
+    if (type === "addLabelToCard") {
+      // Le payload contient directement l'étiquette ajoutée.
+      hasComptabiliser = data.label?.id === labelId;
+    } else if (type === "updateCard") {
+      // On récupère les étiquettes actuelles de la carte.
+      labels = await getCardLabels(card.id);
+      hasComptabiliser = labels.some((l) => l.id === labelId);
+    } else {
+      // Tous les autres types sont ignorés.
+      return NextResponse.json({ ignored: type ?? "unknown" });
+    }
+
     if (!hasComptabiliser) {
-      return NextResponse.json({ ok: true, ignored: "no-label" });
+      return NextResponse.json({ ignored: "no-label" });
     }
 
-    // 3. SKU = nom de la carte ; transporteur = nom de l'autre étiquette.
+    // 4. SKU = nom de la carte.
     const sku = (card.name ?? "").trim();
     if (!sku) {
-      return NextResponse.json({ ok: true, ignored: "no-sku" });
+      return NextResponse.json({ ignored: "no-sku" });
     }
-    const transporteur =
-      labels.find((l) => l.id !== labelId && l.name)?.name ?? null;
 
-    // 5. Cherche l'article par SKU → met à jour ou crée.
+    // 5. Transporteur = nom de l'autre étiquette de la carte (best-effort).
+    let transporteur: string | null = null;
+    try {
+      if (!labels) labels = await getCardLabels(card.id);
+      transporteur =
+        labels.find((l) => l.id !== labelId && l.name)?.name ?? null;
+    } catch (e) {
+      console.error("Webhook: récupération transporteur échouée", e);
+    }
+
+    // 6. Met à jour l'article existant, sinon le crée.
     const existing = await prisma.article.findUnique({ where: { sku } });
     if (existing) {
       await prisma.article.update({
@@ -82,10 +112,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ok: true, sku });
+    return NextResponse.json({ ok: true, sku, type });
   } catch (err) {
-    // 500 → Trello réessaiera.
-    console.error("POST /api/webhooks/trello", err);
-    return NextResponse.json({ error: "webhook error" }, { status: 500 });
+    const e = err as Error;
+    console.error("Webhook error:", err);
+    // On expose le détail pour pouvoir diagnostiquer dans les logs Vercel.
+    return NextResponse.json(
+      { error: e.message, stack: e.stack },
+      { status: 500 },
+    );
   }
 }
