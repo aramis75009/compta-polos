@@ -1,0 +1,54 @@
+// Compta Polos – schéma Prisma
+// Docs : https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model Commande {
+  id          String    @id @default(cuid())
+  date        DateTime  @default(now())
+  fournisseur String
+  nbArticles  Int
+  coutTotal   Float
+  marque      String?
+  categorie   String?
+  grade       String?
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  sku         String    @unique
+  marque      String
+  categorie   String
+  grade       String?
+  statut      String    @default("En stock")
+  prixAchat   Float
+  prixVente   Float?
+  margeBrute  Float?
+  margeNette  Float?
+  coefficient Float?
+  dateVente   DateTime?
+  commandeId  String?
+  commande    Commande? @relation(fields: [commandeId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([statut])
+  @@index([marque])
+  @@index([dateVente])
+  @@index([commandeId])
+}

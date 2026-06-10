@@ -1,0 +1,264 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
+import { fr } from "date-fns/locale";
+import { useCalendar } from "@/lib/hooks";
+import { coef, euros, moyenne } from "@/lib/calc";
+import type { CalendarDay } from "@/lib/types";
+
+const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+
+const navBtn =
+  "rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container";
+
+export default function CalendrierPage() {
+  const [current, setCurrent] = useState(() => startOfMonth(new Date()));
+  const month = format(current, "yyyy-MM");
+  const { data, isLoading } = useCalendar(month);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Index des jours renvoyés par l'API, par date YYYY-MM-DD.
+  const dayMap = useMemo(() => {
+    const m = new Map<string, CalendarDay>();
+    for (const d of data?.days ?? []) m.set(d.date, d);
+    return m;
+  }, [data]);
+
+  // Découpage en semaines (lundi → dimanche) couvrant tout le mois affiché.
+  const weeks = useMemo(() => {
+    const gridStart = startOfWeek(startOfMonth(current), { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(endOfMonth(current), { weekStartsOn: 1 });
+    const allDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
+    const result: Date[][] = [];
+    for (let i = 0; i < allDays.length; i += 7) {
+      result.push(allDays.slice(i, i + 7));
+    }
+    return result;
+  }, [current]);
+
+  const selectedDay = selected ? dayMap.get(selected) : undefined;
+
+  return (
+    <main className="mx-auto max-w-[1400px] px-6 py-8">
+      {/* En-tête / navigation */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-display-lg capitalize text-ink">
+          {format(current, "MMMM yyyy", { locale: fr })}
+        </h1>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setCurrent((c) => subMonths(c, 1));
+              setSelected(null);
+            }}
+            className={navBtn}
+          >
+            ← Précédent
+          </button>
+          <button
+            onClick={() => {
+              setCurrent(startOfMonth(new Date()));
+              setSelected(null);
+            }}
+            className={navBtn}
+          >
+            Aujourd&apos;hui
+          </button>
+          <button
+            onClick={() => {
+              setCurrent((c) => addMonths(c, 1));
+              setSelected(null);
+            }}
+            className={navBtn}
+          >
+            Suivant →
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-4">
+        {/* Grille */}
+        <div className="flex-1 overflow-x-auto">
+          <div className="min-w-[900px]">
+            {/* En-têtes de colonnes : 7 jours + récap */}
+            <div className="grid grid-cols-8 gap-2 px-1 text-label-sm font-medium uppercase tracking-wide text-ink-faint">
+              {JOURS.map((j) => (
+                <div key={j} className="px-2 py-1">
+                  {j}
+                </div>
+              ))}
+              <div className="px-2 py-1 text-primary">Récap semaine</div>
+            </div>
+
+            {weeks.map((week, wi) => {
+              const daysData = week
+                .map((d) => dayMap.get(format(d, "yyyy-MM-dd")))
+                .filter((d): d is CalendarDay => !!d);
+              const ca = daysData.reduce((s, d) => s + d.ca, 0);
+              const net = daysData.reduce((s, d) => s + d.net, 0);
+              const nb = daysData.reduce((s, d) => s + d.nbArticles, 0);
+              const coefs = daysData.flatMap((d) =>
+                d.articles.map((a) => a.coefficient),
+              );
+
+              return (
+                <div key={wi} className="mt-2 grid grid-cols-8 gap-2">
+                  {week.map((d) => {
+                    const key = format(d, "yyyy-MM-dd");
+                    const dd = dayMap.get(key);
+                    const inMonth = isSameMonth(d, current);
+                    const active = selected === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSelected(dd ? key : null)}
+                        className={`min-h-[96px] rounded-md border p-2 text-left transition-all ${
+                          active
+                            ? "border-primary bg-primary/5 shadow-card"
+                            : "border-line hover:border-line-strong"
+                        } ${
+                          inMonth ? "bg-surface" : "bg-surface-soft text-ink-faint"
+                        } ${dd ? "cursor-pointer" : "cursor-default"}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-label-sm ${
+                              isToday(d)
+                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary font-semibold text-on-primary"
+                                : "text-ink-muted"
+                            }`}
+                          >
+                            {format(d, "d")}
+                          </span>
+                        </div>
+                        {dd && (
+                          <div className="mt-1.5 space-y-0.5 text-label-sm leading-tight">
+                            <div className="font-semibold text-ink">
+                              {euros(dd.ca)}
+                            </div>
+                            <div className="text-ink-faint">
+                              {dd.nbArticles} art.
+                            </div>
+                            <div className="text-primary">
+                              NET {euros(dd.net)}
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  {/* Récap de la semaine */}
+                  <div className="min-h-[96px] rounded-md border border-primary/30 bg-primary/5 p-2 text-label-sm leading-tight">
+                    <div className="text-ink-faint">CA</div>
+                    <div className="font-semibold text-ink">{euros(ca)}</div>
+                    <div className="mt-1 text-ink-faint">
+                      {nb} art. · NET{" "}
+                      <span className="text-primary">{euros(net)}</span>
+                    </div>
+                    <div className="mt-1 text-ink-faint">
+                      Coef {coef(moyenne(coefs))}
+                    </div>
+                    <div className="text-ink-faint">
+                      Panier {euros(nb ? ca / nb : 0)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Panneau latéral : articles vendus le jour sélectionné */}
+        <aside className="hidden w-72 shrink-0 rounded-card border border-line bg-surface p-5 shadow-card lg:block">
+          {selectedDay ? (
+            <>
+              <h2 className="text-title-sm font-semibold capitalize text-ink">
+                {new Date(selectedDay.date).toLocaleDateString("fr-FR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                })}
+              </h2>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-label-sm">
+                <div>
+                  <div className="text-ink-faint">CA</div>
+                  <div className="font-semibold text-ink">
+                    {euros(selectedDay.ca)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-ink-faint">Articles</div>
+                  <div className="font-semibold text-ink">
+                    {selectedDay.nbArticles}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-ink-faint">NET</div>
+                  <div className="font-semibold text-primary">
+                    {euros(selectedDay.net)}
+                  </div>
+                </div>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {selectedDay.articles.map((a) => (
+                  <li
+                    key={a.id}
+                    className="rounded-md border border-line px-3 py-2 text-label-sm"
+                  >
+                    <div className="flex justify-between">
+                      <span className="font-mono text-ink">{a.sku}</span>
+                      <span className="font-semibold text-ink">
+                        {euros(a.prixVente)}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex justify-between text-ink-faint">
+                      <span>{a.marque}</span>
+                      <span>
+                        {coef(a.coefficient)} · NET {euros(a.margeNette)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-body-md text-ink-faint">
+              {isLoading
+                ? "Chargement…"
+                : "Clique sur un jour avec des ventes pour voir le détail."}
+            </p>
+          )}
+        </aside>
+      </div>
+
+      {/* Total mensuel */}
+      <div className="mt-6 flex flex-wrap gap-x-8 gap-y-1 rounded-card border border-line bg-surface px-6 py-4 text-body-md shadow-card">
+        <span className="font-semibold text-ink">Total du mois :</span>
+        <span className="text-ink-muted">
+          CA : <strong className="text-ink">{euros(data?.total.ca ?? 0)}</strong>
+        </span>
+        <span className="text-ink-muted">
+          Articles :{" "}
+          <strong className="text-ink">{data?.total.nbArticles ?? 0}</strong>
+        </span>
+        <span className="text-ink-muted">
+          NET :{" "}
+          <strong className="text-primary">{euros(data?.total.net ?? 0)}</strong>
+        </span>
+      </div>
+    </main>
+  );
+}
