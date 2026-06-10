@@ -10,6 +10,7 @@ import type {
   CalendarDTO,
   CommandeDTO,
   DashboardDTO,
+  StatsDTO,
 } from "./types";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -38,6 +39,7 @@ function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     qc.invalidateQueries({ queryKey: ["calendar"] });
     qc.invalidateQueries({ queryKey: ["commandes"] });
+    qc.invalidateQueries({ queryKey: ["stats"] });
   };
 }
 
@@ -47,6 +49,7 @@ export type ArticleFilters = {
   marque?: string;
   statut?: string;
   q?: string;
+  commande?: string;
 };
 
 export function useArticles(filters: ArticleFilters = {}) {
@@ -54,6 +57,7 @@ export function useArticles(filters: ArticleFilters = {}) {
   if (filters.marque) params.set("marque", filters.marque);
   if (filters.statut) params.set("statut", filters.statut);
   if (filters.q) params.set("q", filters.q);
+  if (filters.commande) params.set("commande", filters.commande);
   const qs = params.toString();
 
   return useQuery({
@@ -115,6 +119,65 @@ export function useCreateCommande() {
         body: JSON.stringify(input),
       }),
     onSuccess: invalidate,
+  });
+}
+
+export function useCommandes() {
+  return useQuery({
+    queryKey: ["commandes"],
+    queryFn: () => jsonFetch<CommandeDTO[]>("/api/commandes"),
+  });
+}
+
+export function useDeleteCommande() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (id: string) =>
+      jsonFetch<{ ok: true }>(`/api/commandes/${id}`, { method: "DELETE" }),
+    onSuccess: invalidate,
+  });
+}
+
+// ---------- Actions groupées / comptabilisation ----------
+
+export function useBulkUpdateStatus() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ ids, statut }: { ids: string[]; statut: string }) =>
+      jsonFetch<{ count: number; statut: string }>("/api/articles/bulk", {
+        method: "PATCH",
+        body: JSON.stringify({ ids, statut }),
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useComptabiliser() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({
+      id,
+      prixVente,
+      dateVente,
+    }: {
+      id: string;
+      prixVente: number;
+      dateVente: string;
+    }) =>
+      jsonFetch<{ article: ArticleDTO; trello: string | null }>(
+        `/api/articles/${id}/comptabiliser`,
+        { method: "POST", body: JSON.stringify({ prixVente, dateVente }) },
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+// ---------- Statistiques ----------
+
+export function useStats() {
+  return useQuery({
+    queryKey: ["stats"],
+    queryFn: () => jsonFetch<StatsDTO>("/api/stats"),
   });
 }
 

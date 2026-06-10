@@ -13,12 +13,16 @@ export const STATUTS = [
   "En stock",
   "En vente",
   "En livraison",
+  "À comptabiliser",
   "Vendu",
   "En lavage",
   "Litige",
   "Perdu",
   "Fake",
 ] as const;
+
+/** Statut « à comptabiliser » : article livré, en attente de validation comptable. */
+export const STATUT_A_COMPTABILISER = "À comptabiliser";
 
 export type Statut = (typeof STATUTS)[number];
 

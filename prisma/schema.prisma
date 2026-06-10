@@ -43,12 +43,15 @@ model Article {
   margeNette  Float?
   coefficient Float?
   dateVente   DateTime?
+  transporteur String?
+  trelloCardId String?
   commandeId  String?
   commande    Commande? @relation(fields: [commandeId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
 
   @@index([statut])
   @@index([marque])
+  @@index([trelloCardId])
   @@index([dateVente])
   @@index([commandeId])
 }

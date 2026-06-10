@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArticlePatch,
   useArticles,
+  useBulkUpdateStatus,
   useDeleteArticle,
   useUpdateArticle,
 } from "@/lib/hooks";
@@ -64,18 +65,44 @@ function StockInner() {
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("sku");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const commandeFilter = params.get("commande") ?? "";
 
   const { data: articles = [], isLoading, isError, error } = useArticles({
     marque: marque || undefined,
     statut: statut || undefined,
     q: q || undefined,
+    commande: commandeFilter || undefined,
   });
 
   const update = useUpdateArticle();
   const del = useDeleteArticle();
+  const bulk = useBulkUpdateStatus();
 
   const [newCommande, setNewCommande] = useState(false);
   const [sellTarget, setSellTarget] = useState<ArticleDTO | null>(null);
+
+  // --- Sélection en masse ---
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatut, setBulkStatut] = useState("En stock");
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const clearSelection = () => setSelected(new Set());
+
+  const applyBulk = () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    bulk.mutate(
+      { ids, statut: bulkStatut },
+      { onSuccess: clearSelection },
+    );
+  };
 
   // Liste des marques pour le filtre (calculée depuis les données chargées).
   const marqueOptions = useMemo(() => {
@@ -218,11 +245,41 @@ function StockInner() {
         )}
       </div>
 
+      {/* Bandeau : filtre par commande actif */}
+      {commandeFilter && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-4 py-2.5 text-body-md text-ink">
+          <span>Articles filtrés sur une commande.</span>
+          <button
+            onClick={() => router.replace("/stock")}
+            className="text-label-sm font-medium text-primary hover:underline"
+          >
+            Voir tout le stock
+          </button>
+        </div>
+      )}
+
       {/* Tableau */}
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
         <table className="w-full min-w-[1100px] border-collapse text-body-md">
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
+              <th className="w-10 px-3 py-3.5">
+                <input
+                  type="checkbox"
+                  aria-label="Tout sélectionner"
+                  className="h-4 w-4 cursor-pointer accent-primary"
+                  checked={
+                    sorted.length > 0 && sorted.every((a) => selected.has(a.id))
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelected(new Set(sorted.map((a) => a.id)));
+                    } else {
+                      clearSelection();
+                    }
+                  }}
+                />
+              </th>
               {COLUMNS.map((c) => (
                 <th
                   key={c.key}
@@ -241,21 +298,21 @@ function StockInner() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={12} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={13} className="px-3 py-10 text-center text-ink-faint">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={12} className="px-3 py-10 text-center text-error">
+                <td colSpan={13} className="px-3 py-10 text-center text-error">
                   {(error as Error).message}
                 </td>
               </tr>
             )}
             {!isLoading && !isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={13} className="px-3 py-10 text-center text-ink-faint">
                   Aucun article.
                 </td>
               </tr>
@@ -265,8 +322,19 @@ function StockInner() {
               return (
                 <tr
                   key={a.id}
-                  className="border-t border-line transition-colors hover:bg-surface-soft"
+                  className={`border-t border-line transition-colors hover:bg-surface-soft ${
+                    selected.has(a.id) ? "bg-primary/5" : ""
+                  }`}
                 >
+                  <td className="px-3 py-1">
+                    <input
+                      type="checkbox"
+                      aria-label={`Sélectionner ${a.sku}`}
+                      className="h-4 w-4 cursor-pointer accent-primary"
+                      checked={selected.has(a.id)}
+                      onChange={() => toggleOne(a.id)}
+                    />
+                  </td>
                   <td className="px-1 py-1 font-mono text-ink">
                     <EditableCell
                       value={a.sku}
@@ -394,6 +462,46 @@ function StockInner() {
           <strong className="text-primary">{euros(totals.net)}</strong>
         </span>
       </div>
+
+      {/* Barre d'action de sélection en masse */}
+      {selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-sidebar">
+          <div className="flex flex-wrap items-center gap-3 rounded-full border border-line bg-surface px-5 py-3 shadow-card-hover">
+            <span className="text-body-md font-medium text-ink">
+              {selected.size} article(s) sélectionné(s)
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-label-sm text-ink-faint">
+                Changer le statut
+              </span>
+              <select
+                value={bulkStatut}
+                onChange={(e) => setBulkStatut(e.target.value)}
+                className="rounded-full border border-line bg-surface px-3 py-1.5 text-body-md text-ink outline-none focus:border-primary"
+              >
+                {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={applyBulk}
+              disabled={bulk.isPending}
+              className="rounded-full bg-primary px-4 py-1.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
+            >
+              {bulk.isPending ? "…" : "Appliquer"}
+            </button>
+            <button
+              onClick={clearSelection}
+              className="text-label-sm text-ink-faint hover:text-ink"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       <NewCommandeModal
         open={newCommande}

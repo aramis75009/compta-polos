@@ -21,6 +21,8 @@ export function toDTO(a: ArticleWithCommande): ArticleDTO {
     margeNette: a.margeNette,
     coefficient: a.coefficient,
     dateVente: a.dateVente ? a.dateVente.toISOString() : null,
+    transporteur: a.transporteur,
+    trelloCardId: a.trelloCardId,
     commandeId: a.commandeId,
     prixUnitaire: a.commande
       ? prixUnitaire(a.commande.coutTotal, a.commande.nbArticles)

@@ -13,6 +13,8 @@ export type ArticleDTO = {
   margeNette: number | null;
   coefficient: number | null;
   dateVente: string | null; // ISO
+  transporteur: string | null;
+  trelloCardId: string | null;
   commandeId: string | null;
   prixUnitaire: number | null; // dérivé de la commande
 };
@@ -86,4 +88,46 @@ export type CalendarDTO = {
   month: string; // YYYY-MM
   days: CalendarDay[];
   total: { ca: number; nbArticles: number; net: number };
+};
+
+export type WeekdayPoint = {
+  jour: string; // Lundi…Dimanche
+  vendus: number;
+};
+
+export type StatsBrandRow = {
+  marque: string;
+  margeNette: number;
+  coefMoyen: number;
+  vendus: number;
+};
+
+export type TopArticle = {
+  sku: string;
+  marque: string;
+  prixVente: number;
+  margeNette: number;
+};
+
+export type StatutCount = {
+  statut: string;
+  count: number;
+};
+
+export type StatsDTO = {
+  vitesse: {
+    parJour7: number; // moyenne articles vendus / jour sur 7 jours
+    parJour30: number; // moyenne sur 30 jours
+    total7: number;
+    total30: number;
+  };
+  parJourSemaine: WeekdayPoint[];
+  marquesRentables: StatsBrandRow[];
+  topArticles: TopArticle[];
+  projection: {
+    restants: number; // articles non vendus
+    cadenceParJour: number; // base de calcul
+    joursRestants: number | null; // null si cadence nulle
+  };
+  repartitionStatuts: StatutCount[];
 };

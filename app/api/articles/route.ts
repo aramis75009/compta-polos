@@ -12,10 +12,12 @@ export async function GET(req: NextRequest) {
     const marque = searchParams.get("marque")?.trim();
     const statut = searchParams.get("statut")?.trim();
     const q = searchParams.get("q")?.trim();
+    const commande = searchParams.get("commande")?.trim();
 
     const where: Prisma.ArticleWhereInput = {};
     if (marque) where.marque = marque;
     if (statut) where.statut = statut;
+    if (commande) where.commandeId = commande;
     if (q) where.sku = { contains: q, mode: "insensitive" };
 
     const articles = await prisma.article.findMany({

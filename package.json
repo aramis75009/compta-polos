@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
+    "setup-trello": "npx tsx scripts/setup-trello-webhook.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
