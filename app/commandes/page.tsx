@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 import NewCommandeModal from "@/components/NewCommandeModal";
+import ImportExcelModal from "@/components/ImportExcelModal";
 
 export default function CommandesPage() {
   const router = useRouter();
   const { data: commandes = [], isLoading, isError, error } = useCommandes();
   const del = useDeleteCommande();
   const [newCommande, setNewCommande] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
@@ -21,12 +23,20 @@ export default function CommandesPage() {
             Tes commandes fournisseurs.
           </p>
         </div>
-        <button
-          onClick={() => setNewCommande(true)}
-          className="rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark"
-        >
-          + Nouvelle commande
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
+          >
+            📥 Importer un Excel
+          </button>
+          <button
+            onClick={() => setNewCommande(true)}
+            className="rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark"
+          >
+            + Nouvelle commande
+          </button>
+        </div>
       </header>
 
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
@@ -113,6 +123,7 @@ export default function CommandesPage() {
       </div>
 
       <NewCommandeModal open={newCommande} onClose={() => setNewCommande(false)} />
+      <ImportExcelModal open={importOpen} onClose={() => setImportOpen(false)} />
     </main>
   );
 }

@@ -10,6 +10,7 @@ export const STATUT_VENDU = "Vendu";
 
 /** Liste ordonnée des statuts possibles d'un article. */
 export const STATUTS = [
+  "Brouillon",
   "En stock",
   "En vente",
   "En livraison",

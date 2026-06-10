@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArticlePatch,
   useArticles,
   useBulkUpdateStatus,
+  useCommandes,
   useDeleteArticle,
   useUpdateArticle,
 } from "@/lib/hooks";
@@ -65,13 +66,22 @@ function StockInner() {
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("sku");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const commandeFilter = params.get("commande") ?? "";
+
+  // Filtre par commande : initialisé depuis l'URL (lien "Voir les articles"),
+  // puis pilotable via le dropdown. Synchronisé si l'URL change.
+  const commandeParam = params.get("commande") ?? "";
+  const [commande, setCommande] = useState(commandeParam);
+  useEffect(() => {
+    setCommande(commandeParam);
+  }, [commandeParam]);
+
+  const { data: commandes = [] } = useCommandes();
 
   const { data: articles = [], isLoading, isError, error } = useArticles({
     marque: marque || undefined,
     statut: statut || undefined,
     q: q || undefined,
-    commande: commandeFilter || undefined,
+    commande: commande || undefined,
   });
 
   const update = useUpdateArticle();
@@ -230,12 +240,25 @@ function StockInner() {
             </option>
           ))}
         </select>
-        {(marque || statut || q) && (
+        <select
+          value={commande}
+          onChange={(e) => setCommande(e.target.value)}
+          className={inputCls}
+        >
+          <option value="">Toutes les commandes</option>
+          {commandes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.fournisseur} — {new Date(c.date).toLocaleDateString("fr-FR")}
+            </option>
+          ))}
+        </select>
+        {(marque || statut || q || commande) && (
           <button
             onClick={() => {
               setMarque("");
               setStatut("");
               setQ("");
+              setCommande("");
               router.replace("/stock");
             }}
             className="rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container"
@@ -244,19 +267,6 @@ function StockInner() {
           </button>
         )}
       </div>
-
-      {/* Bandeau : filtre par commande actif */}
-      {commandeFilter && (
-        <div className="mb-4 flex items-center justify-between rounded-md border border-primary/30 bg-primary/5 px-4 py-2.5 text-body-md text-ink">
-          <span>Articles filtrés sur une commande.</span>
-          <button
-            onClick={() => router.replace("/stock")}
-            className="text-label-sm font-medium text-primary hover:underline"
-          >
-            Voir tout le stock
-          </button>
-        </div>
-      )}
 
       {/* Tableau */}
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
