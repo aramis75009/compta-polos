@@ -10,7 +10,7 @@ import {
   useUpdateArticle,
 } from "@/lib/hooks";
 import { coef, euros, STATUT_VENDU, STATUTS } from "@/lib/calc";
-import { statutBadge } from "@/lib/statutColors";
+import { statutColor } from "@/lib/statutColors";
 import type { ArticleDTO } from "@/lib/types";
 import EditableCell from "@/components/EditableCell";
 import SellModal from "@/components/SellModal";
@@ -363,12 +363,18 @@ function StockInner() {
                     <select
                       value={a.statut}
                       onChange={(e) => onStatutChange(a, e.target.value)}
-                      className={`cursor-pointer rounded-full border-0 px-2.5 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30 ${statutBadge(
-                        a.statut,
-                      )}`}
+                      style={{
+                        backgroundColor: statutColor(a.statut).bg,
+                        color: statutColor(a.statut).text,
+                      }}
+                      className="cursor-pointer rounded-full border-0 px-2.5 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {STATUTS.map((s) => (
-                        <option key={s} value={s} className="bg-surface text-ink">
+                        <option
+                          key={s}
+                          value={s}
+                          style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}
+                        >
                           {s}
                         </option>
                       ))}

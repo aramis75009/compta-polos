@@ -13,18 +13,10 @@ import {
 } from "recharts";
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
+import { statutColor } from "@/lib/statutColors";
 
-const STATUT_HEX: Record<string, string> = {
-  "En stock": "#856400",
-  "En vente": "#1D4ED8",
-  "En livraison": "#C2410C",
-  "À comptabiliser": "#DC2626",
-  Vendu: "#16A34A",
-  "En lavage": "#0369A1",
-  Litige: "#D97706",
-  Perdu: "#6B7280",
-  Fake: "#7E22CE",
-};
+// Couleur vive (texte) du statut, pour le donut et la légende.
+const hex = (statut: string) => statutColor(statut).text;
 
 function Card({
   title,
@@ -178,7 +170,7 @@ export default function StatistiquesPage() {
                     {data.repartitionStatuts.map((s) => (
                       <Cell
                         key={s.statut}
-                        fill={STATUT_HEX[s.statut] ?? "#6B7280"}
+                        fill={hex(s.statut)}
                       />
                     ))}
                   </Pie>
@@ -198,7 +190,7 @@ export default function StatistiquesPage() {
                 <li key={s.statut} className="flex items-center gap-2">
                   <span
                     className="h-2.5 w-2.5 rounded-full"
-                    style={{ background: STATUT_HEX[s.statut] ?? "#6B7280" }}
+                    style={{ background: hex(s.statut) }}
                   />
                   <span className="text-ink-muted">{s.statut}</span>
                   <span className="font-semibold text-ink">{s.count}</span>

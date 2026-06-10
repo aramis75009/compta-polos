@@ -5,6 +5,7 @@ import { useArticles, useComptabiliser } from "@/lib/hooks";
 import { euros, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import type { ArticleDTO } from "@/lib/types";
 import SellModal from "@/components/SellModal";
+import StatutBadge from "@/components/StatutBadge";
 
 export default function AComptabiliserPage() {
   const { data: articles = [], isLoading, isError, error } = useArticles({
@@ -71,7 +72,12 @@ export default function AComptabiliserPage() {
                 key={a.id}
                 className="border-t border-line transition-colors hover:bg-surface-soft"
               >
-                <td className="px-6 py-3.5 font-mono text-ink">{a.sku}</td>
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-ink">{a.sku}</span>
+                    <StatutBadge statut={a.statut} />
+                  </div>
+                </td>
                 <td className="px-3 py-3.5 text-ink">{a.marque}</td>
                 <td className="px-3 py-3.5 text-ink-muted">{a.categorie}</td>
                 <td className="px-3 py-3.5 text-right text-ink">
