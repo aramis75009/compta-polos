@@ -3,11 +3,106 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
-import { euros } from "@/lib/calc";
+import { coef, euros } from "@/lib/calc";
+
 import NewCommandeModal from "@/components/NewCommandeModal";
 import ImportExcelModal from "@/components/ImportExcelModal";
 
-function CommandeDetail({ commandeId }: { commandeId: string }) {
+// Palette des trois états de rentabilité.
+const RENTA = {
+  encours: { label: "En cours", emoji: "🔴", color: "#DC2626", bg: "#FEE2E2" },
+  proche: { label: "Seuil proche", emoji: "🟡", color: "#D97706", bg: "#FEF3C7" },
+  rentable: { label: "Rentabilisée", emoji: "🟢", color: "#16A34A", bg: "#DCFCE7" },
+} as const;
+
+// Couleur d'un % vendu : <30% rouge, 30-60% orange, >60% vert.
+function pctColor(pct: number): string {
+  if (pct < 0.3) return "#DC2626";
+  if (pct <= 0.6) return "#D97706";
+  return "#16A34A";
+}
+
+function RentabiliteIndicateur({
+  montantRecupere,
+  investissement,
+  panierMoyen,
+}: {
+  montantRecupere: number;
+  investissement: number;
+  panierMoyen: number;
+}) {
+  const resteARecuperer = Math.max(0, investissement - montantRecupere);
+  const ratio = investissement > 0 ? montantRecupere / investissement : 0;
+  const width = Math.min(100, Math.round(ratio * 100));
+
+  const statut =
+    montantRecupere >= investissement
+      ? RENTA.rentable
+      : montantRecupere < investissement * 0.5
+        ? RENTA.encours
+        : RENTA.proche;
+
+  const seuilArticles =
+    panierMoyen > 0 ? Math.ceil(resteARecuperer / panierMoyen) : null;
+
+  return (
+    <div className="space-y-3 rounded-card border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-body-md font-semibold text-ink">Rentabilité</h3>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-label-sm font-medium"
+          style={{ backgroundColor: statut.bg, color: statut.color }}
+        >
+          {statut.emoji} {statut.label}
+        </span>
+      </div>
+
+      {/* Barre de progression */}
+      <div className="h-3 w-full overflow-hidden rounded-full bg-surface-container">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${width}%`, backgroundColor: statut.color }}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-body-md text-ink-muted">
+        <span>
+          Investi : <strong className="text-ink">{euros(investissement)}</strong>
+        </span>
+        <span>
+          Récupéré :{" "}
+          <strong className="text-ink">{euros(montantRecupere)}</strong>
+        </span>
+        <span>
+          Reste :{" "}
+          <strong style={{ color: statut.color }}>
+            {euros(resteARecuperer)}
+          </strong>
+        </span>
+      </div>
+
+      <p className="text-label-sm text-ink-faint">
+        {montantRecupere >= investissement
+          ? "✓ Investissement entièrement récupéré."
+          : seuilArticles != null
+            ? `Seuil de rentabilité : vendre ${seuilArticles} article${
+                seuilArticles > 1 ? "s" : ""
+              } supplémentaire${seuilArticles > 1 ? "s" : ""} au panier moyen actuel de ${euros(panierMoyen)}.`
+            : "Aucune vente encore : panier moyen indisponible pour estimer le seuil."}
+      </p>
+    </div>
+  );
+}
+
+function CommandeDetail({
+  commandeId,
+  coutTotal,
+  coefObjectif,
+}: {
+  commandeId: string;
+  coutTotal: number;
+  coefObjectif: number | null;
+}) {
   const { data, isLoading, isError, error } = useCommandeStats(commandeId);
 
   if (isLoading) {
@@ -32,42 +127,82 @@ function CommandeDetail({ commandeId }: { commandeId: string }) {
     );
   }
 
+  const montantRecupere = data.rows.reduce((s, r) => s + r.ca, 0);
+  const totalVendus = data.rows.reduce((s, r) => s + r.vendus, 0);
+  const panierMoyen = totalVendus > 0 ? montantRecupere / totalVendus : 0;
+
   return (
-    <div className="overflow-x-auto px-6 py-4">
-      <table className="w-full min-w-[700px] border-collapse text-body-md">
-        <thead>
-          <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-            <th className="px-3 py-2 font-medium">Catégorie</th>
-            <th className="px-3 py-2 text-right font-medium">Total</th>
-            <th className="px-3 py-2 text-right font-medium">En stock</th>
-            <th className="px-3 py-2 text-right font-medium">En vente</th>
-            <th className="px-3 py-2 text-right font-medium">Vendus</th>
-            <th className="px-3 py-2 text-right font-medium">CA (€)</th>
-            <th className="px-3 py-2 text-right font-medium">Marge nette (€)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.map((r) => (
-            <tr key={r.categorie} className="border-t border-line">
-              <td className="px-3 py-2 font-medium text-ink">{r.categorie}</td>
-              <td className="px-3 py-2 text-right text-ink-muted">{r.total}</td>
-              <td className="px-3 py-2 text-right text-ink-muted">
-                {r.enStock}
-              </td>
-              <td className="px-3 py-2 text-right text-ink-muted">
-                {r.enVente}
-              </td>
-              <td className="px-3 py-2 text-right text-ink-muted">{r.vendus}</td>
-              <td className="px-3 py-2 text-right font-medium text-ink">
-                {euros(r.ca)}
-              </td>
-              <td className="px-3 py-2 text-right font-medium text-primary">
-                {euros(r.margeNette)}
-              </td>
+    <div className="space-y-4 px-6 py-4">
+      <RentabiliteIndicateur
+        montantRecupere={montantRecupere}
+        investissement={coutTotal}
+        panierMoyen={panierMoyen}
+      />
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] border-collapse text-body-md">
+          <thead>
+            <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
+              <th className="px-3 py-2 font-medium">Catégorie</th>
+              <th className="px-3 py-2 text-right font-medium">Total</th>
+              <th className="px-3 py-2 text-right font-medium">En stock</th>
+              <th className="px-3 py-2 text-right font-medium">En vente</th>
+              <th className="px-3 py-2 text-right font-medium">Vendus</th>
+              <th className="px-3 py-2 text-right font-medium">CA (€)</th>
+              <th className="px-3 py-2 text-right font-medium">Marge nette (€)</th>
+              <th className="px-3 py-2 text-right font-medium">Coef moyen</th>
+              <th className="px-3 py-2 text-right font-medium">% vendu</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => {
+              const coefColor =
+                coefObjectif == null || r.coefMoyen === 0
+                  ? undefined
+                  : r.coefMoyen < coefObjectif
+                    ? "#DC2626"
+                    : "#16A34A";
+              return (
+                <tr key={r.categorie} className="border-t border-line">
+                  <td className="px-3 py-2 font-medium text-ink">
+                    {r.categorie}
+                  </td>
+                  <td className="px-3 py-2 text-right text-ink-muted">
+                    {r.total}
+                  </td>
+                  <td className="px-3 py-2 text-right text-ink-muted">
+                    {r.enStock}
+                  </td>
+                  <td className="px-3 py-2 text-right text-ink-muted">
+                    {r.enVente}
+                  </td>
+                  <td className="px-3 py-2 text-right text-ink-muted">
+                    {r.vendus}
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium text-ink">
+                    {euros(r.ca)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium text-primary">
+                    {euros(r.margeNette)}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-right font-medium"
+                    style={coefColor ? { color: coefColor } : undefined}
+                  >
+                    {r.coefMoyen > 0 ? coef(r.coefMoyen) : "—"}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-right font-medium"
+                    style={{ color: pctColor(r.pctVendu) }}
+                  >
+                    {Math.round(r.pctVendu * 100)}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -200,7 +335,11 @@ export default function CommandesPage() {
                   {expanded && (
                     <tr className="border-t border-line bg-surface-soft">
                       <td colSpan={6} className="p-0">
-                        <CommandeDetail commandeId={c.id} />
+                        <CommandeDetail
+                          commandeId={c.id}
+                          coutTotal={c.coutTotal}
+                          coefObjectif={c.coefObjectif}
+                        />
                       </td>
                     </tr>
                   )}

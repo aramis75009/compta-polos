@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { STATUT_VENDU, naturalSort } from "@/lib/calc";
+import { moyenne, STATUT_VENDU, naturalSort } from "@/lib/calc";
 import type { CommandeStatsDTO, CommandeStatsRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +19,12 @@ export async function GET(
         statut: true,
         prixVente: true,
         margeNette: true,
+        coefficient: true,
       },
     });
 
-    const map = new Map<string, CommandeStatsRow>();
+    type Acc = CommandeStatsRow & { coefs: number[] };
+    const map = new Map<string, Acc>();
     for (const a of articles) {
       const cat = a.categorie || "À définir";
       const row =
@@ -35,6 +37,9 @@ export async function GET(
           vendus: 0,
           ca: 0,
           margeNette: 0,
+          coefMoyen: 0,
+          pctVendu: 0,
+          coefs: [],
         };
       row.total += 1;
       if (a.statut === "En stock") row.enStock += 1;
@@ -43,13 +48,24 @@ export async function GET(
         row.vendus += 1;
         row.ca += a.prixVente ?? 0;
         row.margeNette += a.margeNette ?? 0;
+        if (a.coefficient != null) row.coefs.push(a.coefficient);
       }
       map.set(cat, row);
     }
 
-    const rows = Array.from(map.values()).sort((a, b) =>
-      naturalSort(a.categorie, b.categorie),
-    );
+    const rows: CommandeStatsRow[] = Array.from(map.values())
+      .map((r) => ({
+        categorie: r.categorie,
+        total: r.total,
+        enStock: r.enStock,
+        enVente: r.enVente,
+        vendus: r.vendus,
+        ca: r.ca,
+        margeNette: r.margeNette,
+        coefMoyen: moyenne(r.coefs),
+        pctVendu: r.total ? r.vendus / r.total : 0,
+      }))
+      .sort((a, b) => naturalSort(a.categorie, b.categorie));
 
     const dto: CommandeStatsDTO = { rows };
     return NextResponse.json(dto);

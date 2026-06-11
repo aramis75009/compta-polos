@@ -68,7 +68,7 @@ export default function KpiCard({
 
   return (
     <div
-      className={`relative flex min-h-[140px] flex-col rounded-card border p-7 shadow-card transition-shadow hover:shadow-card-hover ${
+      className={`relative flex min-h-[160px] flex-col rounded-card border p-7 shadow-card transition-shadow hover:shadow-card-hover ${
         primary
           ? "border-primary bg-primary text-on-primary"
           : "border-line bg-surface text-ink"

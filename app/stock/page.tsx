@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArticlePatch,
@@ -30,22 +30,55 @@ type SortKey =
   | "margeNette"
   | "coefficient"
   | "dateVente"
-  | "canal";
+  | "canal"
+  | "transporteur";
 
-const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
-  { key: "sku", label: "SKU" },
-  { key: "marque", label: "Marque" },
-  { key: "categorie", label: "Catégorie" },
-  { key: "grade", label: "Grade" },
-  { key: "statut", label: "Statut" },
-  { key: "prixAchat", label: "Prix achat", align: "right" },
-  { key: "prixVente", label: "Prix vente", align: "right" },
-  { key: "margeBrute", label: "Marge brute", align: "right" },
-  { key: "margeNette", label: "Marge nette", align: "right" },
-  { key: "coefficient", label: "Coef", align: "right" },
-  { key: "dateVente", label: "Date vente" },
-  { key: "canal", label: "Canal" },
+type ColumnMeta = {
+  key: SortKey;
+  label: string;
+  align?: "right";
+  always?: boolean; // colonne non masquable
+  defaultVisible: boolean;
+};
+
+const COLUMN_META: ColumnMeta[] = [
+  { key: "sku", label: "SKU", always: true, defaultVisible: true },
+  { key: "marque", label: "Marque", defaultVisible: true },
+  { key: "categorie", label: "Catégorie", defaultVisible: true },
+  { key: "grade", label: "Grade", defaultVisible: false },
+  { key: "statut", label: "Statut", defaultVisible: true },
+  { key: "prixAchat", label: "Prix achat", align: "right", defaultVisible: true },
+  { key: "prixVente", label: "Prix vente", align: "right", defaultVisible: false },
+  { key: "margeBrute", label: "Marge brute", align: "right", defaultVisible: false },
+  { key: "margeNette", label: "Marge nette", align: "right", defaultVisible: true },
+  { key: "coefficient", label: "Coef", align: "right", defaultVisible: true },
+  { key: "dateVente", label: "Date vente", defaultVisible: false },
+  { key: "canal", label: "Canal", defaultVisible: true },
+  { key: "transporteur", label: "Transporteur", defaultVisible: false },
 ];
+
+const COLUMN_STORAGE_KEY = "myflip-columns";
+
+const defaultColumnVisibility = (): Record<string, boolean> =>
+  Object.fromEntries(COLUMN_META.map((c) => [c.key, c.defaultVisible]));
+
+// Extracteurs de valeur pour l'export CSV (une fonction par colonne).
+const CSV_VALUE: Record<SortKey, (a: ArticleDTO) => string | number> = {
+  sku: (a) => a.sku,
+  marque: (a) => a.marque,
+  categorie: (a) => a.categorie,
+  grade: (a) => a.grade ?? "",
+  statut: (a) => a.statut,
+  prixAchat: (a) => a.prixAchat,
+  prixVente: (a) => a.prixVente ?? "",
+  margeBrute: (a) => a.margeBrute ?? "",
+  margeNette: (a) => a.margeNette ?? "",
+  coefficient: (a) => a.coefficient ?? "",
+  dateVente: (a) =>
+    a.dateVente ? new Date(a.dateVente).toLocaleDateString("fr-FR") : "",
+  canal: (a) => a.canal ?? "",
+  transporteur: (a) => a.transporteur ?? "",
+};
 
 function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
   const va = a[key];
@@ -94,6 +127,61 @@ function StockInner() {
 
   const [newCommande, setNewCommande] = useState(false);
   const [sellTarget, setSellTarget] = useState<ArticleDTO | null>(null);
+
+  // --- Colonnes masquables (préférences persistées dans localStorage) ---
+  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(
+    defaultColumnVisibility,
+  );
+  const [colsOpen, setColsOpen] = useState(false);
+  const colsRef = useRef<HTMLDivElement>(null);
+
+  // Chargement des préférences au montage (client uniquement).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COLUMN_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Record<string, boolean>;
+      setVisibleCols((prev) => {
+        const next = { ...prev };
+        for (const c of COLUMN_META) {
+          if (c.always) next[c.key] = true;
+          else if (typeof saved[c.key] === "boolean") next[c.key] = saved[c.key];
+        }
+        return next;
+      });
+    } catch {
+      /* préférences invalides : on garde les valeurs par défaut */
+    }
+  }, []);
+
+  // Fermeture du menu au clic extérieur.
+  useEffect(() => {
+    if (!colsOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (colsRef.current && !colsRef.current.contains(e.target as Node)) {
+        setColsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [colsOpen]);
+
+  const toggleCol = (key: SortKey) => {
+    const meta = COLUMN_META.find((c) => c.key === key);
+    if (meta?.always) return;
+    setVisibleCols((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* stockage indisponible : on ignore */
+      }
+      return next;
+    });
+  };
+
+  const shownColumns = COLUMN_META.filter((c) => visibleCols[c.key]);
+  const colCount = shownColumns.length + 2; // case à cocher + actions
 
   // --- Sélection en masse ---
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -150,48 +238,19 @@ function StockInner() {
     return { total: articles.length, enStock, vendus, ca, net };
   }, [articles]);
 
-  // Export CSV des lignes actuellement affichées (filtres + tri respectés).
+  // Export CSV des lignes affichées (filtres, tri ET colonnes visibles respectés).
   const exportCSV = () => {
     const commandeName = (id: string | null) => {
       if (!id) return "";
       const c = commandes.find((x) => x.id === id);
       return c ? `${c.fournisseur} (${new Date(c.date).toLocaleDateString("fr-FR")})` : "";
     };
-    const headers = [
-      "SKU",
-      "Marque",
-      "Catégorie",
-      "Grade",
-      "Statut",
-      "Canal",
-      "Prix achat",
-      "Prix vente",
-      "Marge brute",
-      "Marge nette",
-      "Coef",
-      "Date vente",
-      "Transporteur",
-      "Commande",
-    ];
+    const cols = COLUMN_META.filter((c) => visibleCols[c.key]);
+    const headers = [...cols.map((c) => c.label), "Commande"];
     const esc = (v: unknown) =>
       `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = sorted.map((a) =>
-      [
-        a.sku,
-        a.marque,
-        a.categorie,
-        a.grade ?? "",
-        a.statut,
-        a.canal ?? "",
-        a.prixAchat,
-        a.prixVente ?? "",
-        a.margeBrute ?? "",
-        a.margeNette ?? "",
-        a.coefficient ?? "",
-        a.dateVente ? new Date(a.dateVente).toLocaleDateString("fr-FR") : "",
-        a.transporteur ?? "",
-        commandeName(a.commandeId),
-      ]
+      [...cols.map((c) => CSV_VALUE[c.key](a)), commandeName(a.commandeId)]
         .map(esc)
         .join(";"),
     );
@@ -264,6 +323,58 @@ function StockInner() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="relative" ref={colsRef}>
+            <button
+              onClick={() => setColsOpen((o) => !o)}
+              className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
+            >
+              Colonnes ⚙️
+            </button>
+            {colsOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-60 rounded-card border border-line bg-surface p-2 shadow-card-hover">
+                <p className="px-3 py-2 text-label-sm uppercase tracking-wide text-ink-faint">
+                  Colonnes affichées
+                </p>
+                {COLUMN_META.map((c) => (
+                  <label
+                    key={c.key}
+                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-body-md ${
+                      c.always
+                        ? "cursor-default text-ink-faint"
+                        : "cursor-pointer text-ink hover:bg-surface-container"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-default"
+                      checked={!!visibleCols[c.key]}
+                      disabled={c.always}
+                      onChange={() => toggleCol(c.key)}
+                    />
+                    {c.label}
+                    {c.always && (
+                      <span className="ml-auto text-label-sm text-ink-faint">
+                        toujours
+                      </span>
+                    )}
+                  </label>
+                ))}
+                <label className="flex cursor-default items-center gap-2.5 rounded-md px-3 py-2 text-body-md text-ink-faint">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 cursor-default accent-primary"
+                    checked
+                    disabled
+                    readOnly
+                  />
+                  Actions
+                  <span className="ml-auto text-label-sm text-ink-faint">
+                    toujours
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
           <button
             onClick={exportCSV}
             className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
@@ -352,7 +463,10 @@ function StockInner() {
 
       {/* Tableau */}
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
-        <table className="w-full min-w-[1240px] border-collapse text-body-md">
+        <table
+          style={{ minWidth: Math.max(640, colCount * 96) }}
+          className="w-full border-collapse text-body-md"
+        >
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
               <th className="w-10 px-3 py-3.5">
@@ -372,7 +486,7 @@ function StockInner() {
                   }}
                 />
               </th>
-              {COLUMNS.map((c) => (
+              {shownColumns.map((c) => (
                 <th
                   key={c.key}
                   onClick={() => toggleSort(c.key)}
@@ -390,21 +504,21 @@ function StockInner() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={14} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={colCount} className="px-3 py-10 text-center text-ink-faint">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={14} className="px-3 py-10 text-center text-error">
+                <td colSpan={colCount} className="px-3 py-10 text-center text-error">
                   {(error as Error).message}
                 </td>
               </tr>
             )}
             {!isLoading && !isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={14} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={colCount} className="px-3 py-10 text-center text-ink-faint">
                   Aucun article.
                 </td>
               </tr>
@@ -424,47 +538,43 @@ function StockInner() {
                 a.prixVente != null &&
                 coefEffectif != null &&
                 coefEffectif < a.coefObjectif;
-              return (
-                <tr
-                  key={a.id}
-                  className={`border-t border-line transition-colors hover:bg-surface-soft ${
-                    selected.has(a.id) ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <td className="px-3 py-1">
-                    <input
-                      type="checkbox"
-                      aria-label={`Sélectionner ${a.sku}`}
-                      className="h-4 w-4 cursor-pointer accent-primary"
-                      checked={selected.has(a.id)}
-                      onChange={() => toggleOne(a.id)}
-                    />
-                  </td>
-                  <td className="px-1 py-1 font-mono text-ink">
+              // Cellules indexées par clé de colonne : on n'affiche que les
+              // colonnes visibles, dans l'ordre de COLUMN_META.
+              const cells: Record<SortKey, React.ReactNode> = {
+                sku: (
+                  <td key="sku" className="px-2 py-3 font-mono text-ink">
                     <EditableCell
                       value={a.sku}
                       onSave={(v) => patch(a.id, { sku: v })}
                     />
                   </td>
-                  <td className="px-1 py-1 text-ink">
+                ),
+                marque: (
+                  <td key="marque" className="px-2 py-3 text-ink">
                     <EditableCell
                       value={a.marque}
                       onSave={(v) => patch(a.id, { marque: v })}
                     />
                   </td>
-                  <td className="px-1 py-1 text-ink-muted">
+                ),
+                categorie: (
+                  <td key="categorie" className="px-2 py-3 text-ink-muted">
                     <EditableCell
                       value={a.categorie}
                       onSave={(v) => patch(a.id, { categorie: v })}
                     />
                   </td>
-                  <td className="px-1 py-1 text-ink-muted">
+                ),
+                grade: (
+                  <td key="grade" className="px-2 py-3 text-ink-muted">
                     <EditableCell
                       value={a.grade}
                       onSave={(v) => patch(a.id, { grade: v || null })}
                     />
                   </td>
-                  <td className="px-2 py-1">
+                ),
+                statut: (
+                  <td key="statut" className="px-2 py-3">
                     <select
                       value={a.statut}
                       onChange={(e) => onStatutChange(a, e.target.value)}
@@ -472,7 +582,7 @@ function StockInner() {
                         backgroundColor: statutColor(a.statut).bg,
                         color: statutColor(a.statut).text,
                       }}
-                      className="cursor-pointer rounded-full border-0 px-2.5 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
+                      className="cursor-pointer rounded-full border-0 px-3 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {STATUTS.map((s) => (
                         <option
@@ -485,7 +595,9 @@ function StockInner() {
                       ))}
                     </select>
                   </td>
-                  <td className="px-1 py-1 text-ink">
+                ),
+                prixAchat: (
+                  <td key="prixAchat" className="px-2 py-3 text-ink">
                     <EditableCell
                       value={a.prixAchat}
                       display={euros(a.prixAchat)}
@@ -494,7 +606,9 @@ function StockInner() {
                       onSave={(v) => patch(a.id, { prixAchat: Number(v) })}
                     />
                   </td>
-                  <td className="px-1 py-1 text-ink">
+                ),
+                prixVente: (
+                  <td key="prixVente" className="px-2 py-3 text-ink">
                     <EditableCell
                       value={a.prixVente}
                       display={a.prixVente != null ? euros(a.prixVente) : "—"}
@@ -504,11 +618,19 @@ function StockInner() {
                       onSave={(v) => patch(a.id, { prixVente: Number(v) })}
                     />
                   </td>
-                  <td className="px-3 py-1 text-right text-ink-muted">
+                ),
+                margeBrute: (
+                  <td
+                    key="margeBrute"
+                    className="px-3 py-3 text-right text-ink-muted"
+                  >
                     {a.margeBrute != null ? euros(a.margeBrute) : "—"}
                   </td>
+                ),
+                margeNette: (
                   <td
-                    className={`px-3 py-1 text-right font-medium ${
+                    key="margeNette"
+                    className={`px-3 py-3 text-right font-medium ${
                       a.margeNette != null && a.margeNette < 0
                         ? "text-error"
                         : "text-primary"
@@ -516,7 +638,9 @@ function StockInner() {
                   >
                     {a.margeNette != null ? euros(a.margeNette) : "—"}
                   </td>
-                  <td className="px-3 py-1 text-right">
+                ),
+                coefficient: (
+                  <td key="coefficient" className="px-3 py-3 text-right">
                     {sousObjectif ? (
                       <span
                         className="inline-flex items-center gap-1 font-semibold"
@@ -531,7 +655,9 @@ function StockInner() {
                       </span>
                     )}
                   </td>
-                  <td className="px-1 py-1 text-ink-muted">
+                ),
+                dateVente: (
+                  <td key="dateVente" className="px-2 py-3 text-ink-muted">
                     <EditableCell
                       value={a.dateVente ? a.dateVente.slice(0, 10) : null}
                       display={
@@ -548,10 +674,36 @@ function StockInner() {
                       }
                     />
                   </td>
-                  <td className="px-2 py-1">
+                ),
+                canal: (
+                  <td key="canal" className="px-2 py-3">
                     <CanalBadge canal={a.canal} />
                   </td>
-                  <td className="px-3 py-1 text-right">
+                ),
+                transporteur: (
+                  <td key="transporteur" className="px-3 py-3 text-ink-muted">
+                    {a.transporteur ?? "—"}
+                  </td>
+                ),
+              };
+              return (
+                <tr
+                  key={a.id}
+                  className={`border-t border-line align-middle transition-colors hover:bg-surface-soft ${
+                    selected.has(a.id) ? "bg-primary/5" : ""
+                  }`}
+                >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Sélectionner ${a.sku}`}
+                      className="h-4 w-4 cursor-pointer accent-primary"
+                      checked={selected.has(a.id)}
+                      onChange={() => toggleOne(a.id)}
+                    />
+                  </td>
+                  {shownColumns.map((c) => cells[c.key])}
+                  <td className="px-3 py-3 text-right">
                     <button
                       onClick={() => {
                         if (confirm(`Supprimer ${a.sku} ?`)) del.mutate(a.id);

@@ -42,6 +42,8 @@ export type CommandeStatsRow = {
   vendus: number;
   ca: number;
   margeNette: number;
+  coefMoyen: number;
+  pctVendu: number; // 0..1
 };
 
 export type CommandeStatsDTO = {

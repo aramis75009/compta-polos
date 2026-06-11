@@ -6,7 +6,7 @@ export default function CanalBadge({ canal }: { canal: string | null }) {
   const c = canalColor(canal);
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-label-sm font-medium"
+      className="inline-flex items-center rounded-full px-3 py-1 text-label-sm font-medium"
       style={{ backgroundColor: c.bg, color: c.text }}
     >
       {canal}
