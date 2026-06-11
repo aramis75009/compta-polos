@@ -38,8 +38,10 @@ export default function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
       <header className="mb-8">
-        <h1 className="text-display-lg text-ink">Dashboard</h1>
-        <p className="mt-1 text-body-md text-ink-muted">
+        <h1 className="text-2xl font-bold text-ink md:text-display-lg">
+          Dashboard
+        </h1>
+        <p className="mt-1 text-sm text-ink-muted md:text-body-md">
           Vue d&apos;ensemble de ton activité.
         </p>
       </header>
@@ -114,7 +116,9 @@ export default function DashboardPage() {
           <table className="w-full min-w-[900px] border-collapse text-body-md">
             <thead>
               <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-                <th className="px-6 py-3 font-medium">Marque</th>
+                <th className="sticky left-0 z-10 bg-surface px-6 py-3 font-medium">
+                  Marque
+                </th>
                 <th className="px-3 py-3 text-right font-medium">Total</th>
                 <th className="px-3 py-3 text-right font-medium">En stock</th>
                 <th className="px-3 py-3 text-right font-medium">Vendus</th>
@@ -134,7 +138,9 @@ export default function DashboardPage() {
                   }
                   className="cursor-pointer border-t border-line transition-colors hover:bg-surface-soft"
                 >
-                  <td className="px-6 py-3.5 font-medium text-ink">{b.marque}</td>
+                  <td className="sticky left-0 z-10 bg-surface px-6 py-3.5 font-medium text-ink">
+                    {b.marque}
+                  </td>
                   <td className="px-3 py-3.5 text-right text-ink-muted">
                     {b.total}
                   </td>

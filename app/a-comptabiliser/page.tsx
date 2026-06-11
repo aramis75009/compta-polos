@@ -35,7 +35,9 @@ export default function AComptabiliserPage() {
         <table className="w-full min-w-[900px] border-collapse text-body-md">
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-              <th className="px-6 py-3.5 font-medium">SKU</th>
+              <th className="sticky left-0 z-10 bg-surface px-6 py-3.5 font-medium">
+                SKU
+              </th>
               <th className="px-3 py-3.5 font-medium">Marque</th>
               <th className="px-3 py-3.5 font-medium">Catégorie</th>
               <th className="px-3 py-3.5 text-right font-medium">Prix achat</th>
@@ -72,7 +74,7 @@ export default function AComptabiliserPage() {
                 key={a.id}
                 className="border-t border-line transition-colors hover:bg-surface-soft"
               >
-                <td className="px-6 py-3.5">
+                <td className="sticky left-0 z-10 bg-surface px-6 py-3.5">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-ink">{a.sku}</span>
                     <StatutBadge statut={a.statut} />

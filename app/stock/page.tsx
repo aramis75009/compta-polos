@@ -17,6 +17,7 @@ import EditableCell from "@/components/EditableCell";
 import SellModal from "@/components/SellModal";
 import NewCommandeModal from "@/components/NewCommandeModal";
 import CanalBadge from "@/components/CanalBadge";
+import StatutBadge from "@/components/StatutBadge";
 
 type SortKey =
   | "sku"
@@ -323,7 +324,7 @@ function StockInner() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="relative" ref={colsRef}>
+          <div className="relative hidden md:block" ref={colsRef}>
             <button
               onClick={() => setColsOpen((o) => !o)}
               className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
@@ -391,8 +392,8 @@ function StockInner() {
       </header>
 
       {/* Filtres */}
-      <div className="mb-5 flex flex-wrap gap-3">
-        <div className="relative">
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:flex-wrap">
+        <div className="relative w-full md:w-auto">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -406,13 +407,13 @@ function StockInner() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Rechercher un SKU…"
-            className={`${inputCls} rounded-full pl-9`}
+            className={`${inputCls} w-full rounded-full pl-9 md:w-auto`}
           />
         </div>
         <select
           value={marque}
           onChange={(e) => setMarque(e.target.value)}
-          className={inputCls}
+          className={`${inputCls} w-full md:w-auto`}
         >
           <option value="">Toutes les marques</option>
           {marqueOptions.map((m) => (
@@ -424,7 +425,7 @@ function StockInner() {
         <select
           value={statut}
           onChange={(e) => setStatut(e.target.value)}
-          className={inputCls}
+          className={`${inputCls} w-full md:w-auto`}
         >
           <option value="">Tous les statuts</option>
           {STATUTS.map((s) => (
@@ -436,7 +437,7 @@ function StockInner() {
         <select
           value={commande}
           onChange={(e) => setCommande(e.target.value)}
-          className={inputCls}
+          className={`${inputCls} w-full md:w-auto`}
         >
           <option value="">Toutes les commandes</option>
           {commandes.map((c) => (
@@ -454,15 +455,81 @@ function StockInner() {
               setCommande("");
               router.replace("/stock");
             }}
-            className="rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container"
+            className="w-full rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container md:w-auto"
           >
             Réinitialiser
           </button>
         )}
       </div>
 
-      {/* Tableau */}
-      <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
+      {/* Vue cartes mobile (< md) */}
+      <div className="space-y-3 md:hidden">
+        {isLoading && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+            Chargement…
+          </p>
+        )}
+        {isError && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
+            {(error as Error).message}
+          </p>
+        )}
+        {!isLoading && !isError && sorted.length === 0 && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+            Aucun article.
+          </p>
+        )}
+        {sorted.map((a) => (
+          <div
+            key={a.id}
+            className={`flex gap-3 rounded-card border bg-surface p-4 shadow-card ${
+              selected.has(a.id) ? "border-primary" : "border-line"
+            }`}
+          >
+            <input
+              type="checkbox"
+              aria-label={`Sélectionner ${a.sku}`}
+              className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+              checked={selected.has(a.id)}
+              onChange={() => toggleOne(a.id)}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-mono font-semibold text-ink">
+                  {a.sku}
+                </span>
+                <StatutBadge statut={a.statut} />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="truncate text-ink-muted">{a.marque}</span>
+                <CanalBadge canal={a.canal} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
+                <span className="text-ink">{euros(a.prixAchat)}</span>
+                <span className="text-ink-faint">→</span>
+                <span className="text-ink">
+                  {a.prixVente != null ? euros(a.prixVente) : "—"}
+                </span>
+                <span className="text-ink-faint">|</span>
+                <span
+                  className={`font-medium ${
+                    a.margeNette != null && a.margeNette > 0
+                      ? "text-primary"
+                      : a.margeNette != null && a.margeNette < 0
+                        ? "text-error"
+                        : "text-ink-muted"
+                  }`}
+                >
+                  {a.margeNette != null ? euros(a.margeNette) : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tableau (≥ md) */}
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-card md:block">
         <table
           style={{ minWidth: Math.max(640, colCount * 96) }}
           className="w-full border-collapse text-body-md"

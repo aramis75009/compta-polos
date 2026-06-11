@@ -21,7 +21,7 @@ import type { CalendarDay } from "@/lib/types";
 const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
 const navBtn =
-  "rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container";
+  "flex-1 whitespace-nowrap rounded-full border border-line px-3 py-2 text-center text-body-md text-ink-muted transition-colors hover:bg-surface-container md:flex-none md:px-4";
 
 export default function CalendrierPage() {
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
@@ -54,10 +54,10 @@ export default function CalendrierPage() {
     <main className="mx-auto max-w-[1400px] px-6 py-8">
       {/* En-tête / navigation */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-display-lg capitalize text-ink">
+        <h1 className="text-2xl font-bold capitalize text-ink md:text-display-lg">
           {format(current, "MMMM yyyy", { locale: fr })}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 md:w-auto">
           <button
             onClick={() => {
               setCurrent((c) => subMonths(c, 1));
@@ -88,7 +88,81 @@ export default function CalendrierPage() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      {/* Vue liste mobile (< md) */}
+      <div className="space-y-2 md:hidden">
+        {(() => {
+          const days = [...(data?.days ?? [])].sort((a, b) =>
+            a.date.localeCompare(b.date),
+          );
+          if (days.length === 0) {
+            return (
+              <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-body-md text-ink-faint shadow-card">
+                {isLoading ? "Chargement…" : "Aucune vente ce mois-ci."}
+              </p>
+            );
+          }
+          return days.map((dd) => {
+            const active = selected === dd.date;
+            return (
+              <div
+                key={dd.date}
+                className={`overflow-hidden rounded-card border bg-surface shadow-card transition-colors ${
+                  active ? "border-primary" : "border-line"
+                }`}
+              >
+                <button
+                  onClick={() => setSelected(active ? null : dd.date)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <div className="min-w-0">
+                    <div className="font-semibold capitalize text-ink">
+                      {new Date(dd.date).toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </div>
+                    <div className="mt-0.5 text-label-sm text-ink-faint">
+                      {dd.nbArticles} article{dd.nbArticles > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-semibold text-ink">{euros(dd.ca)}</div>
+                    <div className="text-label-sm text-primary">
+                      NET {euros(dd.net)}
+                    </div>
+                  </div>
+                </button>
+                {active && (
+                  <ul className="space-y-2 border-t border-line px-4 py-3">
+                    {dd.articles.map((a) => (
+                      <li
+                        key={a.id}
+                        className="rounded-md border border-line px-3 py-2 text-label-sm"
+                      >
+                        <div className="flex justify-between gap-2">
+                          <span className="font-mono text-ink">{a.sku}</span>
+                          <span className="font-semibold text-ink">
+                            {euros(a.prixVente)}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 flex justify-between gap-2 text-ink-faint">
+                          <span className="truncate">{a.marque}</span>
+                          <span className="shrink-0">
+                            {coef(a.coefficient)} · NET {euros(a.margeNette)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          });
+        })()}
+      </div>
+
+      <div className="hidden gap-4 md:flex">
         {/* Grille */}
         <div className="flex-1 overflow-x-auto">
           <div className="min-w-[900px]">
