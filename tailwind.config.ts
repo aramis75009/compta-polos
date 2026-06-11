@@ -55,7 +55,7 @@ const config: Config = {
           "32px",
           { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" },
         ],
-        "stat-lg": ["48px", { lineHeight: "1", fontWeight: "700" }],
+        "stat-lg": ["52px", { lineHeight: "1.05", fontWeight: "700" }],
       },
       borderRadius: {
         sm: "0.25rem",

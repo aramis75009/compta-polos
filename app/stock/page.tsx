@@ -10,12 +10,13 @@ import {
   useDeleteArticle,
   useUpdateArticle,
 } from "@/lib/hooks";
-import { coef, euros, STATUT_VENDU, STATUTS } from "@/lib/calc";
+import { coef, euros, naturalSort, STATUT_VENDU, STATUTS } from "@/lib/calc";
 import { statutColor } from "@/lib/statutColors";
 import type { ArticleDTO } from "@/lib/types";
 import EditableCell from "@/components/EditableCell";
 import SellModal from "@/components/SellModal";
 import NewCommandeModal from "@/components/NewCommandeModal";
+import CanalBadge from "@/components/CanalBadge";
 
 type SortKey =
   | "sku"
@@ -28,7 +29,8 @@ type SortKey =
   | "margeBrute"
   | "margeNette"
   | "coefficient"
-  | "dateVente";
+  | "dateVente"
+  | "canal";
 
 const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "sku", label: "SKU" },
@@ -42,6 +44,7 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "margeNette", label: "Marge nette", align: "right" },
   { key: "coefficient", label: "Coef", align: "right" },
   { key: "dateVente", label: "Date vente" },
+  { key: "canal", label: "Canal" },
 ];
 
 function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
@@ -51,7 +54,8 @@ function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
   if (va == null) return 1;
   if (vb == null) return -1;
   if (typeof va === "number" && typeof vb === "number") return va - vb;
-  return String(va).localeCompare(String(vb));
+  // Tri naturel pour les colonnes texte (SKU : AD1, AD2…AD10).
+  return naturalSort(String(va), String(vb));
 }
 
 const inputCls =
@@ -146,6 +150,67 @@ function StockInner() {
     return { total: articles.length, enStock, vendus, ca, net };
   }, [articles]);
 
+  // Export CSV des lignes actuellement affichées (filtres + tri respectés).
+  const exportCSV = () => {
+    const commandeName = (id: string | null) => {
+      if (!id) return "";
+      const c = commandes.find((x) => x.id === id);
+      return c ? `${c.fournisseur} (${new Date(c.date).toLocaleDateString("fr-FR")})` : "";
+    };
+    const headers = [
+      "SKU",
+      "Marque",
+      "Catégorie",
+      "Grade",
+      "Statut",
+      "Canal",
+      "Prix achat",
+      "Prix vente",
+      "Marge brute",
+      "Marge nette",
+      "Coef",
+      "Date vente",
+      "Transporteur",
+      "Commande",
+    ];
+    const esc = (v: unknown) =>
+      `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = sorted.map((a) =>
+      [
+        a.sku,
+        a.marque,
+        a.categorie,
+        a.grade ?? "",
+        a.statut,
+        a.canal ?? "",
+        a.prixAchat,
+        a.prixVente ?? "",
+        a.margeBrute ?? "",
+        a.margeNette ?? "",
+        a.coefficient ?? "",
+        a.dateVente ? new Date(a.dateVente).toLocaleDateString("fr-FR") : "",
+        a.transporteur ?? "",
+        commandeName(a.commandeId),
+      ]
+        .map(esc)
+        .join(";"),
+    );
+    const csv = [headers.map(esc).join(";"), ...lines].join("\r\n");
+    // BOM pour qu'Excel reconnaisse l'UTF-8.
+    const blob = new Blob(["﻿" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const today = new Date().toISOString().slice(0, 10);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `myflip-stock-${today}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -166,12 +231,21 @@ function StockInner() {
     }
   };
 
-  const confirmSell = (prixVente: number, dateVenteISO: string) => {
+  const confirmSell = (
+    prixVente: number,
+    dateVenteISO: string,
+    canal: string,
+  ) => {
     if (!sellTarget) return;
     update.mutate(
       {
         id: sellTarget.id,
-        patch: { statut: STATUT_VENDU, prixVente, dateVente: dateVenteISO },
+        patch: {
+          statut: STATUT_VENDU,
+          prixVente,
+          dateVente: dateVenteISO,
+          canal,
+        },
       },
       { onSuccess: () => setSellTarget(null) },
     );
@@ -189,12 +263,20 @@ function StockInner() {
             Double-clic sur une cellule pour la modifier.
           </p>
         </div>
-        <button
-          onClick={() => setNewCommande(true)}
-          className="rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark"
-        >
-          + Nouvelle commande
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={exportCSV}
+            className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
+          >
+            📤 Exporter CSV
+          </button>
+          <button
+            onClick={() => setNewCommande(true)}
+            className="rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark"
+          >
+            + Nouvelle commande
+          </button>
+        </div>
       </header>
 
       {/* Filtres */}
@@ -270,7 +352,7 @@ function StockInner() {
 
       {/* Tableau */}
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
-        <table className="w-full min-w-[1100px] border-collapse text-body-md">
+        <table className="w-full min-w-[1240px] border-collapse text-body-md">
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
               <th className="w-10 px-3 py-3.5">
@@ -308,27 +390,40 @@ function StockInner() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={13} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={14} className="px-3 py-10 text-center text-ink-faint">
                   Chargement…
                 </td>
               </tr>
             )}
             {isError && (
               <tr>
-                <td colSpan={13} className="px-3 py-10 text-center text-error">
+                <td colSpan={14} className="px-3 py-10 text-center text-error">
                   {(error as Error).message}
                 </td>
               </tr>
             )}
             {!isLoading && !isError && sorted.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-3 py-10 text-center text-ink-faint">
+                <td colSpan={14} className="px-3 py-10 text-center text-ink-faint">
                   Aucun article.
                 </td>
               </tr>
             )}
             {sorted.map((a) => {
               const vendu = a.statut === STATUT_VENDU;
+              // Coef effectif : pour un article non vendu mais dont le prix de
+              // vente est renseigné, on dérive prixVente / prixAchat.
+              const coefEffectif =
+                a.coefficient ??
+                (a.prixVente != null && a.prixAchat
+                  ? a.prixVente / a.prixAchat
+                  : null);
+              const sousObjectif =
+                (a.statut === "En vente" || a.statut === "En stock") &&
+                a.coefObjectif != null &&
+                a.prixVente != null &&
+                coefEffectif != null &&
+                coefEffectif < a.coefObjectif;
               return (
                 <tr
                   key={a.id}
@@ -421,8 +516,20 @@ function StockInner() {
                   >
                     {a.margeNette != null ? euros(a.margeNette) : "—"}
                   </td>
-                  <td className="px-3 py-1 text-right text-ink-muted">
-                    {coef(a.coefficient)}
+                  <td className="px-3 py-1 text-right">
+                    {sousObjectif ? (
+                      <span
+                        className="inline-flex items-center gap-1 font-semibold"
+                        style={{ color: "#EA580C" }}
+                        title={`Objectif : x${a.coefObjectif}`}
+                      >
+                        ⚠️ {coef(coefEffectif)}
+                      </span>
+                    ) : (
+                      <span className="text-ink-muted">
+                        {coef(a.coefficient)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-1 py-1 text-ink-muted">
                     <EditableCell
@@ -440,6 +547,9 @@ function StockInner() {
                         })
                       }
                     />
+                  </td>
+                  <td className="px-2 py-1">
+                    <CanalBadge canal={a.canal} />
                   </td>
                   <td className="px-3 py-1 text-right">
                     <button
@@ -526,6 +636,7 @@ function StockInner() {
       <SellModal
         open={!!sellTarget}
         sku={sellTarget?.sku}
+        defaultCanal={sellTarget?.canal}
         pending={update.isPending}
         error={update.isError ? (update.error as Error).message : null}
         onClose={() => setSellTarget(null)}

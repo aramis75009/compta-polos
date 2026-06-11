@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deriveVente, STATUT_VENDU } from "@/lib/calc";
 import { toDTO } from "@/lib/serialize";
-import { archiveCard, removeComptabiliserLabel } from "@/lib/trello";
+import { removeComptabiliserLabel } from "@/lib/trello";
 
 export const dynamic = "force-dynamic";
 
-type Body = { prixVente?: number; dateVente?: string };
+type Body = { prixVente?: number; dateVente?: string; canal?: string };
 
 // POST /api/articles/[id]/comptabiliser
-// 1. Marque l'article comme vendu (prixVente, dateVente, marges, coef)
+// 1. Marque l'article comme vendu (prixVente, dateVente, marges, coef, canal)
 // 2. Retire l'étiquette « À comptabiliser » de la carte Trello
-// 3. Archive la carte si elle n'a plus cette étiquette
+//    (la carte reste visible dans Trello — pas d'archivage).
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -26,6 +26,7 @@ export async function POST(
       );
     }
     const dateVente = body.dateVente ? new Date(body.dateVente) : new Date();
+    const canal = body.canal ? String(body.canal).trim() : undefined;
 
     const existing = await prisma.article.findUnique({
       where: { id: params.id },
@@ -53,6 +54,7 @@ export async function POST(
         margeBrute: d.margeBrute,
         margeNette: d.margeNette,
         coefficient: d.coefficient,
+        ...(canal ? { canal } : {}),
       },
       include: { commande: true },
     });
@@ -61,11 +63,11 @@ export async function POST(
     let trello: string | null = null;
     if (existing.trelloCardId) {
       try {
+        // On retire uniquement l'étiquette « À comptabiliser ».
+        // La carte n'est PAS archivée : elle reste visible dans Trello
+        // avec ses autres étiquettes.
         await removeComptabiliserLabel(existing.trelloCardId);
-        const archived = await archiveCard(existing.trelloCardId);
-        trello = archived
-          ? "Étiquette retirée et carte archivée."
-          : "Étiquette retirée.";
+        trello = "Étiquette retirée.";
       } catch (e) {
         console.error("Trello (comptabiliser)", e);
         trello = "Article validé, mais la synchro Trello a échoué.";

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
+import { CANAUX } from "@/lib/canalColors";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -12,6 +13,7 @@ export default function SellModal({
   sku,
   defaultPrix,
   defaultDate,
+  defaultCanal,
   pending,
   error,
   onClose,
@@ -21,26 +23,29 @@ export default function SellModal({
   sku?: string;
   defaultPrix?: number | null;
   defaultDate?: string | null;
+  defaultCanal?: string | null;
   pending?: boolean;
   error?: string | null;
   onClose: () => void;
-  onConfirm: (prixVente: number, dateVenteISO: string) => void;
+  onConfirm: (prixVente: number, dateVenteISO: string, canal: string) => void;
 }) {
   const [prix, setPrix] = useState("");
   const [date, setDate] = useState(todayISO());
+  const [canal, setCanal] = useState<string>("Vinted");
 
   useEffect(() => {
     if (open) {
       setPrix(defaultPrix != null ? String(defaultPrix) : "");
       setDate(defaultDate ? defaultDate.slice(0, 10) : todayISO());
+      setCanal(defaultCanal || "Vinted");
     }
-  }, [open, defaultPrix, defaultDate]);
+  }, [open, defaultPrix, defaultDate, defaultCanal]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const p = Number(prix);
     if (!Number.isFinite(p) || p <= 0) return;
-    onConfirm(p, new Date(date).toISOString());
+    onConfirm(p, new Date(date).toISOString(), canal);
   };
 
   return (
@@ -72,6 +77,22 @@ export default function SellModal({
             onChange={(e) => setDate(e.target.value)}
             className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
           />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-label-sm text-ink-muted">
+            Canal de vente
+          </label>
+          <select
+            value={canal}
+            onChange={(e) => setCanal(e.target.value)}
+            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+          >
+            {CANAUX.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
         {error && <p className="text-body-md text-error">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">

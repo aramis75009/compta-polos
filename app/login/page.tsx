@@ -40,10 +40,10 @@ function LoginForm() {
       >
         <div className="mb-6 flex items-center gap-2">
           <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary">
-            <span className="text-lg font-bold">C</span>
+            <span className="text-lg font-bold">M</span>
           </span>
           <div>
-            <h1 className="text-title-sm font-semibold text-ink">Compta Polos</h1>
+            <h1 className="text-title-sm font-semibold text-ink">MyFlip</h1>
             <p className="text-label-sm text-ink-faint">
               Connecte-toi pour continuer.
             </p>

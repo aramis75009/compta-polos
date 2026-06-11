@@ -13,6 +13,7 @@ type PostBody = {
   marque?: string;
   categorie?: string;
   grade?: string | null;
+  coefObjectif?: number | null;
 };
 
 // GET /api/commandes
@@ -31,6 +32,7 @@ export async function GET() {
       marque: c.marque,
       categorie: c.categorie,
       grade: c.grade,
+      coefObjectif: c.coefObjectif,
     }));
     return NextResponse.json(dto);
   } catch (err) {
@@ -53,6 +55,10 @@ export async function POST(req: NextRequest) {
     const grade = body.grade ? String(body.grade).trim() : null;
     const coutTotal = Number(body.coutTotal);
     const nbArticles = Number(body.nbArticles);
+    const coefObjectif =
+      body.coefObjectif != null && Number.isFinite(Number(body.coefObjectif))
+        ? Number(body.coefObjectif)
+        : null;
 
     if (!fournisseur)
       return NextResponse.json(
@@ -105,6 +111,7 @@ export async function POST(req: NextRequest) {
           marque,
           categorie,
           grade,
+          ...(coefObjectif != null ? { coefObjectif } : {}),
         },
       });
 
@@ -132,6 +139,7 @@ export async function POST(req: NextRequest) {
       marque: commande.marque,
       categorie: commande.categorie,
       grade: commande.grade,
+      coefObjectif: commande.coefObjectif,
     };
     return NextResponse.json(dto, { status: 201 });
   } catch (err) {

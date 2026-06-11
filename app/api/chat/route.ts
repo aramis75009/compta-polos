@@ -89,7 +89,7 @@ const tools: Anthropic.Tool[] = [
   },
 ];
 
-const SYSTEM = `Tu es l'assistant IA de "Compta Polos", une application de gestion de stock pour un revendeur de vêtements de marque.
+const SYSTEM = `Tu es l'assistant IA de "MyFlip", une application de gestion de stock pour un revendeur de vêtements de marque.
 Réponds TOUJOURS en français, de façon concise.
 
 Marques : "Polo Ralph Lauren" (SKU préfixe PRL), "Lacoste" (LAC), "Tommy Hilfiger" (TH).

@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Compta Polos",
+  title: "MyFlip",
   description:
     "Comptabilité et gestion de stock pour revendeur de vêtements de marque",
 };

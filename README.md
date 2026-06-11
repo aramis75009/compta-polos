@@ -1,4 +1,4 @@
-# Compta Polos
+# MyFlip
 
 Mini-SaaS de comptabilité et de gestion de stock pour un revendeur de vêtements
 de marque (Polo Ralph Lauren, Lacoste, Tommy Hilfiger). L'application permet de

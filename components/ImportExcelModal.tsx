@@ -18,6 +18,7 @@ export default function ImportExcelModal({
   const importer = useImportCommande();
   const [fournisseur, setFournisseur] = useState("");
   const [date, setDate] = useState(todayISO());
+  const [coefObjectif, setCoefObjectif] = useState("2.5");
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -26,6 +27,7 @@ export default function ImportExcelModal({
   const reset = () => {
     setFournisseur("");
     setDate(todayISO());
+    setCoefObjectif("2.5");
     setFile(null);
     setResult(null);
     importer.reset();
@@ -48,6 +50,7 @@ export default function ImportExcelModal({
     const form = new FormData();
     form.append("fournisseur", fournisseur.trim());
     form.append("date", new Date(date).toISOString());
+    form.append("coefObjectif", coefObjectif);
     form.append("fichier", file);
     const res = await importer.mutateAsync(form);
     setResult(res);
@@ -113,6 +116,20 @@ export default function ImportExcelModal({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              className={field}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-label-sm text-ink-muted">
+              Objectif coef (x)
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={coefObjectif}
+              onChange={(e) => setCoefObjectif(e.target.value)}
+              placeholder="2.5"
               className={field}
             />
           </div>

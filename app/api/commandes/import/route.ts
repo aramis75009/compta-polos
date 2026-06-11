@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const fournisseur = str(form.get("fournisseur"));
     const dateStr = str(form.get("date"));
+    const coefStr = str(form.get("coefObjectif"));
+    const coefObjectif = coefStr && Number.isFinite(Number(coefStr))
+      ? Number(coefStr)
+      : null;
     const file = form.get("fichier");
 
     if (!fournisseur) {
@@ -159,7 +163,13 @@ export async function POST(req: NextRequest) {
 
     // Création de la commande.
     const commande = await prisma.commande.create({
-      data: { fournisseur, date, coutTotal, nbArticles },
+      data: {
+        fournisseur,
+        date,
+        coutTotal,
+        nbArticles,
+        ...(coefObjectif != null ? { coefObjectif } : {}),
+      },
     });
 
     // SKU déjà existants en base → on rattache (pas de doublon).

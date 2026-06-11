@@ -2,10 +2,75 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCommandes, useDeleteCommande } from "@/lib/hooks";
+import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 import NewCommandeModal from "@/components/NewCommandeModal";
 import ImportExcelModal from "@/components/ImportExcelModal";
+
+function CommandeDetail({ commandeId }: { commandeId: string }) {
+  const { data, isLoading, isError, error } = useCommandeStats(commandeId);
+
+  if (isLoading) {
+    return (
+      <div className="px-6 py-4 text-body-md text-ink-faint">
+        Chargement du détail…
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="px-6 py-4 text-body-md text-error">
+        {error ? (error as Error).message : "Erreur de chargement."}
+      </div>
+    );
+  }
+  if (data.rows.length === 0) {
+    return (
+      <div className="px-6 py-4 text-body-md text-ink-faint">
+        Aucun article dans cette commande.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto px-6 py-4">
+      <table className="w-full min-w-[700px] border-collapse text-body-md">
+        <thead>
+          <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
+            <th className="px-3 py-2 font-medium">Catégorie</th>
+            <th className="px-3 py-2 text-right font-medium">Total</th>
+            <th className="px-3 py-2 text-right font-medium">En stock</th>
+            <th className="px-3 py-2 text-right font-medium">En vente</th>
+            <th className="px-3 py-2 text-right font-medium">Vendus</th>
+            <th className="px-3 py-2 text-right font-medium">CA (€)</th>
+            <th className="px-3 py-2 text-right font-medium">Marge nette (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((r) => (
+            <tr key={r.categorie} className="border-t border-line">
+              <td className="px-3 py-2 font-medium text-ink">{r.categorie}</td>
+              <td className="px-3 py-2 text-right text-ink-muted">{r.total}</td>
+              <td className="px-3 py-2 text-right text-ink-muted">
+                {r.enStock}
+              </td>
+              <td className="px-3 py-2 text-right text-ink-muted">
+                {r.enVente}
+              </td>
+              <td className="px-3 py-2 text-right text-ink-muted">{r.vendus}</td>
+              <td className="px-3 py-2 text-right font-medium text-ink">
+                {euros(r.ca)}
+              </td>
+              <td className="px-3 py-2 text-right font-medium text-primary">
+                {euros(r.margeNette)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function CommandesPage() {
   const router = useRouter();
@@ -13,6 +78,10 @@ export default function CommandesPage() {
   const del = useDeleteCommande();
   const [newCommande, setNewCommande] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const toggleDetail = (id: string) =>
+    setExpandedId((prev) => (prev === id ? null : id));
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
@@ -73,51 +142,71 @@ export default function CommandesPage() {
                 </td>
               </tr>
             )}
-            {commandes.map((c) => (
-              <tr
-                key={c.id}
-                className="border-t border-line transition-colors hover:bg-surface-soft"
-              >
-                <td className="px-6 py-3.5 font-medium text-ink">
-                  {c.fournisseur}
-                </td>
-                <td className="px-3 py-3.5 text-ink-muted">
-                  {new Date(c.date).toLocaleDateString("fr-FR")}
-                </td>
-                <td className="px-3 py-3.5 text-right text-ink-muted">
-                  {c.nbArticles}
-                </td>
-                <td className="px-3 py-3.5 text-right text-ink">
-                  {euros(c.coutTotal)}
-                </td>
-                <td className="px-3 py-3.5 text-right font-medium text-primary">
-                  {euros(c.prixUnitaire)}
-                </td>
-                <td className="px-6 py-3.5">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => router.push(`/stock?commande=${c.id}`)}
-                      className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-surface-container"
-                    >
-                      Voir les articles
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `Supprimer la commande « ${c.fournisseur} » et ses articles ?`,
-                          )
-                        )
-                          del.mutate(c.id);
-                      }}
-                      className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-error transition-colors hover:bg-error-container"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {commandes.map((c) => {
+              const expanded = expandedId === c.id;
+              return (
+                <FragmentRow key={c.id}>
+                  <tr className="border-t border-line transition-colors hover:bg-surface-soft">
+                    <td className="px-6 py-3.5 font-medium text-ink">
+                      <div>{c.fournisseur}</div>
+                      {c.coefObjectif != null && (
+                        <div className="mt-0.5 text-label-sm font-normal text-ink-faint">
+                          Objectif : x{c.coefObjectif}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 text-ink-muted">
+                      {new Date(c.date).toLocaleDateString("fr-FR")}
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-ink-muted">
+                      {c.nbArticles}
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-ink">
+                      {euros(c.coutTotal)}
+                    </td>
+                    <td className="px-3 py-3.5 text-right font-medium text-primary">
+                      {euros(c.prixUnitaire)}
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => toggleDetail(c.id)}
+                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-surface-container"
+                        >
+                          {expanded ? "▲ Détail" : "▼ Détail"}
+                        </button>
+                        <button
+                          onClick={() => router.push(`/stock?commande=${c.id}`)}
+                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-surface-container"
+                        >
+                          Voir les articles
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Supprimer la commande « ${c.fournisseur} » et ses articles ?`,
+                              )
+                            )
+                              del.mutate(c.id);
+                          }}
+                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-error transition-colors hover:bg-error-container"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expanded && (
+                    <tr className="border-t border-line bg-surface-soft">
+                      <td colSpan={6} className="p-0">
+                        <CommandeDetail commandeId={c.id} />
+                      </td>
+                    </tr>
+                  )}
+                </FragmentRow>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -126,4 +215,9 @@ export default function CommandesPage() {
       <ImportExcelModal open={importOpen} onClose={() => setImportOpen(false)} />
     </main>
   );
+}
+
+// Permet de retourner deux <tr> par commande (ligne + panneau détail).
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

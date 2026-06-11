@@ -1,4 +1,4 @@
-// Compta Polos – schéma Prisma
+// MyFlip – schéma Prisma
 // Docs : https://pris.ly/d/prisma-schema
 
 generator client {
@@ -26,6 +26,7 @@ model Commande {
   marque      String?
   categorie   String?
   grade       String?
+  coefObjectif Float?   @default(2.5)
   articles    Article[]
   createdAt   DateTime  @default(now())
 }
@@ -42,6 +43,7 @@ model Article {
   margeBrute  Float?
   margeNette  Float?
   coefficient Float?
+  canal       String?   @default("Vinted")
   dateVente   DateTime?
   transporteur String?
   trelloCardId String?

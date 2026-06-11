@@ -13,7 +13,7 @@ export default function KpiCard({
 
   return (
     <div
-      className={`relative rounded-card border p-6 shadow-card transition-shadow hover:shadow-card-hover ${
+      className={`relative flex min-h-[140px] flex-col overflow-visible rounded-card border p-7 shadow-card transition-shadow hover:shadow-card-hover ${
         primary
           ? "border-primary bg-primary text-on-primary"
           : "border-line bg-surface text-ink"
@@ -27,7 +27,9 @@ export default function KpiCard({
         {label}
       </p>
       <p
-        className={`mt-3 text-stat-lg ${primary ? "text-on-primary" : "text-ink"}`}
+        className={`mt-3 overflow-visible whitespace-nowrap text-stat-lg leading-tight ${
+          primary ? "text-on-primary" : "text-ink"
+        }`}
       >
         {value}
       </p>

@@ -37,22 +37,6 @@ export async function removeComptabiliserLabel(cardId: string): Promise<void> {
   }
 }
 
-/** Archive (closed=true) une carte si elle n'a plus l'étiquette « À comptabiliser ». */
-export async function archiveCard(cardId: string): Promise<boolean> {
-  const labelId = process.env.TRELLO_LABEL_ID;
-  const labels = await getCardLabels(cardId);
-  const stillHas = labels.some((l) => l.id === labelId);
-  if (stillHas) return false;
-
-  const res = await fetch(`${BASE}/cards/${cardId}?closed=true&${creds()}`, {
-    method: "PUT",
-  });
-  if (!res.ok) {
-    throw new Error(`Trello archiveCard ${res.status}`);
-  }
-  return true;
-}
-
 /** Enregistre un webhook Trello sur le board. Renvoie l'objet créé. */
 export async function createWebhook(callbackURL: string, idModel: string) {
   const res = await fetch(`${BASE}/webhooks?${creds()}`, {

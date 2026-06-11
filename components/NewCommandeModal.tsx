@@ -26,6 +26,7 @@ export default function NewCommandeModal({
   const [marque, setMarque] = useState(MARQUES[0]);
   const [categorie, setCategorie] = useState("Polo");
   const [grade, setGrade] = useState("");
+  const [coefObjectif, setCoefObjectif] = useState("2.5");
 
   const cout = Number(coutTotal);
   const nb = Number(nbArticles);
@@ -42,10 +43,12 @@ export default function NewCommandeModal({
     setMarque(MARQUES[0]);
     setCategorie("Polo");
     setGrade("");
+    setCoefObjectif("2.5");
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const coefObj = Number(coefObjectif);
     await create.mutateAsync({
       fournisseur: fournisseur.trim(),
       date: new Date(date).toISOString(),
@@ -54,6 +57,7 @@ export default function NewCommandeModal({
       marque,
       categorie: categorie.trim(),
       grade: grade.trim() || null,
+      coefObjectif: Number.isFinite(coefObj) && coefObj > 0 ? coefObj : null,
     });
     reset();
     onClose();
@@ -159,6 +163,21 @@ export default function NewCommandeModal({
               className={field}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-label-sm text-ink-muted">
+            Objectif coef (x)
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            value={coefObjectif}
+            onChange={(e) => setCoefObjectif(e.target.value)}
+            placeholder="2.5"
+            className={field}
+          />
         </div>
 
         <p className="text-label-sm text-ink-faint">

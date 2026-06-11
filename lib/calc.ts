@@ -108,6 +108,13 @@ export function deriveVente(input: {
   };
 }
 
+/**
+ * Tri naturel des chaînes (ex. SKU) : AD1, AD2…AD9, AD10, AD11, LAC1…
+ * Le tri SQL classique donnerait AD1, AD10, AD11, AD2… (ordre lexicographique).
+ */
+export const naturalSort = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+
 /** Moyenne arithmétique d'une liste (0 si vide). */
 export function moyenne(values: number[]): number {
   if (values.length === 0) return 0;

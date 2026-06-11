@@ -26,6 +26,7 @@ export async function GET() {
         prixVente: true,
         margeNette: true,
         coefficient: true,
+        canal: true,
         dateVente: true,
       },
     });
@@ -105,6 +106,16 @@ export async function GET() {
       .map(([statut, count]) => ({ statut, count }))
       .sort((a, b) => b.count - a.count);
 
+    // --- CA par canal de vente (sur les articles vendus) ---
+    const canalMap = new Map<string, number>();
+    for (const a of vendus) {
+      const canal = a.canal ?? "Autre";
+      canalMap.set(canal, (canalMap.get(canal) ?? 0) + (a.prixVente ?? 0));
+    }
+    const caParCanal = Array.from(canalMap.entries())
+      .map(([canal, ca]) => ({ canal, ca: round(ca) }))
+      .sort((a, b) => b.ca - a.ca);
+
     const dto: StatsDTO = {
       vitesse: {
         parJour7: round(total7 / 7),
@@ -117,6 +128,7 @@ export async function GET() {
       topArticles,
       projection: { restants, cadenceParJour: round(cadenceParJour), joursRestants },
       repartitionStatuts,
+      caParCanal,
     };
     return NextResponse.json(dto);
   } catch (err) {

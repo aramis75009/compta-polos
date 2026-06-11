@@ -14,10 +14,10 @@ export default function AComptabiliserPage() {
   const valider = useComptabiliser();
   const [target, setTarget] = useState<ArticleDTO | null>(null);
 
-  const confirm = (prixVente: number, dateVenteISO: string) => {
+  const confirm = (prixVente: number, dateVenteISO: string, canal: string) => {
     if (!target) return;
     valider.mutate(
-      { id: target.id, prixVente, dateVente: dateVenteISO },
+      { id: target.id, prixVente, dateVente: dateVenteISO, canal },
       { onSuccess: () => setTarget(null) },
     );
   };
@@ -112,6 +112,7 @@ export default function AComptabiliserPage() {
         open={!!target}
         sku={target?.sku}
         defaultPrix={target?.prixVente}
+        defaultCanal={target?.canal}
         pending={valider.isPending}
         error={valider.isError ? (valider.error as Error).message : null}
         onClose={() => setTarget(null)}

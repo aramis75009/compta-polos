@@ -9,6 +9,7 @@ import type {
   ArticleDTO,
   CalendarDTO,
   CommandeDTO,
+  CommandeStatsDTO,
   DashboardDTO,
   StatsDTO,
 } from "./types";
@@ -75,6 +76,7 @@ export type ArticlePatch = Partial<{
   prixAchat: number;
   prixVente: number | null;
   dateVente: string | null;
+  canal: string | null;
 }>;
 
 export function useUpdateArticle() {
@@ -108,6 +110,7 @@ export type CommandeInput = {
   marque: string;
   categorie: string;
   grade?: string | null;
+  coefObjectif?: number | null;
 };
 
 export function useCreateCommande() {
@@ -126,6 +129,15 @@ export function useCommandes() {
   return useQuery({
     queryKey: ["commandes"],
     queryFn: () => jsonFetch<CommandeDTO[]>("/api/commandes"),
+  });
+}
+
+export function useCommandeStats(id: string | null) {
+  return useQuery({
+    queryKey: ["commande-stats", id],
+    enabled: !!id,
+    queryFn: () =>
+      jsonFetch<CommandeStatsDTO>(`/api/commandes/${id}/stats`),
   });
 }
 
@@ -184,14 +196,19 @@ export function useComptabiliser() {
       id,
       prixVente,
       dateVente,
+      canal,
     }: {
       id: string;
       prixVente: number;
       dateVente: string;
+      canal?: string;
     }) =>
       jsonFetch<{ article: ArticleDTO; trello: string | null }>(
         `/api/articles/${id}/comptabiliser`,
-        { method: "POST", body: JSON.stringify({ prixVente, dateVente }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ prixVente, dateVente, canal }),
+        },
       ),
     onSuccess: invalidate,
   });

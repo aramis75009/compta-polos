@@ -14,6 +14,7 @@ import {
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import { statutColor } from "@/lib/statutColors";
+import { canalColor } from "@/lib/canalColors";
 
 // Couleur vive (texte) du statut, pour le donut et la légende.
 const hex = (statut: string) => statutColor(statut).text;
@@ -198,6 +199,60 @@ export default function StatistiquesPage() {
               ))}
             </ul>
           </div>
+        </Card>
+
+        {/* CA par canal de vente (barres horizontales) */}
+        <Card title="CA par canal">
+          {data.caParCanal.length === 0 ? (
+            <p className="text-body-md text-ink-faint">
+              Aucune vente pour le moment.
+            </p>
+          ) : (
+            <div
+              className="w-full"
+              style={{ height: Math.max(160, data.caParCanal.length * 48) }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={data.caParCanal}
+                  margin={{ top: 5, right: 16, bottom: 5, left: 8 }}
+                >
+                  <XAxis
+                    type="number"
+                    stroke="#717972"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={{ stroke: "#eaeaea" }}
+                    tickFormatter={(v: number) => euros(v)}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="canal"
+                    stroke="#717972"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    width={130}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(26,83,54,0.06)" }}
+                    contentStyle={{
+                      background: "#ffffff",
+                      border: "1px solid #eaeaea",
+                      borderRadius: 12,
+                    }}
+                    formatter={(v) => [euros(Number(v)), "CA"]}
+                  />
+                  <Bar dataKey="ca" radius={[0, 6, 6, 0]} maxBarSize={32}>
+                    {data.caParCanal.map((d) => (
+                      <Cell key={d.canal} fill={canalColor(d.canal).bg} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
 

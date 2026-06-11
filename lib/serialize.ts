@@ -20,6 +20,7 @@ export function toDTO(a: ArticleWithCommande): ArticleDTO {
     margeBrute: a.margeBrute,
     margeNette: a.margeNette,
     coefficient: a.coefficient,
+    canal: a.canal,
     dateVente: a.dateVente ? a.dateVente.toISOString() : null,
     transporteur: a.transporteur,
     trelloCardId: a.trelloCardId,
@@ -27,5 +28,6 @@ export function toDTO(a: ArticleWithCommande): ArticleDTO {
     prixUnitaire: a.commande
       ? prixUnitaire(a.commande.coutTotal, a.commande.nbArticles)
       : null,
+    coefObjectif: a.commande ? a.commande.coefObjectif : null,
   };
 }

@@ -117,10 +117,10 @@ export default function Sidebar() {
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-sidebar flex-col border-r border-line bg-surface-soft px-4 py-6 md:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-on-primary">
-            <span className="text-base font-bold">C</span>
+            <span className="text-base font-bold">M</span>
           </span>
           <span className="text-title-sm font-semibold text-ink">
-            Compta Polos
+            MyFlip
           </span>
         </div>
 

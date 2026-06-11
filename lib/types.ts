@@ -12,11 +12,13 @@ export type ArticleDTO = {
   margeBrute: number | null;
   margeNette: number | null;
   coefficient: number | null;
+  canal: string | null;
   dateVente: string | null; // ISO
   transporteur: string | null;
   trelloCardId: string | null;
   commandeId: string | null;
   prixUnitaire: number | null; // dérivé de la commande
+  coefObjectif: number | null; // objectif de coef de la commande
 };
 
 export type CommandeDTO = {
@@ -29,6 +31,21 @@ export type CommandeDTO = {
   marque: string | null;
   categorie: string | null;
   grade: string | null;
+  coefObjectif: number | null;
+};
+
+export type CommandeStatsRow = {
+  categorie: string;
+  total: number;
+  enStock: number;
+  enVente: number;
+  vendus: number;
+  ca: number;
+  margeNette: number;
+};
+
+export type CommandeStatsDTO = {
+  rows: CommandeStatsRow[];
 };
 
 export type BrandRow = {
@@ -114,6 +131,11 @@ export type StatutCount = {
   count: number;
 };
 
+export type CanalCA = {
+  canal: string;
+  ca: number;
+};
+
 export type StatsDTO = {
   vitesse: {
     parJour7: number; // moyenne articles vendus / jour sur 7 jours
@@ -130,4 +152,5 @@ export type StatsDTO = {
     joursRestants: number | null; // null si cadence nulle
   };
   repartitionStatuts: StatutCount[];
+  caParCanal: CanalCA[];
 };

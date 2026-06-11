@@ -111,6 +111,7 @@ export async function PATCH(
       marque: existing.marque,
       categorie: existing.categorie,
       grade: existing.grade,
+      coefObjectif: existing.coefObjectif,
     };
     return NextResponse.json(dto);
   } catch (err) {
