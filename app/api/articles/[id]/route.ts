@@ -13,6 +13,7 @@ type PatchBody = {
   prixVente?: number | null;
   dateVente?: string | null;
   canal?: string | null;
+  photosPretes?: boolean;
 };
 
 // PATCH /api/articles/[id] — édition inline + transitions de statut
@@ -47,6 +48,8 @@ export async function PATCH(
       data.grade = body.grade ? String(body.grade).trim() : null;
     if (body.canal !== undefined)
       data.canal = body.canal ? String(body.canal).trim() : null;
+    if (body.photosPretes !== undefined)
+      data.photosPretes = Boolean(body.photosPretes);
 
     if (body.statut !== undefined && !STATUTS.includes(body.statut as never)) {
       return NextResponse.json({ error: "Statut invalide." }, { status: 400 });

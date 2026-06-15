@@ -16,6 +16,7 @@ export type ArticleDTO = {
   dateVente: string | null; // ISO
   transporteur: string | null;
   trelloCardId: string | null;
+  photosPretes: boolean; // photos retouchées et téléchargées
   commandeId: string | null;
   prixUnitaire: number | null; // dérivé de la commande
   coefObjectif: number | null; // objectif de coef de la commande

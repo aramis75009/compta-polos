@@ -77,6 +77,7 @@ export type ArticlePatch = Partial<{
   prixVente: number | null;
   dateVente: string | null;
   canal: string | null;
+  photosPretes: boolean;
 }>;
 
 export function useUpdateArticle() {
