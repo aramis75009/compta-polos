@@ -74,7 +74,85 @@ export default function AComptabiliserPage() {
         </p>
       </header>
 
-      <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
+      {/* Vue cartes mobile (< md) */}
+      <div className="space-y-3 md:hidden">
+        {isLoading && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+            Chargement…
+          </p>
+        )}
+        {isError && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
+            {(error as Error).message}
+          </p>
+        )}
+        {!isLoading && !isError && articles.length === 0 && (
+          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+            Rien à comptabiliser. 🎉
+          </p>
+        )}
+        {articles.map((a) => (
+          <div
+            key={a.id}
+            className="rounded-card border border-line bg-surface p-4 shadow-card"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono font-semibold text-ink">
+                {a.sku}
+              </span>
+              <StatutBadge statut={a.statut} />
+            </div>
+            <dl className="mt-3 space-y-1.5 text-body-md">
+              <div className="flex justify-between gap-2">
+                <dt className="text-ink-faint">Marque</dt>
+                <dd className="text-ink">{a.marque}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-ink-faint">Catégorie</dt>
+                <dd className="text-ink-muted">{a.categorie}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-ink-faint">Prix achat</dt>
+                <dd className="text-ink">{euros(a.prixAchat)}</dd>
+              </div>
+            </dl>
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => setTarget(a)}
+                className="w-full rounded-full bg-primary px-4 py-3 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() =>
+                  remettreEnStock.mutate({
+                    id: a.id,
+                    patch: { statut: "En stock" },
+                  })
+                }
+                disabled={
+                  remettreEnStock.isPending &&
+                  remettreEnStock.variables?.id === a.id
+                }
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-4 py-3 text-label-sm font-medium text-primary transition-colors hover:bg-mint/20 disabled:opacity-50"
+              >
+                {IconRefresh}
+                Remettre en stock
+              </button>
+              <button
+                onClick={() => setToDelete(a)}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-4 py-3 text-label-sm font-medium text-error transition-colors hover:bg-error/20"
+              >
+                {IconTrash}
+                Supprimer
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tableau (≥ md) */}
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-card md:block">
         <table className="w-full min-w-[900px] border-collapse text-body-md">
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">

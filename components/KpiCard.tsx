@@ -22,8 +22,14 @@ function FitValue({
     if (!box || !span) return;
 
     const fit = () => {
-      const MAX = 52;
-      const MIN = 22;
+      // Mobile (< md) : on plafonne à 30px (≈ text-3xl) pour éviter les
+      // valeurs géantes ; desktop : jusqu'à 52px. Dans tous les cas la valeur
+      // peut encore rétrécir si elle dépasse la largeur de la carte.
+      const isDesktop =
+        typeof window !== "undefined" &&
+        window.matchMedia("(min-width: 768px)").matches;
+      const MAX = isDesktop ? 52 : 30;
+      const MIN = 20;
       let s = MAX;
       span.style.fontSize = `${s}px`;
       // On rétrécit tant que le texte dépasse la largeur disponible.
@@ -68,14 +74,14 @@ export default function KpiCard({
 
   return (
     <div
-      className={`relative flex min-h-[160px] flex-col rounded-card border p-7 shadow-card transition-shadow hover:shadow-card-hover ${
+      className={`relative flex min-h-[120px] flex-col rounded-card border p-5 shadow-card transition-shadow hover:shadow-card-hover md:min-h-[160px] md:p-7 ${
         primary
           ? "border-primary bg-primary text-on-primary"
           : "border-line bg-surface text-ink"
       }`}
     >
       <p
-        className={`text-label-sm uppercase tracking-wide ${
+        className={`text-[11px] font-medium uppercase tracking-[0.05em] md:text-label-sm md:tracking-wide ${
           primary ? "text-mint-soft" : "text-ink-faint"
         }`}
       >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
@@ -207,6 +207,87 @@ function CommandeDetail({
   );
 }
 
+// Menu contextuel « ••• » : regroupe les actions d'une ligne pour éviter que
+// le tableau ne déborde en largeur sur desktop.
+function ActionsMenu({
+  expanded,
+  onToggleDetail,
+  onVoirArticles,
+  onDelete,
+}: {
+  expanded: boolean;
+  onToggleDetail: () => void;
+  onVoirArticles: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const item =
+    "block w-full px-4 py-2.5 text-left text-body-md text-ink-muted transition-colors hover:bg-surface-container";
+
+  // Positionnement « fixed » à partir du bouton : la feuille n'est jamais
+  // rognée par le conteneur overflow du tableau.
+  const toggle = () => {
+    if (!open) {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((o) => !o);
+  };
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        aria-label="Actions"
+        aria-haspopup="menu"
+        className="rounded-full px-3 py-1.5 text-body-md font-semibold leading-none text-ink-muted transition-colors hover:bg-surface-container"
+      >
+        •••
+      </button>
+      {open && pos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            style={{ position: "fixed", top: pos.top, right: pos.right }}
+            className="z-50 w-48 overflow-hidden rounded-card border border-line bg-surface py-1 shadow-card-hover"
+          >
+            <button
+              onClick={() => {
+                onToggleDetail();
+                setOpen(false);
+              }}
+              className={item}
+            >
+              {expanded ? "Masquer le détail" : "Voir le détail"}
+            </button>
+            <button
+              onClick={() => {
+                onVoirArticles();
+                setOpen(false);
+              }}
+              className={item}
+            >
+              Voir les articles
+            </button>
+            <button
+              onClick={() => {
+                onDelete();
+                setOpen(false);
+              }}
+              className={`${item} text-error hover:bg-error-container`}
+            >
+              Supprimer
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CommandesPage() {
   const router = useRouter();
   const { data: commandes = [], isLoading, isError, error } = useCommandes();
@@ -244,15 +325,23 @@ export default function CommandesPage() {
       </header>
 
       <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-card">
-        <table className="w-full min-w-[800px] border-collapse text-body-md">
+        <table className="w-full table-fixed border-collapse text-body-md">
+          <colgroup>
+            <col className="w-[160px]" />
+            <col className="w-[100px]" />
+            <col className="w-[80px]" />
+            <col className="w-[110px]" />
+            <col className="w-[100px]" />
+            <col className="w-[64px]" />
+          </colgroup>
           <thead>
             <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
               <th className="px-6 py-3.5 font-medium">Fournisseur</th>
               <th className="px-3 py-3.5 font-medium">Date</th>
-              <th className="px-3 py-3.5 text-right font-medium">Nb articles</th>
+              <th className="px-3 py-3.5 text-right font-medium">Nb art.</th>
               <th className="px-3 py-3.5 text-right font-medium">Coût total</th>
-              <th className="px-3 py-3.5 text-right font-medium">Prix unitaire</th>
-              <th className="px-6 py-3.5 text-right font-medium">Actions</th>
+              <th className="px-3 py-3.5 text-right font-medium">Prix unit.</th>
+              <th className="px-3 py-3.5 text-right font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -283,7 +372,9 @@ export default function CommandesPage() {
                 <FragmentRow key={c.id}>
                   <tr className="border-t border-line transition-colors hover:bg-surface-soft">
                     <td className="px-6 py-3.5 font-medium text-ink">
-                      <div>{c.fournisseur}</div>
+                      <div className="truncate" title={c.fournisseur}>
+                        {c.fournisseur}
+                      </div>
                       {c.coefObjectif != null && (
                         <div className="mt-0.5 text-label-sm font-normal text-ink-faint">
                           Objectif : x{c.coefObjectif}
@@ -302,34 +393,22 @@ export default function CommandesPage() {
                     <td className="px-3 py-3.5 text-right font-medium text-primary">
                       {euros(c.prixUnitaire)}
                     </td>
-                    <td className="px-6 py-3.5">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => toggleDetail(c.id)}
-                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-surface-container"
-                        >
-                          {expanded ? "▲ Détail" : "▼ Détail"}
-                        </button>
-                        <button
-                          onClick={() => router.push(`/stock?commande=${c.id}`)}
-                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-surface-container"
-                        >
-                          Voir les articles
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `Supprimer la commande « ${c.fournisseur} » et ses articles ?`,
-                              )
+                    <td className="px-3 py-3.5">
+                      <ActionsMenu
+                        expanded={expanded}
+                        onToggleDetail={() => toggleDetail(c.id)}
+                        onVoirArticles={() =>
+                          router.push(`/stock?commande=${c.id}`)
+                        }
+                        onDelete={() => {
+                          if (
+                            confirm(
+                              `Supprimer la commande « ${c.fournisseur} » et ses articles ?`,
                             )
-                              del.mutate(c.id);
-                          }}
-                          className="rounded-full border border-line px-3 py-1.5 text-label-sm font-medium text-error transition-colors hover:bg-error-container"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
+                          )
+                            del.mutate(c.id);
+                        }}
+                      />
                     </td>
                   </tr>
                   {expanded && (
