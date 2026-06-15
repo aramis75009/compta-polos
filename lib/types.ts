@@ -112,6 +112,8 @@ export type CalendarDTO = {
 export type WeekdayPoint = {
   jour: string; // Lundi…Dimanche
   vendus: number;
+  ca: number; // chiffre d'affaires cumulé sur ce jour de semaine
+  dateRecente: string | null; // ISO : date la plus récente tombant ce jour-là
 };
 
 export type StatsBrandRow = {

@@ -1,18 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import { useArticles, useComptabiliser } from "@/lib/hooks";
+import {
+  useArticles,
+  useComptabiliser,
+  useDeleteArticle,
+  useUpdateArticle,
+} from "@/lib/hooks";
 import { euros, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import type { ArticleDTO } from "@/lib/types";
 import SellModal from "@/components/SellModal";
 import StatutBadge from "@/components/StatutBadge";
+
+const IconTrash = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    className="h-4 w-4"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+  </svg>
+);
+
+const IconRefresh = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    className="h-4 w-4"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" />
+  </svg>
+);
 
 export default function AComptabiliserPage() {
   const { data: articles = [], isLoading, isError, error } = useArticles({
     statut: STATUT_A_COMPTABILISER,
   });
   const valider = useComptabiliser();
+  const remettreEnStock = useUpdateArticle();
+  const supprimer = useDeleteArticle();
   const [target, setTarget] = useState<ArticleDTO | null>(null);
+  const [toDelete, setToDelete] = useState<ArticleDTO | null>(null);
 
   const confirm = (prixVente: number, dateVenteISO: string, canal: string) => {
     if (!target) return;
@@ -20,6 +56,11 @@ export default function AComptabiliserPage() {
       { id: target.id, prixVente, dateVente: dateVenteISO, canal },
       { onSuccess: () => setTarget(null) },
     );
+  };
+
+  const confirmDelete = () => {
+    if (!toDelete) return;
+    supprimer.mutate(toDelete.id, { onSuccess: () => setToDelete(null) });
   };
 
   return (
@@ -96,13 +137,38 @@ export default function AComptabiliserPage() {
                     ? new Date(a.dateVente).toLocaleDateString("fr-FR")
                     : "—"}
                 </td>
-                <td className="px-6 py-3.5 text-right">
-                  <button
-                    onClick={() => setTarget(a)}
-                    className="rounded-full bg-primary px-4 py-1.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
-                  >
-                    Valider
-                  </button>
+                <td className="px-6 py-3.5">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setTarget(a)}
+                      className="rounded-full bg-primary px-4 py-1.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
+                    >
+                      Valider
+                    </button>
+                    <button
+                      onClick={() =>
+                        remettreEnStock.mutate({
+                          id: a.id,
+                          patch: { statut: "En stock" },
+                        })
+                      }
+                      disabled={
+                        remettreEnStock.isPending &&
+                        remettreEnStock.variables?.id === a.id
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-3 py-1.5 text-label-sm font-medium text-primary transition-colors hover:bg-mint/20 disabled:opacity-50"
+                    >
+                      {IconRefresh}
+                      Remettre en stock
+                    </button>
+                    <button
+                      onClick={() => setToDelete(a)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-3 py-1.5 text-label-sm font-medium text-error transition-colors hover:bg-error/20"
+                    >
+                      {IconTrash}
+                      Supprimer
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -120,6 +186,46 @@ export default function AComptabiliserPage() {
         onClose={() => setTarget(null)}
         onConfirm={confirm}
       />
+
+      {toDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => !supprimer.isPending && setToDelete(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-card border border-line bg-surface p-6 shadow-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-headline-md text-ink">Supprimer l’article</h2>
+            <p className="mt-2 text-body-md text-ink-muted">
+              Supprimer l’article{" "}
+              <span className="font-mono text-ink">{toDelete.sku}</span> ? Cette
+              action est irréversible.
+            </p>
+            {supprimer.isError && (
+              <p className="mt-3 text-body-sm text-error">
+                {(supprimer.error as Error).message}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setToDelete(null)}
+                disabled={supprimer.isPending}
+                className="rounded-full bg-surface-soft px-4 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-line disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={supprimer.isPending}
+                className="rounded-full bg-error px-4 py-1.5 text-label-sm font-medium text-white transition-colors hover:bg-error/90 disabled:opacity-50"
+              >
+                {supprimer.isPending ? "Suppression…" : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

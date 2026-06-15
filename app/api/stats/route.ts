@@ -50,12 +50,24 @@ export async function GET() {
 
     // --- Meilleur jour de la semaine (lundi=0 … dimanche=6) ---
     const parJour = new Array(7).fill(0) as number[];
+    const caJour = new Array(7).fill(0) as number[];
+    const dateRecenteJour = new Array(7).fill(null) as (Date | null)[];
     for (const a of vendus) {
       if (!a.dateVente) continue;
       const js = (a.dateVente.getDay() + 6) % 7; // 0 = lundi
       parJour[js] += 1;
+      caJour[js] += a.prixVente ?? 0;
+      // En cas d'ex-aequo sur le même jour de semaine, on garde la plus récente.
+      if (!dateRecenteJour[js] || a.dateVente > (dateRecenteJour[js] as Date)) {
+        dateRecenteJour[js] = a.dateVente;
+      }
     }
-    const parJourSemaine = JOURS.map((jour, i) => ({ jour, vendus: parJour[i] }));
+    const parJourSemaine = JOURS.map((jour, i) => ({
+      jour,
+      vendus: parJour[i],
+      ca: round(caJour[i]),
+      dateRecente: dateRecenteJour[i] ? dateRecenteJour[i]!.toISOString() : null,
+    }));
 
     // --- Marques les plus rentables ---
     const brands = new Map<

@@ -19,6 +19,14 @@ import { canalColor } from "@/lib/canalColors";
 // Couleur vive (texte) du statut, pour le donut et la légende.
 const hex = (statut: string) => statutColor(statut).text;
 
+// "9 juin 2026" — date réelle du meilleur jour de la semaine.
+const formatDateLongue = (iso: string) =>
+  new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
 function Card({
   title,
   children,
@@ -118,6 +126,28 @@ export default function StatistiquesPage() {
 
         {/* Meilleur jour de la semaine */}
         <Card title="Meilleur jour de la semaine">
+          {(() => {
+            const meilleur = data.parJourSemaine
+              .filter((j) => j.vendus > 0)
+              .sort((a, b) => b.vendus - a.vendus)[0];
+            if (!meilleur) return null;
+            return (
+              <div className="mb-4">
+                <p className="text-headline-md text-ink">
+                  {meilleur.jour}
+                  {meilleur.dateRecente && (
+                    <span className="ml-2 text-body-md font-normal text-ink-muted">
+                      {formatDateLongue(meilleur.dateRecente)}
+                    </span>
+                  )}
+                </p>
+                <p className="text-body-md text-ink-muted">
+                  {meilleur.vendus} vente{meilleur.vendus > 1 ? "s" : ""} ·{" "}
+                  {euros(meilleur.ca)}
+                </p>
+              </div>
+            );
+          })()}
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
