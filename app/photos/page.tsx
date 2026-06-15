@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import JSZip from "jszip";
 import { useUpdateArticle } from "@/lib/hooks";
@@ -109,9 +109,29 @@ export default function PhotosPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [processing, setProcessing] = useState(0);
   const [zipping, setZipping] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  // Le partage de fichiers (Web Share API niveau 2) n'est dispo que sur
+  // certains navigateurs (Safari iOS surtout). Sinon → fallback ZIP.
+  const [canShareFiles, setCanShareFiles] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const updateArticle = useUpdateArticle();
+
+  useEffect(() => {
+    try {
+      const probe = new File(["t"], "probe.jpg", { type: "image/jpeg" });
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [probe] })
+      ) {
+        setCanShareFiles(true);
+      }
+    } catch {
+      /* API indisponible → on garde le fallback ZIP */
+    }
+  }, []);
 
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
@@ -178,6 +198,18 @@ export default function PhotosPage() {
   const fileName = (index: number) =>
     `${article?.sku ?? "PHOTO"}_${String(index + 1).padStart(2, "0")}.jpg`;
 
+  // Marque l'article « photos prêtes » (invalide le cache → icône 📷 au stock).
+  function markPhotosPretes() {
+    if (!article) return;
+    updateArticle.mutate(
+      { id: article.id, patch: { photosPretes: true } },
+      {
+        onSuccess: () =>
+          setArticle((a) => (a ? { ...a, photosPretes: true } : a)),
+      },
+    );
+  }
+
   async function downloadAll() {
     if (!article || photos.length === 0) return;
     setZipping(true);
@@ -186,16 +218,34 @@ export default function PhotosPage() {
       photos.forEach((p, i) => zip.file(fileName(i), p.blob));
       const content = await zip.generateAsync({ type: "blob" });
       triggerDownload(content, `${article.sku}_photos.zip`);
-      // Marque l'article : photos prêtes (invalide le cache → icône 📷 au stock).
-      updateArticle.mutate(
-        { id: article.id, patch: { photosPretes: true } },
-        {
-          onSuccess: () =>
-            setArticle((a) => (a ? { ...a, photosPretes: true } : a)),
-        },
-      );
+      markPhotosPretes();
     } finally {
       setZipping(false);
+    }
+  }
+
+  async function shareAll() {
+    if (!article || photos.length === 0) return;
+    const files = photos.map(
+      (p, i) => new File([p.blob], fileName(i), { type: "image/jpeg" }),
+    );
+    // Re-vérifie avec les vrais fichiers : certaines plateformes refusent
+    // un gros lot d'images même si canShare a dit oui sur un échantillon.
+    if (!navigator.canShare || !navigator.canShare({ files })) {
+      return downloadAll();
+    }
+    setSharing(true);
+    try {
+      await navigator.share({ files, title: article.sku });
+      markPhotosPretes();
+    } catch (err) {
+      // L'utilisateur a annulé la feuille de partage → on ne fait rien.
+      if ((err as Error).name !== "AbortError") {
+        // Échec réel du partage → on bascule sur le ZIP.
+        await downloadAll();
+      }
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -263,35 +313,54 @@ export default function PhotosPage() {
       {/* 2-3. Upload + galerie (uniquement après un SKU valide) */}
       {article && (
         <section className="mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={atMax}
-                className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
-              >
-                Ajouter des photos
-              </button>
-              <span className="text-body-md text-ink-muted">
-                {photos.length} / {MAX_PHOTOS}
-                {processing > 0 && (
-                  <span className="ml-2 text-ink-faint">
-                    · traitement de {processing}…
-                  </span>
-                )}
-              </span>
-            </div>
-
-            {photos.length > 0 && (
-              <button
-                onClick={downloadAll}
-                disabled={zipping}
-                className="rounded-full bg-mint px-5 py-2.5 text-label-sm font-semibold text-primary-dark transition-colors hover:bg-mint-soft disabled:opacity-50"
-              >
-                {zipping ? "Création du ZIP…" : "Télécharger tout (ZIP)"}
-              </button>
-            )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={atMax}
+              className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
+            >
+              Ajouter des photos
+            </button>
+            <span className="text-body-md text-ink-muted">
+              {photos.length} / {MAX_PHOTOS}
+              {processing > 0 && (
+                <span className="ml-2 text-ink-faint">
+                  · traitement de {processing}…
+                </span>
+              )}
+            </span>
           </div>
+
+          {/* Enregistrement groupé — en haut de la galerie, bien visible. */}
+          {photos.length > 0 &&
+            (canShareFiles ? (
+              <div className="mt-5 flex flex-col items-center gap-1.5">
+                <button
+                  onClick={shareAll}
+                  disabled={sharing}
+                  className="w-full max-w-sm rounded-full bg-primary px-6 py-3 text-body-md font-semibold text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {sharing ? "Ouverture…" : "📷 Enregistrer dans Photos"}
+                </button>
+                <button
+                  onClick={downloadAll}
+                  disabled={zipping}
+                  className="text-label-sm text-ink-faint underline underline-offset-2 transition-colors hover:text-ink-muted disabled:opacity-50"
+                >
+                  {zipping ? "Création du ZIP…" : "ou télécharger en ZIP"}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5">
+                <button
+                  onClick={downloadAll}
+                  disabled={zipping}
+                  className="w-full max-w-sm rounded-full bg-mint px-6 py-3 text-body-md font-semibold text-primary-dark transition-colors hover:bg-mint-soft disabled:opacity-50"
+                >
+                  {zipping ? "Création du ZIP…" : "Télécharger tout (ZIP)"}
+                </button>
+              </div>
+            ))}
 
           <input
             ref={fileRef}
