@@ -65,8 +65,8 @@ export default function StatistiquesPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
       <header className="mb-8">
-        <h1 className="text-display-lg text-ink">Statistiques</h1>
-        <p className="mt-1 text-body-md text-ink-muted">
+        <h1 className="text-2xl font-bold text-ink md:text-4xl">Statistiques</h1>
+        <p className="mt-1 text-sm text-ink-muted md:text-base">
           Analyse de ton activité de revente.
         </p>
       </header>
@@ -295,7 +295,9 @@ export default function StatistiquesPage() {
           <table className="w-full min-w-[600px] border-collapse text-body-md">
             <thead>
               <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-                <th className="px-6 py-3 font-medium">Marque</th>
+                <th className="sticky left-0 z-10 bg-surface px-6 py-3 font-medium">
+                  Marque
+                </th>
                 <th className="px-3 py-3 text-right font-medium">Marge nette totale</th>
                 <th className="px-3 py-3 text-right font-medium">Coef moyen</th>
                 <th className="px-6 py-3 text-right font-medium">Vendus</th>
@@ -304,7 +306,9 @@ export default function StatistiquesPage() {
             <tbody>
               {data.marquesRentables.map((b) => (
                 <tr key={b.marque} className="border-t border-line">
-                  <td className="px-6 py-3 font-medium text-ink">{b.marque}</td>
+                  <td className="sticky left-0 z-10 bg-surface px-6 py-3 font-medium text-ink">
+                    {b.marque}
+                  </td>
                   <td className="px-3 py-3 text-right font-medium text-primary">
                     {euros(b.margeNette)}
                   </td>

@@ -166,7 +166,10 @@ export default function Sidebar() {
       </aside>
 
       {/* Bottom navigation (mobile) — défilable horizontalement */}
-      <nav className="fixed bottom-0 left-0 z-40 flex w-full items-stretch overflow-x-auto border-t border-line bg-surface-soft md:hidden">
+      <nav
+        className="fixed bottom-0 left-0 z-40 flex w-full items-stretch overflow-x-auto border-t border-line bg-surface-soft md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         {NAV.map((item) => {
           const active = isActive(pathname, item.href);
           return (

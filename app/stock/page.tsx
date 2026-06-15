@@ -342,12 +342,12 @@ function StockInner() {
     <main className="mx-auto max-w-[1400px] px-6 py-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-display-lg text-ink">Stock</h1>
-          <p className="mt-1 text-body-md text-ink-muted">
+          <h1 className="text-2xl font-bold text-ink md:text-4xl">Stock</h1>
+          <p className="mt-1 text-sm text-ink-muted md:text-base">
             Double-clic sur une cellule pour la modifier.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap">
           <div className="relative hidden md:block" ref={colsRef}>
             <button
               onClick={() => setColsOpen((o) => !o)}
@@ -402,13 +402,13 @@ function StockInner() {
           </div>
           <button
             onClick={exportCSV}
-            className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
+            className="w-full rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container md:w-auto"
           >
             📤 Exporter CSV
           </button>
           <button
             onClick={() => setNewCommande(true)}
-            className="rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark"
+            className="w-full rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark md:w-auto"
           >
             + Nouvelle commande
           </button>

@@ -38,10 +38,10 @@ export default function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-ink md:text-display-lg">
+        <h1 className="text-2xl font-bold text-ink md:text-4xl">
           Dashboard
         </h1>
-        <p className="mt-1 text-sm text-ink-muted md:text-body-md">
+        <p className="mt-1 text-sm text-ink-muted md:text-base">
           Vue d&apos;ensemble de ton activité.
         </p>
       </header>

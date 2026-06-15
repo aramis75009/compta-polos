@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title: "MyFlip",
   description:
     "Comptabilité et gestion de stock pour revendeur de vêtements de marque",
+};
+
+// viewport-fit=cover → l'app occupe toute la largeur sous l'encoche iPhone ;
+// la bottom nav gère elle-même la safe area (env(safe-area-inset-bottom)).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

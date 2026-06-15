@@ -54,7 +54,7 @@ export default function CalendrierPage() {
     <main className="mx-auto max-w-[1400px] px-6 py-8">
       {/* En-tête / navigation */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold capitalize text-ink md:text-display-lg">
+        <h1 className="text-2xl font-bold capitalize text-ink md:text-4xl">
           {format(current, "MMMM yyyy", { locale: fr })}
         </h1>
         <div className="flex w-full gap-2 md:w-auto">

@@ -254,8 +254,8 @@ export default function PhotosPage() {
   return (
     <main className="mx-auto max-w-[1200px] px-6 py-8 pb-24 md:pb-8">
       <header className="mb-6">
-        <h1 className="text-display-lg text-ink">Photos</h1>
-        <p className="mt-1 text-body-md text-ink-muted">
+        <h1 className="text-2xl font-bold text-ink md:text-4xl">Photos</h1>
+        <p className="mt-1 text-sm text-ink-muted md:text-base">
           Corrige l’orientation des photos et exporte-les renommées par SKU.
           Tout reste sur ton appareil — aucun envoi serveur.
         </p>

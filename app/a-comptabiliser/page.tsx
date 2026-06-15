@@ -66,8 +66,10 @@ export default function AComptabiliserPage() {
   return (
     <main className="mx-auto max-w-[1200px] px-6 py-8">
       <header className="mb-6">
-        <h1 className="text-display-lg text-error">À comptabiliser</h1>
-        <p className="mt-1 text-body-md text-ink-muted">
+        <h1 className="text-2xl font-bold text-error md:text-4xl">
+          À comptabiliser
+        </h1>
+        <p className="mt-1 text-sm text-ink-muted md:text-base">
           Articles livrés en attente de validation comptable.
         </p>
       </header>
