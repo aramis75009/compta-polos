@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useArticles,
   useComptabiliser,
   useDeleteArticle,
   useUpdateArticle,
 } from "@/lib/hooks";
-import { euros, STATUT_A_COMPTABILISER } from "@/lib/calc";
+import { euros, naturalSort, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import type { ArticleDTO } from "@/lib/types";
 import SellModal from "@/components/SellModal";
 import StatutBadge from "@/components/StatutBadge";
@@ -44,6 +44,11 @@ export default function AComptabiliserPage() {
   const { data: articles = [], isLoading, isError, error } = useArticles({
     statut: STATUT_A_COMPTABILISER,
   });
+  // Tri naturel des SKU (l'API ne trie plus côté serveur).
+  const sorted = useMemo(
+    () => [...articles].sort((a, b) => naturalSort(a.sku, b.sku)),
+    [articles],
+  );
   const valider = useComptabiliser();
   const remettreEnStock = useUpdateArticle();
   const supprimer = useDeleteArticle();
@@ -91,7 +96,7 @@ export default function AComptabiliserPage() {
             Rien à comptabiliser. 🎉
           </p>
         )}
-        {articles.map((a) => (
+        {sorted.map((a) => (
           <div
             key={a.id}
             className="rounded-card border border-line bg-surface p-4 shadow-card"
@@ -190,7 +195,7 @@ export default function AComptabiliserPage() {
                 </td>
               </tr>
             )}
-            {articles.map((a) => (
+            {sorted.map((a) => (
               <tr
                 key={a.id}
                 className="border-t border-line transition-colors hover:bg-surface-soft"

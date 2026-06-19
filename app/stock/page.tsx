@@ -125,6 +125,9 @@ function StockInner() {
 
   const [marque, setMarque] = useState(params.get("marque") ?? "");
   const [statut, setStatut] = useState("");
+  // `qInput` pilote le champ (instantané) ; `q` est la valeur débouncée envoyée
+  // à l'API → évite une requête réseau (et un refetch de 1000+ lignes) par frappe.
+  const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("sku");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -136,6 +139,12 @@ function StockInner() {
   useEffect(() => {
     setCommande(commandeParam);
   }, [commandeParam]);
+
+  // Débounce de la recherche SKU (300 ms) avant d'attaquer l'API.
+  useEffect(() => {
+    const t = setTimeout(() => setQ(qInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [qInput]);
 
   const { data: commandes = [] } = useCommandes();
 
@@ -428,8 +437,8 @@ function StockInner() {
             <path d="m21 21-4.3-4.3" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
           <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
             placeholder="Rechercher un SKU…"
             className={`${inputCls} w-full rounded-full pl-9 md:w-auto`}
           />
@@ -470,11 +479,12 @@ function StockInner() {
             </option>
           ))}
         </select>
-        {(marque || statut || q || commande) && (
+        {(marque || statut || qInput || commande) && (
           <button
             onClick={() => {
               setMarque("");
               setStatut("");
+              setQInput("");
               setQ("");
               setCommande("");
               router.replace("/stock");

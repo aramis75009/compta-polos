@@ -80,15 +80,37 @@ export type ArticlePatch = Partial<{
   photosPretes: boolean;
 }>;
 
+// Champs dont la modification impacte les vues agrégées
+// (CA/marge du dashboard, stats, calendrier des ventes).
+const AGGREGATE_KEYS: (keyof ArticlePatch)[] = [
+  "statut",
+  "prixVente",
+  "prixAchat",
+  "dateVente",
+  "canal",
+];
+
 export function useUpdateArticle() {
-  const invalidate = useInvalidateAll();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: ArticlePatch }) =>
       jsonFetch<ArticleDTO>(`/api/articles/${id}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
       }),
-    onSuccess: invalidate,
+    onSuccess: (_data, { patch }) => {
+      // Un patch touche toujours la liste des articles.
+      qc.invalidateQueries({ queryKey: ["articles"] });
+      // On ne recharge dashboard/stats/calendrier que si un champ financier ou
+      // temporel a changé. Un patch « simple » (sku, marque, catégorie, grade)
+      // ne touche aucun agrégat → pas de refetch inutile.
+      if (AGGREGATE_KEYS.some((k) => k in patch)) {
+        qc.invalidateQueries({ queryKey: ["dashboard"] });
+        qc.invalidateQueries({ queryKey: ["stats"] });
+        qc.invalidateQueries({ queryKey: ["calendar"] });
+      }
+      // Jamais ["commandes"] : un patch d'article ne modifie pas une commande.
+    },
   });
 }
 

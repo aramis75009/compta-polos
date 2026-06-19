@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toDTO } from "@/lib/serialize";
-import { naturalSort } from "@/lib/calc";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +25,10 @@ export async function GET(req: NextRequest) {
       include: { commande: true },
     });
 
-    // Tri naturel des SKU (AD1, AD2…AD10) côté JS — le tri SQL classerait
-    // AD1, AD10, AD11, AD2… (ordre lexicographique).
+    // Pas de tri ici : les consommateurs trient eux-mêmes (tri naturel SKU côté
+    // Stock / a-comptabiliser). Évite un tri redondant sur 1000+ lignes à chaque
+    // requête (le Stock re-triait systématiquement par-dessus).
     const dtos = articles.map(toDTO);
-    dtos.sort((a, b) => naturalSort(a.sku, b.sku));
 
     return NextResponse.json(dtos);
   } catch (err) {
