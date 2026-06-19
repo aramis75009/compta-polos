@@ -1,6 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArticlePatch,
@@ -119,6 +129,303 @@ function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
 const inputCls =
   "rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
 
+// Détecte le breakpoint md (768px) pour ne rendre qu'une seule liste virtualisée
+// à la fois (sinon deux virtualizers tourneraient, dont un sur du DOM masqué).
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+}
+
+type RowCallbacks = {
+  onToggleSelect: (id: string) => void;
+  onPatch: (id: string, patch: ArticlePatch) => void;
+  onStatutChange: (a: ArticleDTO, value: string) => void;
+  onDelete: (a: ArticleDTO) => void;
+};
+
+type ArticleRowProps = RowCallbacks & {
+  a: ArticleDTO;
+  shownColumns: ColumnMeta[];
+  isSelected: boolean;
+  "data-index"?: number;
+};
+
+// Ligne du tableau (desktop). Mémoïsée : avec la virtualisation seules ~20
+// lignes existent, et un edit ne re-render que la ligne touchée (props stables).
+const ArticleRow = memo(
+  forwardRef<HTMLTableRowElement, ArticleRowProps>(function ArticleRow(
+    {
+      a,
+      shownColumns,
+      isSelected,
+      onToggleSelect,
+      onPatch,
+      onStatutChange,
+      onDelete,
+      ...rest
+    },
+    ref,
+  ) {
+    const vendu = a.statut === STATUT_VENDU;
+    // Coef effectif : pour un article non vendu mais dont le prix de vente est
+    // renseigné, on dérive prixVente / prixAchat.
+    const coefEffectif =
+      a.coefficient ??
+      (a.prixVente != null && a.prixAchat ? a.prixVente / a.prixAchat : null);
+    const sousObjectif =
+      (a.statut === "En vente" || a.statut === "En stock") &&
+      a.coefObjectif != null &&
+      a.prixVente != null &&
+      coefEffectif != null &&
+      coefEffectif < a.coefObjectif;
+    const cells: Record<SortKey, React.ReactNode> = {
+      sku: (
+        <td key="sku" className="px-2 py-3 font-mono text-ink">
+          <span className="flex items-center gap-1.5">
+            <EditableCell value={a.sku} onSave={(v) => onPatch(a.id, { sku: v })} />
+            {a.photosPretes && <PhotosReadyIcon />}
+          </span>
+        </td>
+      ),
+      marque: (
+        <td key="marque" className="px-2 py-3 text-ink">
+          <EditableCell
+            value={a.marque}
+            onSave={(v) => onPatch(a.id, { marque: v })}
+          />
+        </td>
+      ),
+      categorie: (
+        <td key="categorie" className="px-2 py-3 text-ink-muted">
+          <EditableCell
+            value={a.categorie}
+            onSave={(v) => onPatch(a.id, { categorie: v })}
+          />
+        </td>
+      ),
+      grade: (
+        <td key="grade" className="px-2 py-3 text-ink-muted">
+          <EditableCell
+            value={a.grade}
+            onSave={(v) => onPatch(a.id, { grade: v || null })}
+          />
+        </td>
+      ),
+      statut: (
+        <td key="statut" className="px-2 py-3">
+          <select
+            value={a.statut}
+            onChange={(e) => onStatutChange(a, e.target.value)}
+            style={{
+              backgroundColor: statutColor(a.statut).bg,
+              color: statutColor(a.statut).text,
+            }}
+            className="cursor-pointer rounded-full border-0 px-3 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            {STATUTS.map((s) => (
+              <option
+                key={s}
+                value={s}
+                style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}
+              >
+                {s}
+              </option>
+            ))}
+          </select>
+        </td>
+      ),
+      prixAchat: (
+        <td key="prixAchat" className="px-2 py-3 text-ink">
+          <EditableCell
+            value={a.prixAchat}
+            display={euros(a.prixAchat)}
+            type="number"
+            align="right"
+            onSave={(v) => onPatch(a.id, { prixAchat: Number(v) })}
+          />
+        </td>
+      ),
+      prixVente: (
+        <td key="prixVente" className="px-2 py-3 text-ink">
+          <EditableCell
+            value={a.prixVente}
+            display={a.prixVente != null ? euros(a.prixVente) : "—"}
+            type="number"
+            align="right"
+            editable={vendu}
+            onSave={(v) => onPatch(a.id, { prixVente: Number(v) })}
+          />
+        </td>
+      ),
+      margeBrute: (
+        <td key="margeBrute" className="px-3 py-3 text-right text-ink-muted">
+          {a.margeBrute != null ? euros(a.margeBrute) : "—"}
+        </td>
+      ),
+      margeNette: (
+        <td
+          key="margeNette"
+          className={`px-3 py-3 text-right font-medium ${
+            a.margeNette != null && a.margeNette < 0
+              ? "text-error"
+              : "text-primary"
+          }`}
+        >
+          {a.margeNette != null ? euros(a.margeNette) : "—"}
+        </td>
+      ),
+      coefficient: (
+        <td key="coefficient" className="px-3 py-3 text-right">
+          {sousObjectif ? (
+            <span
+              className="inline-flex items-center gap-1 font-semibold"
+              style={{ color: "#EA580C" }}
+              title={`Objectif : x${a.coefObjectif}`}
+            >
+              ⚠️ {coef(coefEffectif)}
+            </span>
+          ) : (
+            <span className="text-ink-muted">{coef(a.coefficient)}</span>
+          )}
+        </td>
+      ),
+      dateVente: (
+        <td key="dateVente" className="px-2 py-3 text-ink-muted">
+          <EditableCell
+            value={a.dateVente ? a.dateVente.slice(0, 10) : null}
+            display={
+              a.dateVente
+                ? new Date(a.dateVente).toLocaleDateString("fr-FR")
+                : "—"
+            }
+            type="text"
+            editable={vendu}
+            onSave={(v) =>
+              onPatch(a.id, {
+                dateVente: v ? new Date(v).toISOString() : null,
+              })
+            }
+          />
+        </td>
+      ),
+      canal: (
+        <td key="canal" className="px-2 py-3">
+          <CanalBadge canal={a.canal} />
+        </td>
+      ),
+      transporteur: (
+        <td key="transporteur" className="px-3 py-3 text-ink-muted">
+          {a.transporteur ?? "—"}
+        </td>
+      ),
+    };
+    return (
+      <tr
+        ref={ref}
+        {...rest}
+        className={`border-t border-line align-middle transition-colors hover:bg-surface-soft ${
+          isSelected ? "bg-primary/5" : ""
+        }`}
+      >
+        <td className="px-3 py-3">
+          <input
+            type="checkbox"
+            aria-label={`Sélectionner ${a.sku}`}
+            className="h-4 w-4 cursor-pointer accent-primary"
+            checked={isSelected}
+            onChange={() => onToggleSelect(a.id)}
+          />
+        </td>
+        {shownColumns.map((c) => cells[c.key])}
+        <td className="px-3 py-3 text-right">
+          <button
+            onClick={() => onDelete(a)}
+            className="text-ink-faint transition-colors hover:text-error"
+            title="Supprimer"
+          >
+            ✕
+          </button>
+        </td>
+      </tr>
+    );
+  }),
+);
+
+type ArticleCardProps = {
+  a: ArticleDTO;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+  "data-index"?: number;
+};
+
+// Carte (mobile). Le wrapper porte le ref de mesure + le gap (pb-3) pour que la
+// hauteur mesurée par le virtualizer inclue l'espacement entre cartes.
+const ArticleCard = memo(
+  forwardRef<HTMLDivElement, ArticleCardProps>(function ArticleCard(
+    { a, isSelected, onToggleSelect, ...rest },
+    ref,
+  ) {
+    return (
+      <div ref={ref} {...rest} className="pb-3">
+        <div
+          className={`flex gap-3 rounded-card border bg-surface p-4 shadow-card ${
+            isSelected ? "border-primary" : "border-line"
+          }`}
+        >
+          <input
+            type="checkbox"
+            aria-label={`Sélectionner ${a.sku}`}
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+            checked={isSelected}
+            onChange={() => onToggleSelect(a.id)}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-mono font-semibold text-ink">
+                  {a.sku}
+                </span>
+                {a.photosPretes && <PhotosReadyIcon />}
+              </span>
+              <StatutBadge statut={a.statut} />
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="truncate text-ink-muted">{a.marque}</span>
+              <CanalBadge canal={a.canal} />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
+              <span className="text-ink">{euros(a.prixAchat)}</span>
+              <span className="text-ink-faint">→</span>
+              <span className="text-ink">
+                {a.prixVente != null ? euros(a.prixVente) : "—"}
+              </span>
+              <span className="text-ink-faint">|</span>
+              <span
+                className={`font-medium ${
+                  a.margeNette != null && a.margeNette > 0
+                    ? "text-primary"
+                    : a.margeNette != null && a.margeNette < 0
+                      ? "text-error"
+                      : "text-ink-muted"
+                }`}
+              >
+                {a.margeNette != null ? euros(a.margeNette) : "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }),
+);
+
 function StockInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -221,13 +528,16 @@ function StockInner() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatut, setBulkStatut] = useState("En stock");
 
-  const toggleOne = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggleOne = useCallback(
+    (id: string) =>
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
 
   const clearSelection = () => setSelected(new Set());
 
@@ -255,6 +565,45 @@ function StockInner() {
     });
     return copy;
   }, [articles, sortKey, sortDir]);
+
+  // --- Virtualisation : ne monte que les lignes/cartes visibles (+ overscan).
+  // Une seule liste rendue à la fois selon le breakpoint (cf. useIsDesktop).
+  const isDesktop = useIsDesktop();
+  const showRows = !isLoading && !isError && sorted.length > 0;
+
+  const desktopWrapRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useWindowVirtualizer({
+    count: sorted.length,
+    estimateSize: () => 49,
+    overscan: 8,
+    scrollMargin: desktopWrapRef.current?.offsetTop ?? 0,
+  });
+
+  const mobileWrapRef = useRef<HTMLDivElement>(null);
+  const cardVirtualizer = useWindowVirtualizer({
+    count: sorted.length,
+    estimateSize: () => 116,
+    overscan: 6,
+    scrollMargin: mobileWrapRef.current?.offsetTop ?? 0,
+  });
+
+  const dItems = rowVirtualizer.getVirtualItems();
+  const dPadTop = dItems.length
+    ? dItems[0].start - rowVirtualizer.options.scrollMargin
+    : 0;
+  const dPadBottom = dItems.length
+    ? rowVirtualizer.getTotalSize() -
+      (dItems[dItems.length - 1].end - rowVirtualizer.options.scrollMargin)
+    : 0;
+
+  const mItems = cardVirtualizer.getVirtualItems();
+  const mPadTop = mItems.length
+    ? mItems[0].start - cardVirtualizer.options.scrollMargin
+    : 0;
+  const mPadBottom = mItems.length
+    ? cardVirtualizer.getTotalSize() -
+      (mItems[mItems.length - 1].end - cardVirtualizer.options.scrollMargin)
+    : 0;
 
   const totals = useMemo(() => {
     let enStock = 0;
@@ -313,16 +662,25 @@ function StockInner() {
     }
   };
 
-  const patch = (id: string, p: ArticlePatch) =>
-    update.mutate({ id, patch: p });
+  const handlePatch = useCallback(
+    (id: string, p: ArticlePatch) => update.mutate({ id, patch: p }),
+    [update],
+  );
 
-  const onStatutChange = (a: ArticleDTO, value: string) => {
-    if (value === STATUT_VENDU) {
-      setSellTarget(a);
-    } else {
-      patch(a.id, { statut: value });
-    }
-  };
+  const handleStatutChange = useCallback(
+    (a: ArticleDTO, value: string) => {
+      if (value === STATUT_VENDU) setSellTarget(a);
+      else handlePatch(a.id, { statut: value });
+    },
+    [handlePatch],
+  );
+
+  const handleDelete = useCallback(
+    (a: ArticleDTO) => {
+      if (confirm(`Supprimer ${a.sku} ?`)) del.mutate(a.id);
+    },
+    [del],
+  );
 
   const confirmSell = (
     prixVente: number,
@@ -496,77 +854,54 @@ function StockInner() {
         )}
       </div>
 
-      {/* Vue cartes mobile (< md) */}
-      <div className="space-y-3 md:hidden">
-        {isLoading && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-            Chargement…
-          </p>
-        )}
-        {isError && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
-            {(error as Error).message}
-          </p>
-        )}
-        {!isLoading && !isError && sorted.length === 0 && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-            Aucun article.
-          </p>
-        )}
-        {sorted.map((a) => (
-          <div
-            key={a.id}
-            className={`flex gap-3 rounded-card border bg-surface p-4 shadow-card ${
-              selected.has(a.id) ? "border-primary" : "border-line"
-            }`}
-          >
-            <input
-              type="checkbox"
-              aria-label={`Sélectionner ${a.sku}`}
-              className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary"
-              checked={selected.has(a.id)}
-              onChange={() => toggleOne(a.id)}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate font-mono font-semibold text-ink">
-                    {a.sku}
-                  </span>
-                  {a.photosPretes && <PhotosReadyIcon />}
-                </span>
-                <StatutBadge statut={a.statut} />
-              </div>
-              <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="truncate text-ink-muted">{a.marque}</span>
-                <CanalBadge canal={a.canal} />
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
-                <span className="text-ink">{euros(a.prixAchat)}</span>
-                <span className="text-ink-faint">→</span>
-                <span className="text-ink">
-                  {a.prixVente != null ? euros(a.prixVente) : "—"}
-                </span>
-                <span className="text-ink-faint">|</span>
-                <span
-                  className={`font-medium ${
-                    a.margeNette != null && a.margeNette > 0
-                      ? "text-primary"
-                      : a.margeNette != null && a.margeNette < 0
-                        ? "text-error"
-                        : "text-ink-muted"
-                  }`}
-                >
-                  {a.margeNette != null ? euros(a.margeNette) : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Vue cartes mobile (< md) — virtualisée */}
+      {!isDesktop && (
+        <div ref={mobileWrapRef}>
+          {isLoading && (
+            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+              Chargement…
+            </p>
+          )}
+          {isError && (
+            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
+              {(error as Error).message}
+            </p>
+          )}
+          {!isLoading && !isError && sorted.length === 0 && (
+            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
+              Aucun article.
+            </p>
+          )}
+          {showRows && (
+            <>
+              {mPadTop > 0 && <div aria-hidden style={{ height: mPadTop }} />}
+              {mItems.map((vr) => {
+                const a = sorted[vr.index];
+                return (
+                  <ArticleCard
+                    key={a.id}
+                    data-index={vr.index}
+                    ref={cardVirtualizer.measureElement}
+                    a={a}
+                    isSelected={selected.has(a.id)}
+                    onToggleSelect={toggleOne}
+                  />
+                );
+              })}
+              {mPadBottom > 0 && (
+                <div aria-hidden style={{ height: mPadBottom }} />
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Tableau (≥ md) */}
-      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-card md:block">
+      {/* Tableau (≥ md) — virtualisé */}
+      {isDesktop && (
+      <div
+        ref={desktopWrapRef}
+        className="overflow-x-auto rounded-card border border-line bg-surface shadow-card"
+      >
         <table
           style={{ minWidth: Math.max(640, colCount * 96) }}
           className="w-full border-collapse text-body-md"
@@ -627,206 +962,47 @@ function StockInner() {
                 </td>
               </tr>
             )}
-            {sorted.map((a) => {
-              const vendu = a.statut === STATUT_VENDU;
-              // Coef effectif : pour un article non vendu mais dont le prix de
-              // vente est renseigné, on dérive prixVente / prixAchat.
-              const coefEffectif =
-                a.coefficient ??
-                (a.prixVente != null && a.prixAchat
-                  ? a.prixVente / a.prixAchat
-                  : null);
-              const sousObjectif =
-                (a.statut === "En vente" || a.statut === "En stock") &&
-                a.coefObjectif != null &&
-                a.prixVente != null &&
-                coefEffectif != null &&
-                coefEffectif < a.coefObjectif;
-              // Cellules indexées par clé de colonne : on n'affiche que les
-              // colonnes visibles, dans l'ordre de COLUMN_META.
-              const cells: Record<SortKey, React.ReactNode> = {
-                sku: (
-                  <td key="sku" className="px-2 py-3 font-mono text-ink">
-                    <span className="flex items-center gap-1.5">
-                      <EditableCell
-                        value={a.sku}
-                        onSave={(v) => patch(a.id, { sku: v })}
-                      />
-                      {a.photosPretes && <PhotosReadyIcon />}
-                    </span>
-                  </td>
-                ),
-                marque: (
-                  <td key="marque" className="px-2 py-3 text-ink">
-                    <EditableCell
-                      value={a.marque}
-                      onSave={(v) => patch(a.id, { marque: v })}
+            {showRows && (
+              <>
+                {dPadTop > 0 && (
+                  <tr aria-hidden>
+                    <td
+                      colSpan={colCount}
+                      style={{ height: dPadTop, padding: 0, border: 0 }}
                     />
-                  </td>
-                ),
-                categorie: (
-                  <td key="categorie" className="px-2 py-3 text-ink-muted">
-                    <EditableCell
-                      value={a.categorie}
-                      onSave={(v) => patch(a.id, { categorie: v })}
+                  </tr>
+                )}
+                {dItems.map((vr) => {
+                  const a = sorted[vr.index];
+                  return (
+                    <ArticleRow
+                      key={a.id}
+                      data-index={vr.index}
+                      ref={rowVirtualizer.measureElement}
+                      a={a}
+                      shownColumns={shownColumns}
+                      isSelected={selected.has(a.id)}
+                      onToggleSelect={toggleOne}
+                      onPatch={handlePatch}
+                      onStatutChange={handleStatutChange}
+                      onDelete={handleDelete}
                     />
-                  </td>
-                ),
-                grade: (
-                  <td key="grade" className="px-2 py-3 text-ink-muted">
-                    <EditableCell
-                      value={a.grade}
-                      onSave={(v) => patch(a.id, { grade: v || null })}
+                  );
+                })}
+                {dPadBottom > 0 && (
+                  <tr aria-hidden>
+                    <td
+                      colSpan={colCount}
+                      style={{ height: dPadBottom, padding: 0, border: 0 }}
                     />
-                  </td>
-                ),
-                statut: (
-                  <td key="statut" className="px-2 py-3">
-                    <select
-                      value={a.statut}
-                      onChange={(e) => onStatutChange(a, e.target.value)}
-                      style={{
-                        backgroundColor: statutColor(a.statut).bg,
-                        color: statutColor(a.statut).text,
-                      }}
-                      className="cursor-pointer rounded-full border-0 px-3 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      {STATUTS.map((s) => (
-                        <option
-                          key={s}
-                          value={s}
-                          style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}
-                        >
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                ),
-                prixAchat: (
-                  <td key="prixAchat" className="px-2 py-3 text-ink">
-                    <EditableCell
-                      value={a.prixAchat}
-                      display={euros(a.prixAchat)}
-                      type="number"
-                      align="right"
-                      onSave={(v) => patch(a.id, { prixAchat: Number(v) })}
-                    />
-                  </td>
-                ),
-                prixVente: (
-                  <td key="prixVente" className="px-2 py-3 text-ink">
-                    <EditableCell
-                      value={a.prixVente}
-                      display={a.prixVente != null ? euros(a.prixVente) : "—"}
-                      type="number"
-                      align="right"
-                      editable={vendu}
-                      onSave={(v) => patch(a.id, { prixVente: Number(v) })}
-                    />
-                  </td>
-                ),
-                margeBrute: (
-                  <td
-                    key="margeBrute"
-                    className="px-3 py-3 text-right text-ink-muted"
-                  >
-                    {a.margeBrute != null ? euros(a.margeBrute) : "—"}
-                  </td>
-                ),
-                margeNette: (
-                  <td
-                    key="margeNette"
-                    className={`px-3 py-3 text-right font-medium ${
-                      a.margeNette != null && a.margeNette < 0
-                        ? "text-error"
-                        : "text-primary"
-                    }`}
-                  >
-                    {a.margeNette != null ? euros(a.margeNette) : "—"}
-                  </td>
-                ),
-                coefficient: (
-                  <td key="coefficient" className="px-3 py-3 text-right">
-                    {sousObjectif ? (
-                      <span
-                        className="inline-flex items-center gap-1 font-semibold"
-                        style={{ color: "#EA580C" }}
-                        title={`Objectif : x${a.coefObjectif}`}
-                      >
-                        ⚠️ {coef(coefEffectif)}
-                      </span>
-                    ) : (
-                      <span className="text-ink-muted">
-                        {coef(a.coefficient)}
-                      </span>
-                    )}
-                  </td>
-                ),
-                dateVente: (
-                  <td key="dateVente" className="px-2 py-3 text-ink-muted">
-                    <EditableCell
-                      value={a.dateVente ? a.dateVente.slice(0, 10) : null}
-                      display={
-                        a.dateVente
-                          ? new Date(a.dateVente).toLocaleDateString("fr-FR")
-                          : "—"
-                      }
-                      type="text"
-                      editable={vendu}
-                      onSave={(v) =>
-                        patch(a.id, {
-                          dateVente: v ? new Date(v).toISOString() : null,
-                        })
-                      }
-                    />
-                  </td>
-                ),
-                canal: (
-                  <td key="canal" className="px-2 py-3">
-                    <CanalBadge canal={a.canal} />
-                  </td>
-                ),
-                transporteur: (
-                  <td key="transporteur" className="px-3 py-3 text-ink-muted">
-                    {a.transporteur ?? "—"}
-                  </td>
-                ),
-              };
-              return (
-                <tr
-                  key={a.id}
-                  className={`border-t border-line align-middle transition-colors hover:bg-surface-soft ${
-                    selected.has(a.id) ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <td className="px-3 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label={`Sélectionner ${a.sku}`}
-                      className="h-4 w-4 cursor-pointer accent-primary"
-                      checked={selected.has(a.id)}
-                      onChange={() => toggleOne(a.id)}
-                    />
-                  </td>
-                  {shownColumns.map((c) => cells[c.key])}
-                  <td className="px-3 py-3 text-right">
-                    <button
-                      onClick={() => {
-                        if (confirm(`Supprimer ${a.sku} ?`)) del.mutate(a.id);
-                      }}
-                      className="text-ink-faint transition-colors hover:text-error"
-                      title="Supprimer"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+                  </tr>
+                )}
+              </>
+            )}
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Compteur */}
       <div className="mt-5 flex flex-wrap gap-x-8 gap-y-1 text-body-md text-ink-muted">

@@ -18,6 +18,7 @@
     "@anthropic-ai/sdk": "^0.104.1",
     "@prisma/client": "^6.19.3",
     "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-virtual": "^3.14.3",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "exifr": "^7.1.3",
