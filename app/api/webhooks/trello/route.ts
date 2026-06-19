@@ -15,6 +15,39 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
+// Un token est un SKU s'il ressemble à 2-5 lettres suivies de chiffres (ex: SDM11).
+const SKU_PATTERN = /^[A-Z]{2,5}\d+$/i;
+
+// Découpe le nom d'une carte en liste de SKUs.
+// "SDM11 SDM36 ADI36" → ["SDM11", "SDM36", "ADI36"] ; "DIC30" → ["DIC30"]
+function parseSkus(cardName: string): string[] {
+  return cardName
+    .trim()
+    .split(/\s+/)
+    .filter((token) => SKU_PATTERN.test(token));
+}
+
+// Migration ponctuelle : supprimer les faux articles créés par l'ancien
+// comportement (un seul article avec un SKU contenant des espaces).
+// Exécutée une seule fois au démarrage de la correction.
+let fakeArticlesCleanupDone = false;
+async function cleanupFakeArticlesOnce() {
+  if (fakeArticlesCleanupDone) return;
+  fakeArticlesCleanupDone = true;
+  try {
+    const result = await prisma.article.deleteMany({
+      where: { sku: { contains: " " } },
+    });
+    if (result.count > 0) {
+      console.log(`Migration: ${result.count} faux article(s) supprimé(s)`);
+    }
+  } catch (e) {
+    // En cas d'échec, on réautorise une nouvelle tentative au prochain appel.
+    fakeArticlesCleanupDone = false;
+    console.error("Migration faux articles échouée", e);
+  }
+}
+
 type TrelloLabel = { id: string; name: string | null };
 type TrelloWebhookBody = {
   action?: {
@@ -30,6 +63,9 @@ type TrelloWebhookBody = {
 // POST /api/webhooks/trello — déclenché à chaque action du board Trello.
 export async function POST(req: NextRequest) {
   try {
+    // Nettoyage ponctuel des faux articles de l'ancien comportement (une seule fois).
+    await cleanupFakeArticlesOnce();
+
     const body = (await req.json()) as TrelloWebhookBody;
     const action = body.action ?? {};
     const data = action.data ?? {};
@@ -71,9 +107,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ignored: "no-label" });
     }
 
-    // 4. SKU = nom de la carte.
-    const sku = (card.name ?? "").trim();
-    if (!sku) {
+    // 4. Le nom de la carte peut contenir plusieurs SKUs (ex: "SDM11 SDM36 ADI36").
+    const skus = parseSkus(card.name ?? "");
+    if (skus.length === 0) {
       return NextResponse.json({ ignored: "no-sku" });
     }
 
@@ -87,32 +123,32 @@ export async function POST(req: NextRequest) {
       console.error("Webhook: récupération transporteur échouée", e);
     }
 
-    // 6. Met à jour l'article existant, sinon le crée.
-    const existing = await prisma.article.findUnique({ where: { sku } });
-    if (existing) {
-      await prisma.article.update({
-        where: { sku },
-        data: {
-          statut: STATUT_A_COMPTABILISER,
-          transporteur,
-          trelloCardId: card.id,
-        },
+    // 6. Pour chaque SKU détecté : mettre l'article existant « À comptabiliser ».
+    //    On ne crée jamais d'article ; un SKU inconnu est simplement loggé.
+    const found: string[] = [];
+    const notFound: string[] = [];
+
+    for (const token of skus) {
+      const existing = await prisma.article.findFirst({
+        where: { sku: { equals: token, mode: "insensitive" } },
       });
-    } else {
-      await prisma.article.create({
-        data: {
-          sku,
-          statut: STATUT_A_COMPTABILISER,
-          transporteur,
-          trelloCardId: card.id,
-          marque: "À définir",
-          categorie: "À définir",
-          prixAchat: 0,
-        },
-      });
+      if (existing) {
+        await prisma.article.update({
+          where: { id: existing.id },
+          data: {
+            statut: STATUT_A_COMPTABILISER,
+            transporteur,
+            trelloCardId: card.id,
+          },
+        });
+        found.push(token);
+      } else {
+        console.warn(`SKU non trouvé : ${token}`);
+        notFound.push(token);
+      }
     }
 
-    return NextResponse.json({ ok: true, sku, type });
+    return NextResponse.json({ ok: true, found, notFound });
   } catch (err) {
     const e = err as Error;
     console.error("Webhook error:", err);
