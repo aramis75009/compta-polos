@@ -11,15 +11,19 @@ const MAX_PHOTOS = 20;
 
 type Photo = {
   id: string;
-  url: string; // object URL de l'aperçu (image corrigée)
-  blob: Blob; // JPEG corrigé prêt à télécharger
+  base: HTMLCanvasElement; // source corrigée EXIF (rotation 0), lossless en mémoire
+  rotation: number; // rotation manuelle cumulée : 0 | 90 | 180 | 270 (horaire)
+  url: string; // object URL de l'aperçu (image corrigée + rotation)
+  blob: Blob; // JPEG final prêt à télécharger (base + rotation, encodé une seule fois)
 };
 
 /**
  * Corrige l'orientation EXIF d'une photo et garantit un rendu portrait.
  * Tout est fait côté client via <canvas> — aucun upload serveur.
+ * Renvoie le canvas corrigé (non encodé) qui sert de SOURCE lossless :
+ * les rotations manuelles s'appliquent dessus, puis on encode une seule fois.
  */
-async function processImage(file: File): Promise<Blob> {
+async function correctImage(file: File): Promise<HTMLCanvasElement> {
   // 1) Orientation EXIF (1..8). exifr renvoie undefined si absent.
   const orientation = ((await exifr
     .orientation(file)
@@ -79,8 +83,30 @@ async function processImage(file: File): Promise<Blob> {
     final = rot;
   }
 
+  return final;
+}
+
+/**
+ * Applique une rotation manuelle (0/90/180/270°, horaire) sur le canvas SOURCE
+ * et encode en JPEG. La rotation part toujours de la source corrigée d'origine,
+ * donc une seule génération de compression quel que soit le nombre de clics.
+ */
+function encodeRotated(
+  base: HTMLCanvasElement,
+  rotation: number,
+): Promise<Blob> {
+  const swap = rotation === 90 || rotation === 270;
+  const canvas = document.createElement("canvas");
+  canvas.width = swap ? base.height : base.width;
+  canvas.height = swap ? base.width : base.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponible.");
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.drawImage(base, -base.width / 2, -base.height / 2);
+
   return new Promise<Blob>((resolve, reject) => {
-    final.toBlob(
+    canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("Conversion impossible."))),
       "image/jpeg",
       0.92,
@@ -115,6 +141,9 @@ export default function PhotosPage() {
   const [canShareFiles, setCanShareFiles] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  // Rotation manuelle courante par photo (mise à jour synchrone pour éviter
+  // les états périmés lors de clics rapides sur les boutons de rotation).
+  const rotationsRef = useRef<Record<string, number>>({});
   const updateArticle = useUpdateArticle();
 
   useEffect(() => {
@@ -170,9 +199,14 @@ export default function PhotosPage() {
 
     for (const file of toProcess) {
       try {
-        const blob = await processImage(file);
+        const base = await correctImage(file);
+        const blob = await encodeRotated(base, 0);
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        rotationsRef.current[id] = 0;
         const photo: Photo = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id,
+          base,
+          rotation: 0,
           url: URL.createObjectURL(blob),
           blob,
         };
@@ -188,11 +222,31 @@ export default function PhotosPage() {
   }
 
   function removePhoto(id: string) {
+    delete rotationsRef.current[id];
     setPhotos((prev) => {
       const p = prev.find((x) => x.id === id);
       if (p) URL.revokeObjectURL(p.url);
       return prev.filter((x) => x.id !== id);
     });
+  }
+
+  // Rotation manuelle cumulative de 90° (delta = +90 horaire, -90 anti-horaire).
+  // On repart toujours du canvas source → une seule génération de compression.
+  async function rotatePhoto(id: string, delta: number) {
+    const photo = photos.find((p) => p.id === id);
+    if (!photo) return;
+    const current = rotationsRef.current[id] ?? photo.rotation;
+    const rotation = (((current + delta) % 360) + 360) % 360;
+    rotationsRef.current[id] = rotation; // réserve le nouvel état tout de suite
+    const blob = await encodeRotated(photo.base, rotation);
+    const url = URL.createObjectURL(blob);
+    setPhotos((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        URL.revokeObjectURL(p.url);
+        return { ...p, rotation, blob, url };
+      }),
+    );
   }
 
   const fileName = (index: number) =>
@@ -387,33 +441,73 @@ export default function PhotosPage() {
               {photos.map((p, i) => (
                 <figure
                   key={p.id}
-                  className="group relative overflow-hidden rounded-card border border-line bg-surface shadow-card"
+                  className="group overflow-hidden rounded-card border border-line bg-surface shadow-card"
                 >
-                  <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-label-sm font-semibold text-white">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <button
-                    onClick={() => removePhoto(p.id)}
-                    aria-label={`Supprimer la photo ${i + 1}`}
-                    className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-error/90 text-white transition-colors hover:bg-error"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      className="h-4 w-4"
-                      strokeWidth="2"
-                      strokeLinecap="round"
+                  <div className="relative">
+                    <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-label-sm font-semibold text-white">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <button
+                      onClick={() => removePhoto(p.id)}
+                      aria-label={`Supprimer la photo ${i + 1}`}
+                      className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-error/90 text-white transition-colors hover:bg-error"
                     >
-                      <path d="M6 6l12 12M18 6 6 18" />
-                    </svg>
-                  </button>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.url}
-                    alt={fileName(i)}
-                    className="aspect-[3/4] w-full bg-surface-soft object-contain"
-                  />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        className="h-4 w-4"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      >
+                        <path d="M6 6l12 12M18 6 6 18" />
+                      </svg>
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={fileName(i)}
+                      className="aspect-[3/4] w-full bg-surface-soft object-contain"
+                    />
+                    {/* Rotation manuelle anti-horaire (↺) — bas gauche. */}
+                    <button
+                      onClick={() => rotatePhoto(p.id, -90)}
+                      aria-label={`Tourner la photo ${i + 1} de 90° vers la gauche`}
+                      className="absolute bottom-2 left-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        className="h-4 w-4"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                    </button>
+                    {/* Rotation manuelle horaire (↻) — bas droite. */}
+                    <button
+                      onClick={() => rotatePhoto(p.id, 90)}
+                      aria-label={`Tourner la photo ${i + 1} de 90° vers la droite`}
+                      className="absolute bottom-2 right-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        className="h-4 w-4"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="23 4 23 10 17 10" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                      </svg>
+                    </button>
+                  </div>
                   <figcaption className="border-t border-line p-2">
                     <button
                       onClick={() => triggerDownload(p.blob, fileName(i))}
