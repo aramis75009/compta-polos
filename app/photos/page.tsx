@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import exifr from "exifr";
-import JSZip from "jszip";
 import { useUpdateArticle } from "@/lib/hooks";
 import type { ArticleDTO } from "@/lib/types";
 import StatutBadge from "@/components/StatutBadge";
@@ -25,6 +23,8 @@ type Photo = {
  */
 async function correctImage(file: File): Promise<HTMLCanvasElement> {
   // 1) Orientation EXIF (1..8). exifr renvoie undefined si absent.
+  // Import dynamique : exifr n'est chargé qu'au premier traitement de photo.
+  const exifr = (await import("exifr")).default;
   const orientation = ((await exifr
     .orientation(file)
     .catch(() => 1)) as number | undefined) || 1;
@@ -268,6 +268,8 @@ export default function PhotosPage() {
     if (!article || photos.length === 0) return;
     setZipping(true);
     try {
+      // Import dynamique : jszip n'est chargé qu'au premier export ZIP.
+      const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       photos.forEach((p, i) => zip.file(fileName(i), p.blob));
       const content = await zip.generateAsync({ type: "blob" });

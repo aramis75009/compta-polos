@@ -98,7 +98,27 @@ export function useUpdateArticle() {
         method: "PATCH",
         body: JSON.stringify(patch),
       }),
-    onSuccess: (_data, { patch }) => {
+    // --- Optimistic update : la cellule change visuellement avant la réponse.
+    onMutate: async ({ id, patch }) => {
+      // Stoppe les refetch en cours pour qu'ils n'écrasent pas l'update optimiste.
+      await qc.cancelQueries({ queryKey: ["articles"] });
+      // Snapshot de toutes les variantes ["articles", filters] en cache.
+      const previous = qc.getQueriesData<ArticleDTO[]>({
+        queryKey: ["articles"],
+      });
+      // Applique le patch à l'article concerné dans chaque entrée de cache.
+      qc.setQueriesData<ArticleDTO[]>({ queryKey: ["articles"] }, (old) =>
+        old?.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+      );
+      return { previous };
+    },
+    // Rollback : on restaure chaque entrée de cache touchée.
+    onError: (_err, _vars, ctx) => {
+      ctx?.previous?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    // Invalidation ciblée (cf. lot 1) — exécutée en succès comme en erreur, pour
+    // resynchroniser les valeurs serveur (marges/coef recalculés notamment).
+    onSettled: (_data, _err, { patch }) => {
       // Un patch touche toujours la liste des articles.
       qc.invalidateQueries({ queryKey: ["articles"] });
       // On ne recharge dashboard/stats/calendrier que si un champ financier ou

@@ -1,22 +1,28 @@
 "use client";
 
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import { statutColor } from "@/lib/statutColors";
-import { canalColor } from "@/lib/canalColors";
 
-// Couleur vive (texte) du statut, pour le donut et la légende.
+// recharts chargé dynamiquement (client uniquement) → hors bundle initial.
+const chartLoader = () => (
+  <div className="h-full w-full animate-pulse rounded-md bg-surface-soft" />
+);
+const WeekdayChart = dynamic(
+  () => import("./charts").then((m) => m.WeekdayChart),
+  { ssr: false, loading: chartLoader },
+);
+const StatutPie = dynamic(() => import("./charts").then((m) => m.StatutPie), {
+  ssr: false,
+  loading: chartLoader,
+});
+const CanalChart = dynamic(() => import("./charts").then((m) => m.CanalChart), {
+  ssr: false,
+  loading: chartLoader,
+});
+
+// Couleur vive (texte) du statut, pour la légende du donut.
 const hex = (statut: string) => statutColor(statut).text;
 
 // "9 juin 2026" — date réelle du meilleur jour de la semaine.
@@ -149,38 +155,7 @@ export default function StatistiquesPage() {
             );
           })()}
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data.parJourSemaine}
-                margin={{ top: 5, right: 8, bottom: 5, left: 0 }}
-              >
-                <XAxis
-                  dataKey="jour"
-                  stroke="#717972"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={{ stroke: "#eaeaea" }}
-                  tickFormatter={(v: string) => v.slice(0, 3)}
-                />
-                <YAxis
-                  stroke="#717972"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(26,83,54,0.06)" }}
-                  contentStyle={{
-                    background: "#ffffff",
-                    border: "1px solid #eaeaea",
-                    borderRadius: 12,
-                  }}
-                  formatter={(v) => [String(v), "Vendus"]}
-                />
-                <Bar dataKey="vendus" fill="#1a5336" radius={[6, 6, 0, 0]} maxBarSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            <WeekdayChart data={data.parJourSemaine} />
           </div>
         </Card>
 
@@ -188,33 +163,7 @@ export default function StatistiquesPage() {
         <Card title="Répartition des statuts">
           <div className="flex items-center gap-4">
             <div className="h-64 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.repartitionStatuts}
-                    dataKey="count"
-                    nameKey="statut"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {data.repartitionStatuts.map((s) => (
-                      <Cell
-                        key={s.statut}
-                        fill={hex(s.statut)}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "#ffffff",
-                      border: "1px solid #eaeaea",
-                      borderRadius: 12,
-                    }}
-                    formatter={(v, n) => [String(v), String(n)]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <StatutPie data={data.repartitionStatuts} />
             </div>
             <ul className="space-y-1.5 text-label-sm">
               {data.repartitionStatuts.map((s) => (
@@ -242,45 +191,7 @@ export default function StatistiquesPage() {
               className="w-full"
               style={{ height: Math.max(160, data.caParCanal.length * 48) }}
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={data.caParCanal}
-                  margin={{ top: 5, right: 16, bottom: 5, left: 8 }}
-                >
-                  <XAxis
-                    type="number"
-                    stroke="#717972"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={{ stroke: "#eaeaea" }}
-                    tickFormatter={(v: number) => euros(v)}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="canal"
-                    stroke="#717972"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    width={130}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(26,83,54,0.06)" }}
-                    contentStyle={{
-                      background: "#ffffff",
-                      border: "1px solid #eaeaea",
-                      borderRadius: 12,
-                    }}
-                    formatter={(v) => [euros(Number(v)), "CA"]}
-                  />
-                  <Bar dataKey="ca" radius={[0, 6, 6, 0]} maxBarSize={32}>
-                    {data.caParCanal.map((d) => (
-                      <Cell key={d.canal} fill={canalColor(d.canal).bg} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <CanalChart data={data.caParCanal} />
             </div>
           )}
         </Card>

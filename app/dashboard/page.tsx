@@ -1,18 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useDashboard } from "@/lib/hooks";
 import { coef, euros, pourcent } from "@/lib/calc";
 import KpiCard from "@/components/KpiCard";
+
+// recharts chargé dynamiquement (client uniquement) → hors bundle initial.
+const WeeklyCaChart = dynamic(() => import("./WeeklyCaChart"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-md bg-surface-soft" />,
+});
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -71,39 +69,7 @@ export default function DashboardPage() {
           </span>
         </div>
         <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data.caParSemaine}
-              margin={{ top: 5, right: 8, bottom: 5, left: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#eaeaea" vertical={false} />
-              <XAxis
-                dataKey="semaine"
-                stroke="#717972"
-                fontSize={12}
-                tickLine={false}
-                axisLine={{ stroke: "#eaeaea" }}
-              />
-              <YAxis
-                stroke="#717972"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "rgba(26,83,54,0.06)" }}
-                contentStyle={{
-                  background: "#ffffff",
-                  border: "1px solid #eaeaea",
-                  borderRadius: 12,
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
-                }}
-                labelStyle={{ color: "#1a1c1c", fontWeight: 600 }}
-                formatter={(v) => [euros(Number(v)), "CA"]}
-              />
-              <Bar dataKey="ca" fill="#1a5336" radius={[6, 6, 0, 0]} maxBarSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
+          <WeeklyCaChart data={data.caParSemaine} />
         </div>
       </section>
 

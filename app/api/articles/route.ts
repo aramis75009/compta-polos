@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { toDTO } from "@/lib/serialize";
+import { toDTO, articleSelect } from "@/lib/serialize";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const articles = await prisma.article.findMany({
       where,
-      include: { commande: true },
+      select: articleSelect,
     });
 
     // Pas de tri ici : les consommateurs trient eux-mêmes (tri naturel SKU côté
