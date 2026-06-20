@@ -28,6 +28,7 @@ import SellModal from "@/components/SellModal";
 import NewCommandeModal from "@/components/NewCommandeModal";
 import CanalBadge from "@/components/CanalBadge";
 import StatutBadge from "@/components/StatutBadge";
+import Modal from "@/components/Modal";
 
 // Petit indicateur vert : les photos de l'article sont prêtes (retouchées
 // et téléchargées depuis la page Photos).
@@ -148,6 +149,7 @@ type RowCallbacks = {
   onPatch: (id: string, patch: ArticlePatch) => void;
   onStatutChange: (a: ArticleDTO, value: string) => void;
   onDelete: (a: ArticleDTO) => void;
+  onShowDetail: (a: ArticleDTO) => void;
 };
 
 type ArticleRowProps = RowCallbacks & {
@@ -169,6 +171,7 @@ const ArticleRow = memo(
       onPatch,
       onStatutChange,
       onDelete,
+      onShowDetail,
       ...rest
     },
     ref,
@@ -345,13 +348,24 @@ const ArticleRow = memo(
         </td>
         {shownColumns.map((c) => cells[c.key])}
         <td className="px-3 py-3 text-right">
-          <button
-            onClick={() => onDelete(a)}
-            className="text-ink-faint transition-colors hover:text-error"
-            title="Supprimer"
-          >
-            ✕
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => onShowDetail(a)}
+              className={`transition-colors hover:text-primary ${
+                a.titreAnnonce ? "text-primary" : "text-ink-faint"
+              }`}
+              title={a.titreAnnonce ? "Voir le détail (annonce générée)" : "Voir le détail"}
+            >
+              📄
+            </button>
+            <button
+              onClick={() => onDelete(a)}
+              className="text-ink-faint transition-colors hover:text-error"
+              title="Supprimer"
+            >
+              ✕
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -362,6 +376,7 @@ type ArticleCardProps = {
   a: ArticleDTO;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
+  onShowDetail: (a: ArticleDTO) => void;
   "data-index"?: number;
 };
 
@@ -369,7 +384,7 @@ type ArticleCardProps = {
 // hauteur mesurée par le virtualizer inclue l'espacement entre cartes.
 const ArticleCard = memo(
   forwardRef<HTMLDivElement, ArticleCardProps>(function ArticleCard(
-    { a, isSelected, onToggleSelect, ...rest },
+    { a, isSelected, onToggleSelect, onShowDetail, ...rest },
     ref,
   ) {
     return (
@@ -386,13 +401,17 @@ const ArticleCard = memo(
             checked={isSelected}
             onChange={() => onToggleSelect(a.id)}
           />
-          <div className="min-w-0 flex-1">
+          <div
+            className="min-w-0 flex-1 cursor-pointer"
+            onClick={() => onShowDetail(a)}
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-mono font-semibold text-ink">
                   {a.sku}
                 </span>
                 {a.photosPretes && <PhotosReadyIcon />}
+                {a.titreAnnonce && <span title="Annonce générée">📄</span>}
               </span>
               <StatutBadge statut={a.statut} />
             </div>
@@ -468,6 +487,7 @@ function StockInner() {
 
   const [newCommande, setNewCommande] = useState(false);
   const [sellTarget, setSellTarget] = useState<ArticleDTO | null>(null);
+  const [detailTarget, setDetailTarget] = useState<ArticleDTO | null>(null);
 
   // --- Colonnes masquables (préférences persistées dans localStorage) ---
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(
@@ -682,6 +702,8 @@ function StockInner() {
     [del],
   );
 
+  const handleShowDetail = useCallback((a: ArticleDTO) => setDetailTarget(a), []);
+
   const confirmSell = (
     prixVente: number,
     dateVenteISO: string,
@@ -885,6 +907,7 @@ function StockInner() {
                     a={a}
                     isSelected={selected.has(a.id)}
                     onToggleSelect={toggleOne}
+                    onShowDetail={handleShowDetail}
                   />
                 );
               })}
@@ -986,6 +1009,7 @@ function StockInner() {
                       onPatch={handlePatch}
                       onStatutChange={handleStatutChange}
                       onDelete={handleDelete}
+                      onShowDetail={handleShowDetail}
                     />
                   );
                 })}
@@ -1077,7 +1101,92 @@ function StockInner() {
         onClose={() => setSellTarget(null)}
         onConfirm={confirmSell}
       />
+
+      <Modal
+        open={!!detailTarget}
+        onClose={() => setDetailTarget(null)}
+        title={detailTarget ? detailTarget.sku : ""}
+      >
+        {detailTarget && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-body-md">
+              <StatutBadge statut={detailTarget.statut} />
+              <span className="text-ink-muted">
+                <span className="text-ink-faint">Marque : </span>
+                {detailTarget.marque}
+              </span>
+              <span className="text-ink-muted">
+                <span className="text-ink-faint">Catégorie : </span>
+                {detailTarget.categorie}
+              </span>
+              <span className="text-ink-muted">
+                <span className="text-ink-faint">Prix achat : </span>
+                {euros(detailTarget.prixAchat)}
+              </span>
+            </div>
+
+            {detailTarget.titreAnnonce ? (
+              <div className="space-y-3 border-t border-line pt-4">
+                <h3 className="text-label-sm font-semibold uppercase tracking-wide text-ink-faint">
+                  Annonce
+                </h3>
+                <DetailCopyField label="Titre" value={detailTarget.titreAnnonce} />
+                <DetailCopyField
+                  label="Description"
+                  value={detailTarget.descriptionAnnonce ?? ""}
+                  multiline
+                />
+                <DetailCopyField
+                  label="Mots-clés"
+                  value={detailTarget.motsClesAnnonce ?? ""}
+                />
+              </div>
+            ) : (
+              <p className="border-t border-line pt-4 text-body-md text-ink-faint">
+                Aucune annonce générée.{" "}
+                <a href="/mise-en-vente" className="text-primary underline">
+                  Créer une annonce
+                </a>
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </main>
+  );
+}
+
+function DetailCopyField({
+  label,
+  value,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="rounded-md border border-line bg-surface-soft p-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-label-sm font-medium uppercase tracking-wide text-ink-faint">
+          {label}
+        </span>
+        <button
+          onClick={async () => {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="rounded-full border border-line bg-surface px-3 py-0.5 text-label-sm font-medium text-ink transition-colors hover:bg-surface-container"
+        >
+          {copied ? "Copié ✓" : "Copier"}
+        </button>
+      </div>
+      <p className={`text-body-md text-ink ${multiline ? "whitespace-pre-wrap" : ""}`}>
+        {value || "—"}
+      </p>
+    </div>
   );
 }
 

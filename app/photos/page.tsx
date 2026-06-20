@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useUpdateArticle } from "@/lib/hooks";
 import type { ArticleDTO } from "@/lib/types";
+import {
+  correctImage,
+  encodeRotated,
+  triggerDownload,
+} from "@/lib/imageProcessing";
 import StatutBadge from "@/components/StatutBadge";
 
 const MAX_PHOTOS = 20;
@@ -14,117 +19,6 @@ type Photo = {
   url: string; // object URL de l'aperçu (image corrigée + rotation)
   blob: Blob; // JPEG final prêt à télécharger (base + rotation, encodé une seule fois)
 };
-
-/**
- * Corrige l'orientation EXIF d'une photo et garantit un rendu portrait.
- * Tout est fait côté client via <canvas> — aucun upload serveur.
- * Renvoie le canvas corrigé (non encodé) qui sert de SOURCE lossless :
- * les rotations manuelles s'appliquent dessus, puis on encode une seule fois.
- */
-async function correctImage(file: File): Promise<HTMLCanvasElement> {
-  // 1) Orientation EXIF (1..8). exifr renvoie undefined si absent.
-  // Import dynamique : exifr n'est chargé qu'au premier traitement de photo.
-  const exifr = (await import("exifr")).default;
-  const orientation = ((await exifr
-    .orientation(file)
-    .catch(() => 1)) as number | undefined) || 1;
-
-  // 2) Décodage des pixels BRUTS (sans auto-rotation du navigateur).
-  const bitmap = await createImageBitmap(file, { imageOrientation: "none" });
-  const w = bitmap.width;
-  const h = bitmap.height;
-
-  // 3) Canvas remis à l'endroit selon l'orientation EXIF.
-  const swap = orientation >= 5 && orientation <= 8;
-  const upright = document.createElement("canvas");
-  upright.width = swap ? h : w;
-  upright.height = swap ? w : h;
-  const uctx = upright.getContext("2d");
-  if (!uctx) throw new Error("Canvas indisponible.");
-  switch (orientation) {
-    case 2:
-      uctx.transform(-1, 0, 0, 1, w, 0);
-      break;
-    case 3:
-      uctx.transform(-1, 0, 0, -1, w, h);
-      break;
-    case 4:
-      uctx.transform(1, 0, 0, -1, 0, h);
-      break;
-    case 5:
-      uctx.transform(0, 1, 1, 0, 0, 0);
-      break;
-    case 6:
-      uctx.transform(0, 1, -1, 0, h, 0);
-      break;
-    case 7:
-      uctx.transform(0, -1, -1, 0, h, w);
-      break;
-    case 8:
-      uctx.transform(0, -1, 1, 0, 0, w);
-      break;
-    default:
-      break;
-  }
-  uctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-
-  // 4) Forcer le portrait : si l'image est paysage, rotation 90° horaire.
-  let final = upright;
-  if (upright.width > upright.height) {
-    const rot = document.createElement("canvas");
-    rot.width = upright.height;
-    rot.height = upright.width;
-    const rctx = rot.getContext("2d");
-    if (!rctx) throw new Error("Canvas indisponible.");
-    rctx.translate(rot.width / 2, rot.height / 2);
-    rctx.rotate(Math.PI / 2);
-    rctx.drawImage(upright, -upright.width / 2, -upright.height / 2);
-    final = rot;
-  }
-
-  return final;
-}
-
-/**
- * Applique une rotation manuelle (0/90/180/270°, horaire) sur le canvas SOURCE
- * et encode en JPEG. La rotation part toujours de la source corrigée d'origine,
- * donc une seule génération de compression quel que soit le nombre de clics.
- */
-function encodeRotated(
-  base: HTMLCanvasElement,
-  rotation: number,
-): Promise<Blob> {
-  const swap = rotation === 90 || rotation === 270;
-  const canvas = document.createElement("canvas");
-  canvas.width = swap ? base.height : base.width;
-  canvas.height = swap ? base.width : base.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas indisponible.");
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(base, -base.width / 2, -base.height / 2);
-
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error("Conversion impossible."))),
-      "image/jpeg",
-      0.92,
-    );
-  });
-}
-
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Laisse le temps au navigateur de démarrer le téléchargement.
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
-}
 
 export default function PhotosPage() {
   const [sku, setSku] = useState("");

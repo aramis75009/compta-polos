@@ -52,9 +52,31 @@ model Article {
   commande    Commande? @relation(fields: [commandeId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
 
+  // Annonce générée (Mise en vente)
+  titreAnnonce       String? @db.Text
+  descriptionAnnonce String? @db.Text
+  motsClesAnnonce    String? @db.Text
+
   @@index([statut])
   @@index([marque])
   @@index([trelloCardId])
   @@index([dateVente])
   @@index([commandeId])
+}
+
+// Prompt personnalisable pour la génération d'annonces via Gemini.
+// Sélection par marque/catégorie (cf. lib/promptSelect), repli sur estDefaut.
+model PromptTemplate {
+  id        String   @id @default(cuid())
+  nom       String
+  marque    String? // critère de correspondance ; null = toutes les marques
+  categorie String? // critère de correspondance ; null = toutes les catégories
+  contenu   String   @db.Text // prompt avec placeholders {marque} {categorie} {taille} {etat} {matiere} {sku}
+  estDefaut Boolean  @default(false) // prompt de repli si aucune correspondance
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([marque])
+  @@index([categorie])
+  @@index([estDefaut])
 }

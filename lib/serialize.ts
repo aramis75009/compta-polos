@@ -24,6 +24,9 @@ export const articleSelect = {
   trelloCardId: true,
   photosPretes: true,
   commandeId: true,
+  titreAnnonce: true,
+  descriptionAnnonce: true,
+  motsClesAnnonce: true,
   commande: {
     select: { coutTotal: true, nbArticles: true, coefObjectif: true },
   },
@@ -60,5 +63,8 @@ export function toDTO(a: ArticleForDTO): ArticleDTO {
       ? prixUnitaire(a.commande.coutTotal, a.commande.nbArticles)
       : null,
     coefObjectif: a.commande ? a.commande.coefObjectif : null,
+    titreAnnonce: a.titreAnnonce,
+    descriptionAnnonce: a.descriptionAnnonce,
+    motsClesAnnonce: a.motsClesAnnonce,
   };
 }

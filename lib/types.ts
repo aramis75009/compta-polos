@@ -20,6 +20,20 @@ export type ArticleDTO = {
   commandeId: string | null;
   prixUnitaire: number | null; // dérivé de la commande
   coefObjectif: number | null; // objectif de coef de la commande
+  titreAnnonce: string | null;
+  descriptionAnnonce: string | null;
+  motsClesAnnonce: string | null;
+};
+
+export type PromptTemplateDTO = {
+  id: string;
+  nom: string;
+  marque: string | null;
+  categorie: string | null;
+  contenu: string;
+  estDefaut: boolean;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
 };
 
 export type CommandeDTO = {

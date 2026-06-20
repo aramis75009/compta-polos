@@ -14,6 +14,9 @@ type PatchBody = {
   dateVente?: string | null;
   canal?: string | null;
   photosPretes?: boolean;
+  titreAnnonce?: string | null;
+  descriptionAnnonce?: string | null;
+  motsClesAnnonce?: string | null;
 };
 
 // PATCH /api/articles/[id] — édition inline + transitions de statut
@@ -50,6 +53,16 @@ export async function PATCH(
       data.canal = body.canal ? String(body.canal).trim() : null;
     if (body.photosPretes !== undefined)
       data.photosPretes = Boolean(body.photosPretes);
+    if (body.titreAnnonce !== undefined)
+      data.titreAnnonce = body.titreAnnonce ? String(body.titreAnnonce) : null;
+    if (body.descriptionAnnonce !== undefined)
+      data.descriptionAnnonce = body.descriptionAnnonce
+        ? String(body.descriptionAnnonce)
+        : null;
+    if (body.motsClesAnnonce !== undefined)
+      data.motsClesAnnonce = body.motsClesAnnonce
+        ? String(body.motsClesAnnonce)
+        : null;
 
     if (body.statut !== undefined && !STATUTS.includes(body.statut as never)) {
       return NextResponse.json({ error: "Statut invalide." }, { status: 400 });

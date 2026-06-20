@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { skuNumber } from "../lib/calc";
+import { DEFAULT_PROMPT_CONTENU } from "../lib/promptSelect";
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,19 @@ async function main() {
 
   console.log(`Création de ${articles.length} articles…`);
   await prisma.article.createMany({ data: articles });
+
+  // Prompt d'annonce par défaut (si aucun n'existe) → la Mise en vente
+  // fonctionne immédiatement sans configuration.
+  if ((await prisma.promptTemplate.count()) === 0) {
+    await prisma.promptTemplate.create({
+      data: {
+        nom: "Prompt par défaut",
+        contenu: DEFAULT_PROMPT_CONTENU,
+        estDefaut: true,
+      },
+    });
+    console.log("Prompt par défaut créé.");
+  }
 
   console.log(
     `✅ Seed terminé : 1 commande, ${articles.length} articles (prix d'achat ${PRIX_ACHAT.toFixed(2)} €).`,

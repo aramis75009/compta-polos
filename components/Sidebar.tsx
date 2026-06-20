@@ -79,6 +79,26 @@ const IconStats = I(
     <path d="M7 15l3-4 3 2 4-6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </>,
 );
+const IconSell = I(
+  <>
+    <path
+      d="M3 7h13l5 5-9 9-9-9V7Z"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+    />
+    <circle cx="7.5" cy="11.5" r="1.4" strokeWidth="1.4" />
+  </>,
+);
+const IconSettings = I(
+  <>
+    <circle cx="12" cy="12" r="3" strokeWidth="1.6" />
+    <path
+      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+      strokeWidth="1.4"
+      strokeLinejoin="round"
+    />
+  </>,
+);
 const IconLogout = I(
   <path
     d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
@@ -93,6 +113,12 @@ const NAV: NavItem[] = [
   { href: "/stock", label: "Stock", short: "Stock", icon: IconStock },
   { href: "/photos", label: "Photos", short: "Photos", icon: IconPhotos },
   {
+    href: "/mise-en-vente",
+    label: "Mise en vente",
+    short: "Vendre",
+    icon: IconSell,
+  },
+  {
     href: "/a-comptabiliser",
     label: "À comptabiliser",
     short: "Compta",
@@ -102,6 +128,12 @@ const NAV: NavItem[] = [
   { href: "/calendrier", label: "Calendrier", short: "Agenda", icon: IconCalendar },
   { href: "/commandes", label: "Commandes", short: "Cmd", icon: IconCommandes },
   { href: "/statistiques", label: "Statistiques", short: "Stats", icon: IconStats },
+  {
+    href: "/parametres/prompts",
+    label: "Paramètres",
+    short: "Config",
+    icon: IconSettings,
+  },
 ];
 
 function isActive(pathname: string, href: string) {

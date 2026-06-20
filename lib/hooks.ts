@@ -11,6 +11,7 @@ import type {
   CommandeDTO,
   CommandeStatsDTO,
   DashboardDTO,
+  PromptTemplateDTO,
   StatsDTO,
 } from "./types";
 
@@ -78,6 +79,9 @@ export type ArticlePatch = Partial<{
   dateVente: string | null;
   canal: string | null;
   photosPretes: boolean;
+  titreAnnonce: string | null;
+  descriptionAnnonce: string | null;
+  motsClesAnnonce: string | null;
 }>;
 
 // Champs dont la modification impacte les vues agrégées
@@ -281,5 +285,84 @@ export function useCalendar(month: string) {
   return useQuery({
     queryKey: ["calendar", month],
     queryFn: () => jsonFetch<CalendarDTO>(`/api/calendar?month=${month}`),
+  });
+}
+
+// ---------- Prompts (Mise en vente) ----------
+
+export type PromptInput = {
+  nom: string;
+  marque: string | null;
+  categorie: string | null;
+  contenu: string;
+  estDefaut: boolean;
+};
+
+export function usePrompts() {
+  return useQuery({
+    queryKey: ["prompts"],
+    queryFn: () => jsonFetch<PromptTemplateDTO[]>("/api/prompts"),
+  });
+}
+
+export function useCreatePrompt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PromptInput) =>
+      jsonFetch<PromptTemplateDTO>("/api/prompts", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["prompts"] }),
+  });
+}
+
+export function useUpdatePrompt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<PromptInput> }) =>
+      jsonFetch<PromptTemplateDTO>(`/api/prompts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["prompts"] }),
+  });
+}
+
+export function useDeletePrompt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      jsonFetch<{ ok: true }>(`/api/prompts/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["prompts"] }),
+  });
+}
+
+// ---------- Génération d'annonce ----------
+
+export type GenerateInput = {
+  sku: string;
+  marque: string | null;
+  categorie: string | null;
+  taille: string | null;
+  etat: string | null;
+  matiere: string | null;
+  images: string[]; // dataURL base64
+};
+
+export type GenerateResult = {
+  titre: string;
+  description: string;
+  motsCles: string;
+  promptNom: string;
+};
+
+export function useGenerateListing() {
+  return useMutation({
+    mutationFn: (input: GenerateInput) =>
+      jsonFetch<GenerateResult>("/api/listings/generate", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
   });
 }
