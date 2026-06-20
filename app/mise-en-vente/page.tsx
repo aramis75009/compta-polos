@@ -48,6 +48,7 @@ export default function MiseEnVentePage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [processing, setProcessing] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // --- QCM ---
@@ -95,9 +96,7 @@ export default function MiseEnVentePage() {
     }
   }
 
-  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (fileRef.current) fileRef.current.value = "";
+  async function processFiles(files: File[]) {
     if (files.length === 0) return;
     const room = MAX_PHOTOS - photos.length;
     const toProcess = files.slice(0, Math.max(0, room));
@@ -115,6 +114,30 @@ export default function MiseEnVentePage() {
         setProcessing((n) => Math.max(0, n - 1));
       }
     }
+  }
+
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (fileRef.current) fileRef.current.value = "";
+    await processFiles(files);
+  }
+
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
+  }
+
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    await processFiles(files);
   }
 
   function removePhoto(id: string) {
@@ -290,21 +313,6 @@ export default function MiseEnVentePage() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={photos.length >= MAX_PHOTOS}
-                  className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
-                >
-                  Ajouter des photos
-                </button>
-                <span className="text-body-md text-ink-muted">
-                  {photos.length} / {MAX_PHOTOS}
-                  {processing > 0 && (
-                    <span className="ml-2 text-ink-faint">· traitement de {processing}…</span>
-                  )}
-                </span>
-              </div>
               <input
                 ref={fileRef}
                 type="file"
@@ -314,49 +322,111 @@ export default function MiseEnVentePage() {
                 className="hidden"
               />
 
-              {photos.length > 0 && (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  {photos.map((p, i) => (
-                    <figure
-                      key={p.id}
-                      className="group overflow-hidden rounded-card border border-line bg-surface shadow-card"
+              {/* Zone drag-and-drop */}
+              <div
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragEnter={onDragOver}
+                onDragLeave={onDragLeave}
+                className={`relative rounded-card border-2 border-dashed transition-all ${
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : photos.length === 0
+                      ? "border-line"
+                      : "border-transparent"
+                }`}
+              >
+                {isDragging && (
+                  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-card bg-primary/10">
+                    <p className="text-headline-md font-semibold text-primary">Déposer ici ↓</p>
+                  </div>
+                )}
+
+                {photos.length === 0 ? (
+                  <div className="flex flex-col items-center gap-4 py-12 text-center">
+                    <span className="text-5xl">🖼️</span>
+                    <div>
+                      <p className="text-body-md font-medium text-ink-muted">
+                        Glissez vos photos ici
+                      </p>
+                      <p className="mt-1 text-label-sm text-ink-faint">ou</p>
+                    </div>
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      disabled={photos.length >= MAX_PHOTOS}
+                      className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
                     >
-                      <div className="relative">
-                        <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-label-sm font-semibold text-white">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <button
-                          onClick={() => removePhoto(p.id)}
-                          aria-label={`Supprimer la photo ${i + 1}`}
-                          className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-error/90 text-white transition-colors hover:bg-error"
+                      Parcourir les fichiers
+                    </button>
+                    {processing > 0 && (
+                      <span className="text-label-sm text-ink-faint">
+                        Traitement de {processing} photo(s)…
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-1">
+                    <div className="mb-3 flex items-center gap-3">
+                      <button
+                        onClick={() => fileRef.current?.click()}
+                        disabled={photos.length >= MAX_PHOTOS}
+                        className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
+                      >
+                        Ajouter des photos
+                      </button>
+                      <span className="text-body-md text-ink-muted">
+                        {photos.length} / {MAX_PHOTOS}
+                        {processing > 0 && (
+                          <span className="ml-2 text-ink-faint">
+                            · traitement de {processing}…
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                      {photos.map((p, i) => (
+                        <figure
+                          key={p.id}
+                          className="group overflow-hidden rounded-card border border-line bg-surface shadow-card"
                         >
-                          ✕
-                        </button>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={p.url}
-                          alt={fileName(i)}
-                          className="aspect-[3/4] w-full bg-surface-soft object-contain"
-                        />
-                        <button
-                          onClick={() => rotatePhoto(p.id, -90)}
-                          aria-label="Tourner à gauche"
-                          className="absolute bottom-2 left-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
-                        >
-                          ↺
-                        </button>
-                        <button
-                          onClick={() => rotatePhoto(p.id, 90)}
-                          aria-label="Tourner à droite"
-                          className="absolute bottom-2 right-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
-                        >
-                          ↻
-                        </button>
-                      </div>
-                    </figure>
-                  ))}
-                </div>
-              )}
+                          <div className="relative">
+                            <span className="absolute left-2 top-2 z-10 rounded-full bg-ink/80 px-2 py-0.5 text-label-sm font-semibold text-white">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <button
+                              onClick={() => removePhoto(p.id)}
+                              aria-label={`Supprimer la photo ${i + 1}`}
+                              className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full bg-error/90 text-white transition-colors hover:bg-error"
+                            >
+                              ✕
+                            </button>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={p.url}
+                              alt={fileName(i)}
+                              className="aspect-[3/4] w-full bg-surface-soft object-contain"
+                            />
+                            <button
+                              onClick={() => rotatePhoto(p.id, -90)}
+                              aria-label="Tourner à gauche"
+                              className="absolute bottom-2 left-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
+                            >
+                              ↺
+                            </button>
+                            <button
+                              onClick={() => rotatePhoto(p.id, 90)}
+                              aria-label="Tourner à droite"
+                              className="absolute bottom-2 right-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-gray-700 shadow-sm transition-colors hover:bg-white hover:text-[#1A5336]"
+                            >
+                              ↻
+                            </button>
+                          </div>
+                        </figure>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="flex justify-end">
                 <button
