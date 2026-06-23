@@ -163,9 +163,12 @@ export default function CalendrierPage() {
         <div className="flex-1 overflow-x-auto">
           <div className="min-w-[900px]">
             {/* En-têtes de colonnes : 7 jours + récap */}
-            <div className="grid grid-cols-8 gap-2 px-1 text-label-sm font-medium uppercase tracking-wide text-ink-faint">
+            <div className="grid grid-cols-8 gap-2 px-1 text-label-sm font-medium uppercase tracking-wide">
               {JOURS.map((j) => (
-                <div key={j} className="px-2 py-1">
+                <div
+                  key={j}
+                  className="rounded-md bg-amber-50 px-2 py-1 text-amber-600"
+                >
                   {j}
                 </div>
               ))}
@@ -216,9 +219,11 @@ export default function CalendrierPage() {
                         } ${
                           hasVente
                             ? "bg-green-100"
-                            : !dd || !inMonth
-                              ? "bg-surface-soft text-ink-faint"
-                              : ""
+                            : !inMonth
+                              ? "bg-gray-100"
+                              : !dd
+                                ? "bg-surface-soft text-ink-faint"
+                                : ""
                         } ${dd ? "cursor-pointer" : "cursor-default"}`}
                       >
                         {/* Badge couronne top jour */}
@@ -231,9 +236,11 @@ export default function CalendrierPage() {
                         <div className="flex items-center justify-between">
                           <span
                             className={`text-label-sm ${
-                              isToday(d)
-                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary font-semibold text-on-primary"
-                                : "text-ink-muted"
+                              !inMonth
+                                ? "text-gray-300"
+                                : isToday(d)
+                                  ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary font-semibold text-on-primary"
+                                  : "text-ink-muted"
                             }`}
                           >
                             {format(d, "d")}
