@@ -9,7 +9,9 @@ export type ListingResult = {
 
 export type GeminiImage = { mimeType: string; data: string }; // data = base64 (sans préfixe)
 
-const MODEL = "gemini-2.5-flash";
+// gemini-2.0-flash : stable, même gamme flash récente, disponible sur toutes
+// les clés AI Studio. En cas d'erreur, le message exact est loggé (cf. catch).
+const MODEL = "gemini-2.0-flash";
 
 let client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
