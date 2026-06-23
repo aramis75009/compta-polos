@@ -11,6 +11,7 @@ import { pickPrompt } from "@/lib/promptSelect";
 import { ETATS, MATIERES_SUGGESTIONS, TAILLES } from "@/lib/listingOptions";
 import {
   blobToBase64,
+  compressForApi,
   encodeRotated,
   loadImageDirect,
   triggerDownload,
@@ -347,7 +348,10 @@ export default function MiseEnVentePage() {
     if (!article) return;
     const chosen = photos.filter((p) => selected.has(p.id));
     const images = await Promise.all(
-      chosen.map(async (p) => `data:image/jpeg;base64,${await blobToBase64(p.blob)}`),
+      chosen.map(async (p) => {
+        const compressed = await compressForApi(p.blob);
+        return `data:image/jpeg;base64,${await blobToBase64(compressed)}`;
+      }),
     );
     const res = await generate.mutateAsync({
       sku: article.sku,

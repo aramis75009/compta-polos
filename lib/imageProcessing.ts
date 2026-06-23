@@ -152,6 +152,40 @@ export function encodeRotated(
   });
 }
 
+/**
+ * Compresse un blob image pour l'envoi à l'API : redimensionne à 1024px max
+ * (plus grand côté, ratio conservé) et réencode en JPEG qualité 0.75. Évite
+ * les 413 Payload Too Large sur /api/listings/generate.
+ */
+export async function compressForApi(blob: Blob): Promise<Blob> {
+  const MAX = 1024;
+  const QUALITY = 0.75;
+  const bitmap = await createImageBitmap(blob);
+  const { width, height } = bitmap;
+  const scale = Math.min(1, MAX / Math.max(width, height));
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    throw new Error("Canvas indisponible.");
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Compression impossible."))),
+      "image/jpeg",
+      QUALITY,
+    );
+  });
+}
+
 /** Déclenche le téléchargement d'un blob sous un nom donné. */
 export function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
