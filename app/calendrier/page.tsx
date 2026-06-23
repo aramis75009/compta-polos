@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -24,7 +24,7 @@ const navBtn =
   "flex-1 whitespace-nowrap rounded-full border border-line px-3 py-2 text-center text-body-md text-ink-muted transition-colors hover:bg-surface-container md:flex-none md:px-4";
 
 // ── 1. Heatmap : vert d'autant plus intense que le CA est élevé ──
-function heatmapStyle(ratio: number): React.CSSProperties {
+function heatmapStyle(ratio: number): CSSProperties {
   if (ratio <= 0) return {};
   const lightness = Math.round(97 - ratio * 38); // 97% (quasi-blanc) → 59% (vert soutenu)
   const saturation = Math.round(45 + ratio * 45); // 45% → 90%
