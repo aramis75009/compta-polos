@@ -23,6 +23,7 @@ export type ArticleDTO = {
   titreAnnonce: string | null;
   descriptionAnnonce: string | null;
   motsClesAnnonce: string | null;
+  commandeFournisseur: string | null;
 };
 
 export type PromptTemplateDTO = {

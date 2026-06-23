@@ -28,7 +28,7 @@ export const articleSelect = {
   descriptionAnnonce: true,
   motsClesAnnonce: true,
   commande: {
-    select: { coutTotal: true, nbArticles: true, coefObjectif: true },
+    select: { coutTotal: true, nbArticles: true, coefObjectif: true, fournisseur: true },
   },
 } satisfies Prisma.ArticleSelect;
 
@@ -63,6 +63,7 @@ export function toDTO(a: ArticleForDTO): ArticleDTO {
       ? prixUnitaire(a.commande.coutTotal, a.commande.nbArticles)
       : null,
     coefObjectif: a.commande ? a.commande.coefObjectif : null,
+    commandeFournisseur: a.commande?.fournisseur ?? null,
     titreAnnonce: a.titreAnnonce,
     descriptionAnnonce: a.descriptionAnnonce,
     motsClesAnnonce: a.motsClesAnnonce,

@@ -394,10 +394,13 @@ export default function MiseEnVentePage() {
       const zip = new JSZip();
       photos.forEach((p, i) => zip.file(fileName(i), p.blob));
       const annonceTxt =
+        `SKU: ${article.sku}\n` +
+        `COMMANDE: ${article.commandeFournisseur || ''}\n` +
+        `MARQUE: ${marqueQcm || article.marque || ''}\n` +
+        `CATEGORIE: ${categorieQcm || article.categorie || ''}\n\n` +
         `TITRE:\n${titre}\n\n` +
         `DESCRIPTION:\n${description}\n\n` +
-        `MOTS-CLÉS:\n${motsCles}\n\n` +
-        `SKU: ${article.sku}\n`;
+        `MOTS-CLÉS:\n${motsCles}\n`;
       zip.file(`${article.sku}_annonce.txt`, annonceTxt);
       const content = await zip.generateAsync({ type: "blob" });
       triggerDownload(content, `${article.sku}_annonce.zip`);
