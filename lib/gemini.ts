@@ -38,45 +38,74 @@ function stripJsonFences(text: string): string {
   return t.trim();
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Détecte une erreur de surcharge Gemini (503 UNAVAILABLE). */
+function is503(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /\b503\b/.test(msg) || /UNAVAILABLE/i.test(msg);
+}
+
 /** Envoie le prompt compilé + les photos à Gemini et renvoie l'annonce structurée. */
 export async function generateListing(
   prompt: string,
   images: GeminiImage[],
 ): Promise<ListingResult> {
   const ai = getClient();
-  let res;
-  try {
-    res = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: prompt },
-            ...images.map((img) => ({
-              inlineData: { mimeType: img.mimeType, data: img.data },
-            })),
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            titre: { type: Type.STRING },
-            description: { type: Type.STRING },
-            motsCles: { type: Type.STRING },
-          },
-          required: ["titre", "description", "motsCles"],
-        },
+  const request = {
+    model: MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: prompt },
+          ...images.map((img) => ({
+            inlineData: { mimeType: img.mimeType, data: img.data },
+          })),
+        ],
       },
-    });
-  } catch (err) {
-    console.error("[gemini] Échec de generateContent :", err);
-    throw new Error(
-      `Appel Gemini échoué : ${err instanceof Error ? err.message : String(err)}`,
-    );
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          titre: { type: Type.STRING },
+          description: { type: Type.STRING },
+          motsCles: { type: Type.STRING },
+        },
+        required: ["titre", "description", "motsCles"],
+      },
+    },
+  };
+
+  // Retry sur 503 (UNAVAILABLE) : Gemini surchargé. 3 tentatives, 2 s d'attente.
+  const MAX_TRIES = 3;
+  let res;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await ai.models.generateContent(request);
+      break;
+    } catch (err) {
+      if (is503(err)) {
+        if (attempt < MAX_TRIES) {
+          console.error(
+            `[gemini] 503 UNAVAILABLE (tentative ${attempt}/${MAX_TRIES}), nouvel essai dans 2 s…`,
+          );
+          await sleep(2000);
+          continue;
+        }
+        console.error(
+          `[gemini] 503 UNAVAILABLE après ${MAX_TRIES} tentatives :`,
+          err,
+        );
+        throw new Error("Gemini surchargé, réessaie dans quelques instants.");
+      }
+      console.error("[gemini] Échec de generateContent :", err);
+      throw new Error(
+        `Appel Gemini échoué : ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   const text = res.text;
