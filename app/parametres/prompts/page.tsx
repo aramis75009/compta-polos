@@ -17,6 +17,8 @@ const inputCls =
 
 const TOUTES = "Toutes";
 
+const CATEGORIES_PREDEFINIES = ["Short", "Polo"];
+
 type FormState = {
   nom: string;
   marque: string;
@@ -50,7 +52,13 @@ export default function PromptsPage() {
     [articles],
   );
   const categories = useMemo(
-    () => Array.from(new Set(articles.map((a) => a.categorie))).sort(),
+    () =>
+      Array.from(
+        new Set([
+          ...CATEGORIES_PREDEFINIES,
+          ...articles.map((a) => a.categorie),
+        ]),
+      ).sort(),
     [articles],
   );
 
