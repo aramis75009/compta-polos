@@ -124,13 +124,14 @@ export default function MiseEnVentePage() {
     [prompts, article, marqueQcm, categorieQcm],
   );
 
-  // Initialise les champs QCM marque/catégorie depuis l'article trouvé.
-  // (Uniquement quand un article est chargé, pour ne pas écraser les valeurs
-  // restaurées depuis sessionStorage tant qu'aucun lookup n'a été refait.)
+  // Vide les champs QCM marque/catégorie à chaque nouvel article chargé
+  // (saisie manuelle systématique). Le garde `if (article)` évite d'écraser
+  // les valeurs restaurées depuis sessionStorage tant qu'aucun lookup n'a été
+  // refait au montage.
   useEffect(() => {
     if (article) {
-      setMarqueQcm(article.marque ?? "");
-      setCategorieQcm(article.categorie ?? "");
+      setMarqueQcm("");
+      setCategorieQcm("");
     }
   }, [article]);
 
