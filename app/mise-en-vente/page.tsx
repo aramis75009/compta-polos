@@ -95,6 +95,7 @@ export default function MiseEnVentePage() {
   const [processing, setProcessing] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // --- QCM ---
@@ -380,8 +381,25 @@ export default function MiseEnVentePage() {
     );
   }
 
-  function downloadAllPhotos() {
-    photos.forEach((p, i) => triggerDownload(p.blob, fileName(i)));
+  async function downloadZip() {
+    if (!article || isZipping) return;
+    setIsZipping(true);
+    try {
+      // Import dynamique : jszip n'est chargé qu'au premier export ZIP.
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      photos.forEach((p, i) => zip.file(fileName(i), p.blob));
+      const annonceTxt =
+        `TITRE:\n${titre}\n\n` +
+        `DESCRIPTION:\n${description}\n\n` +
+        `MOTS-CLÉS:\n${motsCles}\n\n` +
+        `SKU: ${article.sku}\n`;
+      zip.file(`${article.sku}_annonce.txt`, annonceTxt);
+      const content = await zip.generateAsync({ type: "blob" });
+      triggerDownload(content, `${article.sku}_annonce.zip`);
+    } finally {
+      setIsZipping(false);
+    }
   }
 
   const canStep2 = !!article && photos.length > 0;
@@ -842,10 +860,11 @@ export default function MiseEnVentePage() {
           <div className="flex items-center justify-between">
             <h2 className="text-headline-md text-ink">Photos ({photos.length})</h2>
             <button
-              onClick={downloadAllPhotos}
-              className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
+              onClick={downloadZip}
+              disabled={isZipping}
+              className="rounded-full bg-primary px-5 py-2.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-50"
             >
-              Tout télécharger
+              {isZipping ? "Préparation…" : "Tout télécharger"}
             </button>
           </div>
           <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
@@ -868,9 +887,11 @@ export default function MiseEnVentePage() {
 
           <div className="space-y-3">
             <CopyField label="Titre" value={titre} />
-            <CopyField label="Description" value={description} multiline />
-            <CopyField label="Mots-clés" value={motsCles} />
-            <CopyField label="SKU" value={article.sku} />
+            <CopyField
+              label="Annonce complète"
+              value={`${description}\n\n${motsCles}\n\nSKU : ${article.sku}`}
+              multiline
+            />
           </div>
 
           <button
