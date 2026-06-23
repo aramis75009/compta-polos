@@ -23,20 +23,65 @@ const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const navBtn =
   "flex-1 whitespace-nowrap rounded-full border border-line px-3 py-2 text-center text-body-md text-ink-muted transition-colors hover:bg-surface-container md:flex-none md:px-4";
 
+// ── 1. Heatmap : vert d'autant plus intense que le CA est élevé ──
+function heatmapStyle(ratio: number): React.CSSProperties {
+  if (ratio <= 0) return {};
+  const lightness = Math.round(97 - ratio * 38); // 97% (quasi-blanc) → 59% (vert soutenu)
+  const saturation = Math.round(45 + ratio * 45); // 45% → 90%
+  return { backgroundColor: `hsl(142, ${saturation}%, ${lightness}%)` };
+}
+
+// ── 2. Badges articles (dots) : jusqu'à 5 cercles, puis "+X" ──
+function ArticleDots({ count }: { count: number }) {
+  if (count === 0) return null;
+  const shown = Math.min(count, 5);
+  const extra = count > 5 ? count - 5 : 0;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+      {Array.from({ length: shown }).map((_, i) => (
+        <span
+          key={i}
+          className="inline-block h-2 w-2 rounded-full bg-primary"
+          style={{ opacity: 0.5 + (i / shown) * 0.5 }}
+        />
+      ))}
+      {extra > 0 && (
+        <span className="text-[10px] font-bold text-primary">+{extra}</span>
+      )}
+    </div>
+  );
+}
+
+// ── 4. Couleur du coefficient (récap semaine) ──
+function coefColorClass(c: number): string {
+  if (c >= 2.5) return "text-emerald-600 font-bold";
+  if (c >= 1.8) return "text-amber-500 font-semibold";
+  return "text-red-500 font-semibold";
+}
+
 export default function CalendrierPage() {
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
   const month = format(current, "yyyy-MM");
   const { data, isLoading } = useCalendar(month);
   const [selected, setSelected] = useState<string | null>(null);
 
-  // Index des jours renvoyés par l'API, par date YYYY-MM-DD.
   const dayMap = useMemo(() => {
     const m = new Map<string, CalendarDay>();
     for (const d of data?.days ?? []) m.set(d.date, d);
     return m;
   }, [data]);
 
-  // Découpage en semaines (lundi → dimanche) couvrant tout le mois affiché.
+  // Max CA et NET du mois pour la heatmap et la barre de progression
+  const maxCA = useMemo(() => {
+    const vals = [...dayMap.values()].map((d) => d.ca);
+    return vals.length ? Math.max(...vals) : 1;
+  }, [dayMap]);
+
+  const maxNET = useMemo(() => {
+    const vals = [...dayMap.values()].map((d) => d.net);
+    return vals.length ? Math.max(...vals, 1) : 1;
+  }, [dayMap]);
+
   const weeks = useMemo(() => {
     const gridStart = startOfWeek(startOfMonth(current), { weekStartsOn: 1 });
     const gridEnd = endOfWeek(endOfMonth(current), { weekStartsOn: 1 });
@@ -59,28 +104,19 @@ export default function CalendrierPage() {
         </h1>
         <div className="flex w-full gap-2 md:w-auto">
           <button
-            onClick={() => {
-              setCurrent((c) => subMonths(c, 1));
-              setSelected(null);
-            }}
+            onClick={() => { setCurrent((c) => subMonths(c, 1)); setSelected(null); }}
             className={navBtn}
           >
             ← Précédent
           </button>
           <button
-            onClick={() => {
-              setCurrent(startOfMonth(new Date()));
-              setSelected(null);
-            }}
+            onClick={() => { setCurrent(startOfMonth(new Date())); setSelected(null); }}
             className={navBtn}
           >
             Aujourd&apos;hui
           </button>
           <button
-            onClick={() => {
-              setCurrent((c) => addMonths(c, 1));
-              setSelected(null);
-            }}
+            onClick={() => { setCurrent((c) => addMonths(c, 1)); setSelected(null); }}
             className={navBtn}
           >
             Suivant →
@@ -186,6 +222,15 @@ export default function CalendrierPage() {
               const coefs = daysData.flatMap((d) =>
                 d.articles.map((a) => a.coefficient),
               );
+              const weekCoef = moyenne(coefs);
+              const panierMoyen = nb ? ca / nb : 0;
+
+              // ── 5. Meilleur jour de la semaine (couronne) ──
+              const topDayKey =
+                daysData.length > 0
+                  ? daysData.reduce((best, d) => (d.ca > best.ca ? d : best))
+                      .date
+                  : null;
 
               return (
                 <div key={wi} className="mt-2 grid grid-cols-8 gap-2">
@@ -194,18 +239,34 @@ export default function CalendrierPage() {
                     const dd = dayMap.get(key);
                     const inMonth = isSameMonth(d, current);
                     const active = selected === key;
+                    const caRatio = dd && inMonth ? dd.ca / maxCA : 0;
+                    const netRatio = dd && inMonth ? dd.net / maxNET : 0;
+                    // ── 5. Couronne uniquement si > 0€ et dans le mois ──
+                    const isTopDay =
+                      topDayKey === key && dd && dd.ca > 0 && inMonth;
+
                     return (
                       <button
                         key={key}
                         onClick={() => setSelected(dd ? key : null)}
-                        className={`min-h-[96px] rounded-md border p-2 text-left transition-all ${
+                        style={dd && inMonth ? heatmapStyle(caRatio) : {}}
+                        className={`relative min-h-[96px] overflow-hidden rounded-md border p-2 text-left transition-all ${
                           active
-                            ? "border-primary bg-primary/5 shadow-card"
+                            ? "border-primary shadow-card ring-1 ring-primary/30"
                             : "border-line hover:border-line-strong"
                         } ${
-                          inMonth ? "bg-surface" : "bg-surface-soft text-ink-faint"
+                          !dd || !inMonth
+                            ? "bg-surface-soft text-ink-faint"
+                            : ""
                         } ${dd ? "cursor-pointer" : "cursor-default"}`}
                       >
+                        {/* ── 5. Badge couronne top jour ── */}
+                        {isTopDay && (
+                          <span className="absolute right-1 top-0.5 text-[13px] leading-none">
+                            👑
+                          </span>
+                        )}
+
                         <div className="flex items-center justify-between">
                           <span
                             className={`text-label-sm ${
@@ -217,36 +278,72 @@ export default function CalendrierPage() {
                             {format(d, "d")}
                           </span>
                         </div>
-                        {dd && (
-                          <div className="mt-1.5 space-y-0.5 text-label-sm leading-tight">
-                            <div className="font-semibold text-ink">
-                              {euros(dd.ca)}
+
+                        {dd && inMonth && (
+                          <>
+                            <div className="mt-1 space-y-0.5 text-label-sm leading-tight">
+                              {/* CA en gras */}
+                              <div className="font-bold text-ink">
+                                {euros(dd.ca)}
+                              </div>
+                              {/* NET en couleur primaire */}
+                              <div className="font-medium text-primary">
+                                NET {euros(dd.net)}
+                              </div>
                             </div>
-                            <div className="text-ink-faint">
-                              {dd.nbArticles} art.
+
+                            {/* ── 2. Badges articles (dots) ── */}
+                            <ArticleDots count={dd.nbArticles} />
+
+                            {/* ── 3. Barre de progression NET ── */}
+                            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/5">
+                              <div
+                                className="h-full bg-primary/50 transition-all duration-300"
+                                style={{ width: `${Math.round(netRatio * 100)}%` }}
+                              />
                             </div>
-                            <div className="text-primary">
-                              NET {euros(dd.net)}
-                            </div>
-                          </div>
+                          </>
                         )}
                       </button>
                     );
                   })}
 
-                  {/* Récap de la semaine */}
-                  <div className="min-h-[96px] rounded-md border border-primary/30 bg-primary/5 p-2 text-label-sm leading-tight">
-                    <div className="text-ink-faint">CA</div>
-                    <div className="font-semibold text-ink">{euros(ca)}</div>
-                    <div className="mt-1 text-ink-faint">
-                      {nb} art. · NET{" "}
-                      <span className="text-primary">{euros(net)}</span>
+                  {/* ── 4. Récap de la semaine redesigné ── */}
+                  <div className="relative min-h-[96px] overflow-hidden rounded-md border border-primary/40 bg-gradient-to-b from-primary/10 to-primary/5 p-2.5 text-label-sm leading-tight">
+                    {/* CA */}
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-ink-faint">
+                      CA
                     </div>
-                    <div className="mt-1 text-ink-faint">
-                      Coef {coef(moyenne(coefs))}
+                    <div className="text-[15px] font-bold text-ink">
+                      {euros(ca)}
                     </div>
-                    <div className="text-ink-faint">
-                      Panier {euros(nb ? ca / nb : 0)}
+
+                    {/* NET encadré */}
+                    <div className="mt-1 rounded bg-primary/15 px-1.5 py-0.5 text-center">
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-primary/60">
+                        NET{" "}
+                      </span>
+                      <span className="font-bold text-primary">
+                        {euros(net)}
+                      </span>
+                    </div>
+
+                    {/* Nb articles badge */}
+                    <div className="mt-1.5 flex items-center gap-1">
+                      <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/25 px-1 text-[10px] font-bold text-primary">
+                        {nb}
+                      </span>
+                      <span className="text-ink-faint">art.</span>
+                    </div>
+
+                    {/* Coeff coloré */}
+                    <div className={`mt-0.5 text-[11px] ${coefColorClass(weekCoef)}`}>
+                      {coef(weekCoef)}
+                    </div>
+
+                    {/* Panier moyen */}
+                    <div className="text-[10px] text-ink-faint">
+                      🛒 {euros(panierMoyen)}
                     </div>
                   </div>
                 </div>
@@ -322,7 +419,8 @@ export default function CalendrierPage() {
       <div className="mt-6 flex flex-wrap gap-x-8 gap-y-1 rounded-card border border-line bg-surface px-6 py-4 text-body-md shadow-card">
         <span className="font-semibold text-ink">Total du mois :</span>
         <span className="text-ink-muted">
-          CA : <strong className="text-ink">{euros(data?.total.ca ?? 0)}</strong>
+          CA :{" "}
+          <strong className="text-ink">{euros(data?.total.ca ?? 0)}</strong>
         </span>
         <span className="text-ink-muted">
           Articles :{" "}
@@ -330,7 +428,9 @@ export default function CalendrierPage() {
         </span>
         <span className="text-ink-muted">
           NET :{" "}
-          <strong className="text-primary">{euros(data?.total.net ?? 0)}</strong>
+          <strong className="text-primary">
+            {euros(data?.total.net ?? 0)}
+          </strong>
         </span>
       </div>
     </main>
