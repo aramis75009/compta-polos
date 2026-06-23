@@ -68,21 +68,60 @@ export async function correctImage(file: File): Promise<HTMLCanvasElement> {
   return final;
 }
 
+/** Fallback universel (Safari) : charge un fichier image via HTMLImageElement. */
+function loadViaImageElement(file: File): Promise<HTMLCanvasElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas indisponible.");
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas);
+      } catch (e) {
+        reject(e as Error);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image illisible."));
+    };
+    img.src = url;
+  });
+}
+
 /**
  * Charge une image sur un canvas SANS aucune correction : ni rotation EXIF,
- * ni forçage portrait. L'image est dessinée telle quelle (createImageBitmap +
- * drawImage). Sert de SOURCE lossless pour les rotations manuelles ultérieures.
+ * ni forçage portrait. L'image est dessinée telle quelle. Sert de SOURCE
+ * lossless pour les rotations manuelles ultérieures.
+ *
+ * Safari : createImageBitmap (et ses options) est partiellement supporté ; on
+ * tente d'abord createImageBitmap(file) sans options, puis on retombe sur un
+ * HTMLImageElement (fallback universel) en cas d'échec.
  */
 export async function loadImageDirect(file: File): Promise<HTMLCanvasElement> {
-  const bitmap = await createImageBitmap(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas indisponible.");
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  return canvas;
+  try {
+    if (typeof createImageBitmap === "function") {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas indisponible.");
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      return canvas;
+    }
+  } catch {
+    /* createImageBitmap indisponible/échec : on passe au fallback */
+  }
+  return loadViaImageElement(file);
 }
 
 /**

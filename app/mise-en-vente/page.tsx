@@ -769,6 +769,15 @@ export default function MiseEnVentePage() {
             </p>
           )}
 
+          {generate.isPending && (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-card border border-line bg-surface px-4 py-8 shadow-card">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-line border-t-primary" />
+              <p className="text-body-md font-medium text-ink-muted">
+                Génération de l&apos;annonce en cours…
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-between">
             <button
               onClick={() => setStep(1)}
@@ -889,7 +898,7 @@ export default function MiseEnVentePage() {
             <CopyField label="Titre" value={titre} />
             <CopyField
               label="Annonce complète"
-              value={`${description}\n\n${motsCles}\n\nSKU : ${article.sku}`}
+              value={`${description}\n\n${motsCles}\n\n${article.sku}`}
               multiline
             />
           </div>
