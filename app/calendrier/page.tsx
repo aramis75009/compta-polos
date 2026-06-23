@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -23,36 +23,7 @@ const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const navBtn =
   "flex-1 whitespace-nowrap rounded-full border border-line px-3 py-2 text-center text-body-md text-ink-muted transition-colors hover:bg-surface-container md:flex-none md:px-4";
 
-// ── 1. Heatmap : vert d'autant plus intense que le CA est élevé ──
-function heatmapStyle(ratio: number): CSSProperties {
-  if (ratio <= 0) return {};
-  const lightness = Math.round(97 - ratio * 38); // 97% (quasi-blanc) → 59% (vert soutenu)
-  const saturation = Math.round(45 + ratio * 45); // 45% → 90%
-  return { backgroundColor: `hsl(142, ${saturation}%, ${lightness}%)` };
-}
-
-// ── 2. Badges articles (dots) : jusqu'à 5 cercles, puis "+X" ──
-function ArticleDots({ count }: { count: number }) {
-  if (count === 0) return null;
-  const shown = Math.min(count, 5);
-  const extra = count > 5 ? count - 5 : 0;
-  return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1">
-      {Array.from({ length: shown }).map((_, i) => (
-        <span
-          key={i}
-          className="inline-block h-2 w-2 rounded-full bg-primary"
-          style={{ opacity: 0.5 + (i / shown) * 0.5 }}
-        />
-      ))}
-      {extra > 0 && (
-        <span className="text-[10px] font-bold text-primary">+{extra}</span>
-      )}
-    </div>
-  );
-}
-
-// ── 4. Couleur du coefficient (récap semaine) ──
+// ── Couleur du coefficient (récap semaine) ──
 function coefColorClass(c: number): string {
   if (c >= 2.5) return "text-emerald-600 font-bold";
   if (c >= 1.8) return "text-amber-500 font-semibold";
@@ -70,17 +41,6 @@ export default function CalendrierPage() {
     for (const d of data?.days ?? []) m.set(d.date, d);
     return m;
   }, [data]);
-
-  // Max CA et NET du mois pour la heatmap et la barre de progression
-  const maxCA = useMemo(() => {
-    const vals = Array.from(dayMap.values()).map((d) => d.ca);
-    return vals.length ? Math.max(...vals) : 1;
-  }, [dayMap]);
-
-  const maxNET = useMemo(() => {
-    const vals = Array.from(dayMap.values()).map((d) => d.net);
-    return vals.length ? Math.max(...vals, 1) : 1;
-  }, [dayMap]);
 
   const weeks = useMemo(() => {
     const gridStart = startOfWeek(startOfMonth(current), { weekStartsOn: 1 });
@@ -239,9 +199,9 @@ export default function CalendrierPage() {
                     const dd = dayMap.get(key);
                     const inMonth = isSameMonth(d, current);
                     const active = selected === key;
-                    const caRatio = dd && inMonth ? dd.ca / maxCA : 0;
-                    const netRatio = dd && inMonth ? dd.net / maxNET : 0;
-                    // ── 5. Couronne uniquement si > 0€ et dans le mois ──
+                    // Vert uni fixe dès qu'il y a une vente ce jour-là.
+                    const hasVente = !!dd && inMonth && dd.ca > 0;
+                    // Couronne uniquement sur le meilleur jour > 0€ du mois.
                     const isTopDay =
                       topDayKey === key && dd && dd.ca > 0 && inMonth;
 
@@ -249,18 +209,19 @@ export default function CalendrierPage() {
                       <button
                         key={key}
                         onClick={() => setSelected(dd ? key : null)}
-                        style={dd && inMonth ? heatmapStyle(caRatio) : {}}
                         className={`relative min-h-[96px] overflow-hidden rounded-md border p-2 text-left transition-all ${
                           active
                             ? "border-primary shadow-card ring-1 ring-primary/30"
                             : "border-line hover:border-line-strong"
                         } ${
-                          !dd || !inMonth
-                            ? "bg-surface-soft text-ink-faint"
-                            : ""
+                          hasVente
+                            ? "bg-green-100"
+                            : !dd || !inMonth
+                              ? "bg-surface-soft text-ink-faint"
+                              : ""
                         } ${dd ? "cursor-pointer" : "cursor-default"}`}
                       >
-                        {/* ── 5. Badge couronne top jour ── */}
+                        {/* Badge couronne top jour */}
                         {isTopDay && (
                           <span className="absolute right-1 top-0.5 text-[13px] leading-none">
                             👑
@@ -292,15 +253,9 @@ export default function CalendrierPage() {
                               </div>
                             </div>
 
-                            {/* ── 2. Badges articles (dots) ── */}
-                            <ArticleDots count={dd.nbArticles} />
-
-                            {/* ── 3. Barre de progression NET ── */}
-                            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/5">
-                              <div
-                                className="h-full bg-primary/50 transition-all duration-300"
-                                style={{ width: `${Math.round(netRatio * 100)}%` }}
-                              />
+                            {/* Nombre d'articles vendus */}
+                            <div className="mt-1 text-label-sm text-ink-faint">
+                              {dd.nbArticles} art.
                             </div>
                           </>
                         )}
@@ -308,41 +263,28 @@ export default function CalendrierPage() {
                     );
                   })}
 
-                  {/* ── 4. Récap de la semaine redesigné ── */}
-                  <div className="relative min-h-[96px] overflow-hidden rounded-md border border-primary/40 bg-gradient-to-b from-primary/10 to-primary/5 p-2.5 text-label-sm leading-tight">
+                  {/* Récap de la semaine */}
+                  <div className="min-h-[96px] rounded-md border border-primary/40 bg-primary/5 p-2.5 text-label-sm leading-tight">
                     {/* CA */}
-                    <div className="text-[9px] font-bold uppercase tracking-widest text-ink-faint">
-                      CA
-                    </div>
-                    <div className="text-[15px] font-bold text-ink">
-                      {euros(ca)}
-                    </div>
+                    <div className="text-label-sm text-ink-faint">CA</div>
+                    <div className="font-bold text-ink">{euros(ca)}</div>
 
-                    {/* NET encadré */}
-                    <div className="mt-1 rounded bg-primary/15 px-1.5 py-0.5 text-center">
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-primary/60">
-                        NET{" "}
-                      </span>
-                      <span className="font-bold text-primary">
+                    {/* Nb articles · NET */}
+                    <div className="mt-1 text-ink-muted">
+                      {nb} art. ·{" "}
+                      <span className="text-ink-faint">NET</span>{" "}
+                      <span className="font-semibold text-primary">
                         {euros(net)}
                       </span>
                     </div>
 
-                    {/* Nb articles badge */}
-                    <div className="mt-1.5 flex items-center gap-1">
-                      <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/25 px-1 text-[10px] font-bold text-primary">
-                        {nb}
-                      </span>
-                      <span className="text-ink-faint">art.</span>
-                    </div>
-
                     {/* Coeff coloré */}
-                    <div className={`mt-0.5 text-[11px] ${coefColorClass(weekCoef)}`}>
+                    <div className={`mt-1 ${coefColorClass(weekCoef)}`}>
                       {coef(weekCoef)}
                     </div>
 
                     {/* Panier moyen */}
-                    <div className="text-[10px] text-ink-faint">
+                    <div className="mt-0.5 text-ink-faint">
                       🛒 {euros(panierMoyen)}
                     </div>
                   </div>
