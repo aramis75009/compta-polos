@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGenerateListing,
   usePrompts,
@@ -71,18 +71,35 @@ export default function MiseEnVentePage() {
     [prompts, article],
   );
 
+  // Révoque les object URLs des photos au démontage (navigation SPA) : sans ça,
+  // les blob: URLs survivent au document et s'accumulent à chaque visite.
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(() => {
+    return () => {
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, []);
+
+  // Jeton de requête : ignore les réponses de lookups périmés si l'utilisateur
+  // enchaîne deux recherches rapprochées (réponses hors ordre).
+  const lookupSeq = useRef(0);
+
   // ---------- Étape 1 : lookup + photos ----------
   async function lookup(e: React.FormEvent) {
     e.preventDefault();
     const q = sku.trim();
     if (!q) return;
+    const seq = ++lookupSeq.current;
     setLookupLoading(true);
     setLookupError(null);
     setArticle(null);
     try {
       const res = await fetch(`/api/articles?q=${encodeURIComponent(q)}`);
+      if (seq !== lookupSeq.current) return; // réponse périmée
       if (!res.ok) throw new Error("Erreur lors de la recherche.");
       const list = (await res.json()) as ArticleDTO[];
+      if (seq !== lookupSeq.current) return;
       const match = list.find((a) => a.sku.toLowerCase() === q.toLowerCase());
       if (!match) {
         setLookupError(`Aucun article trouvé pour le SKU « ${q} ».`);
@@ -90,9 +107,10 @@ export default function MiseEnVentePage() {
       }
       setArticle(match);
     } catch (err) {
+      if (seq !== lookupSeq.current) return;
       setLookupError((err as Error).message);
     } finally {
-      setLookupLoading(false);
+      if (seq === lookupSeq.current) setLookupLoading(false);
     }
   }
 

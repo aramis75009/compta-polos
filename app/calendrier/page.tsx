@@ -33,7 +33,7 @@ function coefColorClass(c: number): string {
 export default function CalendrierPage() {
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
   const month = format(current, "yyyy-MM");
-  const { data, isLoading } = useCalendar(month);
+  const { data, isLoading, isError } = useCalendar(month);
   const [selected, setSelected] = useState<string | null>(null);
 
   const dayMap = useMemo(() => {
@@ -84,6 +84,13 @@ export default function CalendrierPage() {
         </div>
       </div>
 
+      {/* Bandeau d'erreur desktop (le mobile l'affiche dans sa liste vide) */}
+      {isError && (
+        <p className="mb-4 hidden rounded-card border border-error/30 bg-error/10 px-4 py-3 text-body-md text-error shadow-card md:block">
+          Erreur lors du chargement du calendrier.
+        </p>
+      )}
+
       {/* Vue liste mobile (< md) */}
       <div className="space-y-2 md:hidden">
         {(() => {
@@ -93,7 +100,11 @@ export default function CalendrierPage() {
           if (days.length === 0) {
             return (
               <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-body-md text-ink-faint shadow-card">
-                {isLoading ? "Chargement…" : "Aucune vente ce mois-ci."}
+                {isLoading
+                  ? "Chargement…"
+                  : isError
+                    ? "Erreur lors du chargement du calendrier."
+                    : "Aucune vente ce mois-ci."}
               </p>
             );
           }
