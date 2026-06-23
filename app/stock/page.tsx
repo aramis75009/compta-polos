@@ -22,6 +22,7 @@ import {
 } from "@/lib/hooks";
 import { coef, euros, naturalSort, STATUT_VENDU, STATUTS } from "@/lib/calc";
 import { statutColor } from "@/lib/statutColors";
+import { CANAUX } from "@/lib/canalColors";
 import type { ArticleDTO } from "@/lib/types";
 import EditableCell from "@/components/EditableCell";
 import SellModal from "@/components/SellModal";
@@ -727,6 +728,13 @@ function StockInner() {
   const sortIndicator = (key: SortKey) =>
     key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
+  // Article « vivant » pour le modal détail : on relit depuis la liste chargée
+  // pour que les valeurs dérivées (marge nette) reflètent immédiatement une
+  // correction inline (detailTarget est une copie figée au moment du clic).
+  const detail = detailTarget
+    ? articles.find((a) => a.id === detailTarget.id) ?? detailTarget
+    : null;
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 py-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -1107,38 +1115,118 @@ function StockInner() {
         onClose={() => setDetailTarget(null)}
         title={detailTarget ? detailTarget.sku : ""}
       >
-        {detailTarget && (
+        {detail && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-body-md">
-              <StatutBadge statut={detailTarget.statut} />
+              <StatutBadge statut={detail.statut} />
               <span className="text-ink-muted">
                 <span className="text-ink-faint">Marque : </span>
-                {detailTarget.marque}
+                {detail.marque}
               </span>
               <span className="text-ink-muted">
                 <span className="text-ink-faint">Catégorie : </span>
-                {detailTarget.categorie}
+                {detail.categorie}
               </span>
               <span className="text-ink-muted">
                 <span className="text-ink-faint">Prix achat : </span>
-                {euros(detailTarget.prixAchat)}
+                {euros(detail.prixAchat)}
               </span>
             </div>
 
-            {detailTarget.titreAnnonce ? (
+            {detail.statut === STATUT_VENDU && (
+              <div className="space-y-3 border-t border-line pt-4">
+                <h3 className="text-label-sm font-semibold uppercase tracking-wide text-ink-faint">
+                  Informations de vente
+                </h3>
+                <p className="text-label-sm text-ink-faint">
+                  Double-clic sur une valeur pour corriger une erreur de saisie.
+                </p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-body-md">
+                  <div>
+                    <span className="mb-0.5 block text-label-sm text-ink-faint">
+                      Prix de vente
+                    </span>
+                    <EditableCell
+                      value={detail.prixVente}
+                      display={
+                        detail.prixVente != null ? euros(detail.prixVente) : "—"
+                      }
+                      type="number"
+                      onSave={(v) =>
+                        handlePatch(detail.id, { prixVente: Number(v) })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-0.5 block text-label-sm text-ink-faint">
+                      Date de vente
+                    </span>
+                    <EditableCell
+                      value={detail.dateVente ? detail.dateVente.slice(0, 10) : null}
+                      display={
+                        detail.dateVente
+                          ? new Date(detail.dateVente).toLocaleDateString("fr-FR")
+                          : "—"
+                      }
+                      type="text"
+                      onSave={(v) =>
+                        handlePatch(detail.id, {
+                          dateVente: v ? new Date(v).toISOString() : null,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-0.5 block text-label-sm text-ink-faint">
+                      Canal
+                    </span>
+                    <select
+                      value={detail.canal ?? ""}
+                      onChange={(e) =>
+                        handlePatch(detail.id, { canal: e.target.value })
+                      }
+                      className="mt-0.5 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                    >
+                      {detail.canal == null && <option value="">—</option>}
+                      {CANAUX.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <span className="mb-0.5 block text-label-sm text-ink-faint">
+                      Marge nette
+                    </span>
+                    <span
+                      className={`mt-0.5 block px-2 py-1 font-medium ${
+                        detail.margeNette != null && detail.margeNette < 0
+                          ? "text-error"
+                          : "text-primary"
+                      }`}
+                    >
+                      {detail.margeNette != null ? euros(detail.margeNette) : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {detail.titreAnnonce ? (
               <div className="space-y-3 border-t border-line pt-4">
                 <h3 className="text-label-sm font-semibold uppercase tracking-wide text-ink-faint">
                   Annonce
                 </h3>
-                <DetailCopyField label="Titre" value={detailTarget.titreAnnonce} />
+                <DetailCopyField label="Titre" value={detail.titreAnnonce} />
                 <DetailCopyField
                   label="Description"
-                  value={detailTarget.descriptionAnnonce ?? ""}
+                  value={detail.descriptionAnnonce ?? ""}
                   multiline
                 />
                 <DetailCopyField
                   label="Mots-clés"
-                  value={detailTarget.motsClesAnnonce ?? ""}
+                  value={detail.motsClesAnnonce ?? ""}
                 />
               </div>
             ) : (
