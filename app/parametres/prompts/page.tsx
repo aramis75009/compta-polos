@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   PromptInput,
-  useArticles,
   useCreatePrompt,
   useDeletePrompt,
   usePrompts,
@@ -16,8 +15,6 @@ const inputCls =
   "w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
 
 const TOUTES = "Toutes";
-
-const CATEGORIES_PREDEFINIES = ["Short", "Polo"];
 
 type FormState = {
   nom: string;
@@ -37,7 +34,6 @@ const emptyForm = (): FormState => ({
 
 export default function PromptsPage() {
   const { data: prompts = [], isLoading } = usePrompts();
-  const { data: articles = [] } = useArticles();
   const create = useCreatePrompt();
   const update = useUpdatePrompt();
   const del = useDeletePrompt();
@@ -47,20 +43,6 @@ export default function PromptsPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
 
-  const marques = useMemo(
-    () => Array.from(new Set(articles.map((a) => a.marque))).sort(),
-    [articles],
-  );
-  const categories = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...CATEGORIES_PREDEFINIES,
-          ...articles.map((a) => a.categorie),
-        ]),
-      ).sort(),
-    [articles],
-  );
 
   function openNew() {
     setEditId(null);
@@ -194,35 +176,23 @@ export default function PromptsPage() {
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">
                 Marque
               </label>
-              <select
+              <input
                 value={form.marque}
                 onChange={(e) => setForm({ ...form, marque: e.target.value })}
+                placeholder="Ex : Lacoste"
                 className={inputCls}
-              >
-                <option value={TOUTES}>{TOUTES}</option>
-                {marques.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">
                 Catégorie
               </label>
-              <select
+              <input
                 value={form.categorie}
                 onChange={(e) => setForm({ ...form, categorie: e.target.value })}
+                placeholder="Ex : Short"
                 className={inputCls}
-              >
-                <option value={TOUTES}>{TOUTES}</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           </div>
 
