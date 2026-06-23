@@ -16,6 +16,36 @@ const inputCls =
 
 const TOUTES = "Toutes";
 
+const MARQUES_LIST = [
+  "Nike",
+  "Adidas",
+  "Puma",
+  "Lacoste",
+  "Lacoste Sport",
+  "Reebok",
+  "Under Armour",
+  "Fila",
+  "Le Coq Sportif",
+  "Champion",
+  "Columbia",
+  "Hurley",
+  "Ralph Lauren",
+  "Tommy Hilfiger",
+  "Levi's",
+];
+
+const CATEGORIES_LIST = [
+  "Short",
+  "Polo",
+  "Pull",
+  "Chemise",
+  "Veste",
+  "Sweat",
+  "Jogging",
+  "Jean",
+  "Bermuda",
+];
+
 type FormState = {
   nom: string;
   marque: string;
@@ -179,9 +209,15 @@ export default function PromptsPage() {
               <input
                 value={form.marque}
                 onChange={(e) => setForm({ ...form, marque: e.target.value })}
+                list="marques-list"
                 placeholder="Ex : Lacoste"
                 className={inputCls}
               />
+              <datalist id="marques-list">
+                {MARQUES_LIST.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">
@@ -190,9 +226,15 @@ export default function PromptsPage() {
               <input
                 value={form.categorie}
                 onChange={(e) => setForm({ ...form, categorie: e.target.value })}
+                list="categories-list"
                 placeholder="Ex : Short"
                 className={inputCls}
               />
+              <datalist id="categories-list">
+                {CATEGORIES_LIST.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
           </div>
 

@@ -65,6 +65,22 @@ const CATEGORIES_LIST = [
   "Bermuda",
 ];
 
+const MEV_STORAGE_KEY = "mev_state";
+
+type PersistedState = {
+  sku: string;
+  taille: string;
+  etat: string;
+  matiere: string;
+  matiere2: string;
+  marqueQcm: string;
+  categorieQcm: string;
+  titre: string;
+  description: string;
+  motsCles: string;
+  step: number;
+};
+
 export default function MiseEnVentePage() {
   const [step, setStep] = useState(1);
 
@@ -109,15 +125,93 @@ export default function MiseEnVentePage() {
   );
 
   // Initialise les champs QCM marque/catégorie depuis l'article trouvé.
+  // (Uniquement quand un article est chargé, pour ne pas écraser les valeurs
+  // restaurées depuis sessionStorage tant qu'aucun lookup n'a été refait.)
   useEffect(() => {
-    setMarqueQcm(article?.marque ?? "");
-    setCategorieQcm(article?.categorie ?? "");
+    if (article) {
+      setMarqueQcm(article.marque ?? "");
+      setCategorieQcm(article.categorie ?? "");
+    }
   }, [article]);
 
   // Pré-sélectionne le prompt détecté automatiquement.
   useEffect(() => {
     setSelectedPromptId(detectedPrompt?.id ?? null);
   }, [detectedPrompt]);
+
+  // Persistance entre refreshs (sessionStorage). Les photos et l'article ne
+  // sont pas restaurables (objets non sérialisables / re-fetch requis), donc
+  // l'étape 2 est ramenée à 1, et l'étape 3/4 n'est restaurée que si du texte
+  // a déjà été généré.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(MEV_STORAGE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw) as Partial<PersistedState>;
+        if (s.sku) setSku(s.sku);
+        if (s.taille) setTaille(s.taille);
+        if (s.etat) setEtat(s.etat);
+        if (s.matiere) setMatiere(s.matiere);
+        if (s.matiere2) setMatiere2(s.matiere2);
+        if (s.marqueQcm) setMarqueQcm(s.marqueQcm);
+        if (s.categorieQcm) setCategorieQcm(s.categorieQcm);
+        if (s.titre) setTitre(s.titre);
+        if (s.description) setDescription(s.description);
+        if (s.motsCles) setMotsCles(s.motsCles);
+        if ((s.step === 3 || s.step === 4) && s.titre) {
+          // Reconstitue un résultat minimal pour réafficher l'étape 3.
+          setResult({
+            titre: s.titre,
+            description: s.description ?? "",
+            motsCles: s.motsCles ?? "",
+            promptNom: "",
+          });
+          setStep(3);
+        } else if (s.step === 1) {
+          setStep(1);
+        }
+      }
+    } catch {
+      /* sessionStorage indisponible ou JSON invalide : on ignore */
+    }
+    hydrated.current = true;
+  }, []);
+
+  // Sauvegarde à chaque changement (après l'hydratation initiale).
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const payload: PersistedState = {
+      sku,
+      taille,
+      etat,
+      matiere,
+      matiere2,
+      marqueQcm,
+      categorieQcm,
+      titre,
+      description,
+      motsCles,
+      step: step === 2 ? 1 : step, // photos perdues au refresh
+    };
+    try {
+      sessionStorage.setItem(MEV_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      /* quota/securité : on ignore */
+    }
+  }, [
+    sku,
+    taille,
+    etat,
+    matiere,
+    matiere2,
+    marqueQcm,
+    categorieQcm,
+    titre,
+    description,
+    motsCles,
+    step,
+  ]);
 
   // Révoque les object URLs des photos au démontage (navigation SPA) : sans ça,
   // les blob: URLs survivent au document et s'accumulent à chaque visite.
@@ -554,6 +648,7 @@ export default function MiseEnVentePage() {
               <input
                 value={marqueQcm}
                 onChange={(e) => setMarqueQcm(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
                 list="marques-list"
                 placeholder="Ex : Lacoste"
                 className={inputCls}
@@ -569,6 +664,7 @@ export default function MiseEnVentePage() {
               <input
                 value={categorieQcm}
                 onChange={(e) => setCategorieQcm(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
                 list="categories-list"
                 placeholder="Ex : Short"
                 className={inputCls}
@@ -795,6 +891,11 @@ export default function MiseEnVentePage() {
               setMatiere("");
               setMatiere2("");
               setSelectedPromptId(null);
+              try {
+                sessionStorage.removeItem(MEV_STORAGE_KEY);
+              } catch {
+                /* ignore */
+              }
               setStep(1);
             }}
             className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
