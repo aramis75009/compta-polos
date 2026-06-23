@@ -73,12 +73,12 @@ export default function CalendrierPage() {
 
   // Max CA et NET du mois pour la heatmap et la barre de progression
   const maxCA = useMemo(() => {
-    const vals = [...dayMap.values()].map((d) => d.ca);
+    const vals = Array.from(dayMap.values()).map((d) => d.ca);
     return vals.length ? Math.max(...vals) : 1;
   }, [dayMap]);
 
   const maxNET = useMemo(() => {
-    const vals = [...dayMap.values()].map((d) => d.net);
+    const vals = Array.from(dayMap.values()).map((d) => d.net);
     return vals.length ? Math.max(...vals, 1) : 1;
   }, [dayMap]);
 
