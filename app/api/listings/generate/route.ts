@@ -15,6 +15,7 @@ type Body = {
   etat?: string | null;
   matiere?: string | null;
   images?: string[]; // dataURL ("data:image/jpeg;base64,…") ou base64 brut
+  promptId?: string; // prompt choisi manuellement côté client
 };
 
 // Parse une image client (dataURL ou base64 brut) → { mimeType, data }.
@@ -36,14 +37,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Sélection du prompt (garantit un défaut au préalable).
+    // Sélection du prompt : manuel (promptId fourni) ou automatique.
     await ensureDefaultPrompt();
-    const prompts = await prisma.promptTemplate.findMany();
-    const tmpl = pickPrompt(
-      prompts.map(toPromptDTO),
-      body.marque ?? null,
-      body.categorie ?? null,
-    );
+    let tmpl = null;
+    if (body.promptId) {
+      const found = await prisma.promptTemplate.findUnique({
+        where: { id: body.promptId },
+      });
+      if (found) tmpl = toPromptDTO(found);
+    }
+    if (!tmpl) {
+      const prompts = await prisma.promptTemplate.findMany();
+      tmpl = pickPrompt(
+        prompts.map(toPromptDTO),
+        body.marque ?? null,
+        body.categorie ?? null,
+      );
+    }
     if (!tmpl) {
       return NextResponse.json(
         { error: "Aucun prompt disponible." },

@@ -348,6 +348,7 @@ export type GenerateInput = {
   etat: string | null;
   matiere: string | null;
   images: string[]; // dataURL base64
+  promptId?: string; // prompt choisi manuellement (sinon sélection auto)
 };
 
 export type GenerateResult = {

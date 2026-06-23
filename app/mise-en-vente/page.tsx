@@ -11,8 +11,8 @@ import { pickPrompt } from "@/lib/promptSelect";
 import { ETATS, MATIERES_SUGGESTIONS, TAILLES } from "@/lib/listingOptions";
 import {
   blobToBase64,
-  correctImage,
   encodeRotated,
+  loadImageDirect,
   triggerDownload,
 } from "@/lib/imageProcessing";
 import type { ArticleDTO } from "@/lib/types";
@@ -35,6 +35,36 @@ const inputCls =
 
 const STEPS = ["Photos", "Détails", "Génération", "Export"] as const;
 
+const MARQUES_LIST = [
+  "Nike",
+  "Adidas",
+  "Puma",
+  "Lacoste",
+  "Lacoste Sport",
+  "Reebok",
+  "Under Armour",
+  "Fila",
+  "Le Coq Sportif",
+  "Champion",
+  "Columbia",
+  "Hurley",
+  "Ralph Lauren",
+  "Tommy Hilfiger",
+  "Levi's",
+];
+
+const CATEGORIES_LIST = [
+  "Short",
+  "Polo",
+  "Pull",
+  "Chemise",
+  "Veste",
+  "Sweat",
+  "Jogging",
+  "Jean",
+  "Bermuda",
+];
+
 export default function MiseEnVentePage() {
   const [step, setStep] = useState(1);
 
@@ -52,24 +82,42 @@ export default function MiseEnVentePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   // --- QCM ---
+  const [marqueQcm, setMarqueQcm] = useState("");
+  const [categorieQcm, setCategorieQcm] = useState("");
   const [taille, setTaille] = useState("");
   const [etat, setEtat] = useState("");
   const [matiere, setMatiere] = useState("");
+  const [matiere2, setMatiere2] = useState("");
 
   // --- Génération ---
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [titre, setTitre] = useState("");
   const [description, setDescription] = useState("");
   const [motsCles, setMotsCles] = useState("");
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
 
   const { data: prompts = [] } = usePrompts();
   const generate = useGenerateListing();
   const updateArticle = useUpdateArticle();
 
   const detectedPrompt = useMemo(
-    () => (article ? pickPrompt(prompts, article.marque, article.categorie) : null),
-    [prompts, article],
+    () =>
+      article
+        ? pickPrompt(prompts, marqueQcm || null, categorieQcm || null)
+        : null,
+    [prompts, article, marqueQcm, categorieQcm],
   );
+
+  // Initialise les champs QCM marque/catégorie depuis l'article trouvé.
+  useEffect(() => {
+    setMarqueQcm(article?.marque ?? "");
+    setCategorieQcm(article?.categorie ?? "");
+  }, [article]);
+
+  // Pré-sélectionne le prompt détecté automatiquement.
+  useEffect(() => {
+    setSelectedPromptId(detectedPrompt?.id ?? null);
+  }, [detectedPrompt]);
 
   // Révoque les object URLs des photos au démontage (navigation SPA) : sans ça,
   // les blob: URLs survivent au document et s'accumulent à chaque visite.
@@ -121,7 +169,7 @@ export default function MiseEnVentePage() {
     setProcessing((n) => n + toProcess.length);
     for (const file of toProcess) {
       try {
-        const base = await correctImage(file);
+        const base = await loadImageDirect(file);
         const blob = await encodeRotated(base, 0);
         const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const photo: Photo = { id, base, rotation: 0, url: URL.createObjectURL(blob), blob };
@@ -207,12 +255,13 @@ export default function MiseEnVentePage() {
     );
     const res = await generate.mutateAsync({
       sku: article.sku,
-      marque: article.marque,
-      categorie: article.categorie,
+      marque: marqueQcm || null,
+      categorie: categorieQcm || null,
       taille: taille || null,
       etat: etat || null,
-      matiere: matiere || null,
+      matiere: [matiere, matiere2].filter(Boolean).join(" / ") || null,
       images,
+      promptId: selectedPromptId ?? undefined,
     });
     setResult(res);
     setTitre(res.titre);
@@ -502,11 +551,33 @@ export default function MiseEnVentePage() {
           <div className="grid grid-cols-1 gap-4 rounded-card border border-line bg-surface p-5 shadow-card md:grid-cols-2">
             <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">Marque</label>
-              <input value={article.marque} readOnly className={`${inputCls} bg-surface-soft`} />
+              <input
+                value={marqueQcm}
+                onChange={(e) => setMarqueQcm(e.target.value)}
+                list="marques-list"
+                placeholder="Ex : Lacoste"
+                className={inputCls}
+              />
+              <datalist id="marques-list">
+                {MARQUES_LIST.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">Catégorie</label>
-              <input value={article.categorie} readOnly className={`${inputCls} bg-surface-soft`} />
+              <input
+                value={categorieQcm}
+                onChange={(e) => setCategorieQcm(e.target.value)}
+                list="categories-list"
+                placeholder="Ex : Short"
+                className={inputCls}
+              />
+              <datalist id="categories-list">
+                {CATEGORIES_LIST.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">Taille</label>
@@ -530,7 +601,7 @@ export default function MiseEnVentePage() {
                 ))}
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="mb-1 block text-label-sm font-medium text-ink-muted">Matière</label>
               <input
                 value={matiere}
@@ -545,14 +616,37 @@ export default function MiseEnVentePage() {
                 ))}
               </datalist>
             </div>
+            <div>
+              <label className="mb-1 block text-label-sm font-medium text-ink-muted">
+                Matière 2 (optionnel)
+              </label>
+              <input
+                value={matiere2}
+                onChange={(e) => setMatiere2(e.target.value)}
+                list="matieres"
+                placeholder="Ex : Élasthanne"
+                className={inputCls}
+              />
+            </div>
           </div>
 
-          <p className="text-label-sm text-ink-faint">
-            Prompt utilisé :{" "}
-            <span className="font-medium text-ink-muted">
-              {detectedPrompt ? detectedPrompt.nom : "—"}
-            </span>
-          </p>
+          <div>
+            <label className="mb-1 block text-label-sm font-medium text-ink-muted">
+              Prompt utilisé
+            </label>
+            <select
+              value={selectedPromptId ?? ""}
+              onChange={(e) => setSelectedPromptId(e.target.value || null)}
+              className={inputCls}
+            >
+              <option value="">— Sélectionner un prompt —</option>
+              {prompts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nom}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {generate.isError && (
             <p className="rounded-md border border-error/30 bg-error/10 px-4 py-3 text-body-md text-error">
@@ -694,9 +788,13 @@ export default function MiseEnVentePage() {
               setTitre("");
               setDescription("");
               setMotsCles("");
+              setMarqueQcm("");
+              setCategorieQcm("");
               setTaille("");
               setEtat("");
               setMatiere("");
+              setMatiere2("");
+              setSelectedPromptId(null);
               setStep(1);
             }}
             className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"

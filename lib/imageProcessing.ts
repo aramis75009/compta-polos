@@ -69,6 +69,23 @@ export async function correctImage(file: File): Promise<HTMLCanvasElement> {
 }
 
 /**
+ * Charge une image sur un canvas SANS aucune correction : ni rotation EXIF,
+ * ni forçage portrait. L'image est dessinée telle quelle (createImageBitmap +
+ * drawImage). Sert de SOURCE lossless pour les rotations manuelles ultérieures.
+ */
+export async function loadImageDirect(file: File): Promise<HTMLCanvasElement> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponible.");
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return canvas;
+}
+
+/**
  * Applique une rotation manuelle (0/90/180/270°, horaire) sur le canvas SOURCE
  * et encode en JPEG. La rotation part toujours de la source corrigée d'origine,
  * donc une seule génération de compression quel que soit le nombre de clics.
