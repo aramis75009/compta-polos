@@ -83,15 +83,25 @@ export type WeekPoint = {
   ca: number;
 };
 
+// Évolution mois calendaire courant vs mois précédent (basée sur dateVente).
+// pct est null quand le mois précédent est nul (pas de base de comparaison).
+export type DashboardDelta = {
+  pct: number | null;
+  abs: number;
+};
+
 export type DashboardDTO = {
   caTotal: number;
   margeNetteTotal: number;
+  margeMoyenne: number; // margeNetteTotal / caTotal (0..1)
   enStock: number;
   pctVendu: number;
   totalArticles: number;
   vendus: number;
   parMarque: BrandRow[];
   caParSemaine: WeekPoint[];
+  caDelta: DashboardDelta; // CA mois courant vs mois précédent
+  margeDelta: DashboardDelta; // marge nette mois courant vs mois précédent
 };
 
 export type CalendarArticle = {

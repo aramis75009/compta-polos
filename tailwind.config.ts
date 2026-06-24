@@ -45,6 +45,13 @@ const config: Config = {
           "system-ui",
           "sans-serif",
         ],
+        // Police d'affichage du redesign (chiffres / titres / KPI).
+        grotesk: [
+          "var(--font-grotesk)",
+          "Space Grotesk",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       fontSize: {
         "label-sm": ["12px", { lineHeight: "1.2", fontWeight: "500" }],

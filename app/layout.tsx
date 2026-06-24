@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import AppShell from "@/components/AppShell";
@@ -7,6 +7,13 @@ import AppShell from "@/components/AppShell";
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-jakarta",
+});
+
+// Police d'affichage (chiffres, titres, KPI) du redesign — exposée en variable
+// CSS ; n'altère pas la police de corps (Plus Jakarta Sans) des autres pages.
+const grotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-grotesk",
 });
 
 export const metadata: Metadata = {
@@ -31,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${jakarta.variable} ${jakarta.className} min-h-screen bg-surface text-ink antialiased`}
+        className={`${jakarta.variable} ${grotesk.variable} ${jakarta.className} min-h-screen bg-surface text-ink antialiased`}
       >
         <Providers>
           <AppShell>{children}</AppShell>

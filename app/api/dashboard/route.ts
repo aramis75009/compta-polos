@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { moyenne, STATUT_VENDU } from "@/lib/calc";
-import type { BrandRow, DashboardDTO, WeekPoint } from "@/lib/types";
-import { format, startOfWeek, subWeeks } from "date-fns";
+import type {
+  BrandRow,
+  DashboardDelta,
+  DashboardDTO,
+  WeekPoint,
+} from "@/lib/types";
+import {
+  format,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+  subWeeks,
+} from "date-fns";
 import { fr } from "date-fns/locale";
 
 export const dynamic = "force-dynamic";
@@ -96,15 +107,41 @@ export async function GET() {
       ca: buckets.get(keys[idx]) ?? 0,
     }));
 
+    // --- Évolution mois courant vs mois précédent (CA + marge nette) ---
+    const debutMoisCourant = startOfMonth(new Date());
+    const debutMoisPrecedent = startOfMonth(subMonths(new Date(), 1));
+    let caMoisCourant = 0;
+    let caMoisPrecedent = 0;
+    let margeMoisCourant = 0;
+    let margeMoisPrecedent = 0;
+    for (const a of vendusList) {
+      if (!a.dateVente) continue;
+      const d = a.dateVente;
+      if (d >= debutMoisCourant) {
+        caMoisCourant += a.prixVente ?? 0;
+        margeMoisCourant += a.margeNette ?? 0;
+      } else if (d >= debutMoisPrecedent) {
+        caMoisPrecedent += a.prixVente ?? 0;
+        margeMoisPrecedent += a.margeNette ?? 0;
+      }
+    }
+    const delta = (courant: number, precedent: number): DashboardDelta => ({
+      pct: precedent > 0 ? (courant - precedent) / precedent : null,
+      abs: courant - precedent,
+    });
+
     const dto: DashboardDTO = {
       caTotal,
       margeNetteTotal,
+      margeMoyenne: caTotal ? margeNetteTotal / caTotal : 0,
       enStock,
       pctVendu,
       totalArticles,
       vendus,
       parMarque,
       caParSemaine,
+      caDelta: delta(caMoisCourant, caMoisPrecedent),
+      margeDelta: delta(margeMoisCourant, margeMoisPrecedent),
     };
     return NextResponse.json(dto);
   } catch (err) {
