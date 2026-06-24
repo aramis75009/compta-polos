@@ -37,16 +37,6 @@ const IconStock = I(
     <path d="m3.3 7 8.7 5 8.7-5M12 22V12" strokeWidth="1.6" />
   </>,
 );
-const IconPhotos = I(
-  <>
-    <path
-      d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z"
-      strokeWidth="1.6"
-      strokeLinejoin="round"
-    />
-    <circle cx="12" cy="13" r="3.5" strokeWidth="1.6" />
-  </>,
-);
 const IconComptabiliser = I(
   <>
     <path
@@ -111,7 +101,6 @@ const IconLogout = I(
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", short: "Accueil", icon: IconDashboard },
   { href: "/stock", label: "Stock", short: "Stock", icon: IconStock },
-  { href: "/photos", label: "Photos", short: "Photos", icon: IconPhotos },
   {
     href: "/mise-en-vente",
     label: "Mise en vente",
