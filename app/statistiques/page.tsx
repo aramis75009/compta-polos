@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { format, startOfWeek, endOfWeek } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Calendar, ChevronDown, Zap, Clock } from "lucide-react";
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
@@ -299,6 +301,11 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
   });
   const champion = days[bestIdx];
 
+  const now = new Date();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const periodeLabel = `Semaine du ${format(weekStart, "d MMM", { locale: fr })} au ${format(weekEnd, "d MMM", { locale: fr })}`;
+
   return (
     <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
       <div className="flex items-start justify-between">
@@ -308,6 +315,9 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
           </h2>
           <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
             Nombre de ventes par jour
+          </p>
+          <p className="mt-0.5 text-[12px] text-[#94A29A]">
+            {periodeLabel} · Basé sur tout l{"'"}historique
           </p>
         </div>
         {!allZero && champion && champion.vendus > 0 && (
@@ -323,7 +333,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
           </p>
         </div>
       ) : (
-        <div className="relative mt-5 flex h-[200px] items-end gap-3 md:gap-4">
+        <div className="relative mt-5 flex h-[200px] items-stretch gap-3 md:gap-4">
           {days.map((d, i) => {
             const isBest = i === bestIdx && d.vendus > 0;
             const isHover = hovered === i;
@@ -331,15 +341,15 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
             return (
               <div
                 key={i}
-                className="flex flex-1 flex-col items-center"
+                className="flex flex-1 flex-col items-center justify-end h-full"
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(-1)}
                 title={champion?.dateRecente && isBest ? formatDateLongue(champion.dateRecente) : undefined}
               >
-                <div className="relative flex w-full flex-1 items-end justify-center">
+                <div className="relative flex w-full items-end justify-center">
                   {isHover && (
                     <div
-                      className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[#16261D] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
+                      className="absolute bottom-[calc(100%+4px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[#16261D] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
                       style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
                     >
                       {d.vendus} vente{d.vendus > 1 ? "s" : ""}
@@ -348,7 +358,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
                   <div
                     className="w-full max-w-[40px] cursor-pointer transition-colors duration-200"
                     style={{
-                      height: `${Math.max(4, Math.round((d.vendus / max) * 100))}%`,
+                      height: `${Math.max(4, Math.round((d.vendus / max) * 180))}px`,
                       background: fill,
                       borderRadius: "8px 8px 4px 4px",
                     }}

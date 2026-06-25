@@ -299,38 +299,69 @@ function ActionsMenu({
 
 // Petit graphe linéaire « investissements par mois » (aire + ligne animée).
 function InvestChart({ months }: { months: { label: string; value: number }[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
   const max = Math.max(1, ...months.map((m) => m.value));
   const n = months.length;
+  const total = months.reduce((s, m) => s + m.value, 0);
+  const avg = n > 0 ? total / n : 0;
+  const avgY = max > 0 ? 160 - (avg / max) * 130 : null;
+
   const xs = months.map((_, i) => 40 + (i * 500) / Math.max(1, n - 1));
   const ys = months.map((m) => 160 - (m.value / max) * 130);
   const maxIdx = months.reduce((best, m, i) => (m.value > months[best].value ? i : best), 0);
   const line = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
   const area = `M${xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")} L${xs[n - 1].toFixed(1)},160 L${xs[0].toFixed(1)},160 Z`;
+
   return (
     <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
       <div className="mb-2 flex items-start justify-between">
         <div>
           <h2 className="font-grotesk text-[18px] font-bold text-[#16261D]">
-            Investissements dans le temps
+            Investissements par mois
           </h2>
           <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
-            Montant investi par mois
+            Montant total dépensé par mois
           </p>
         </div>
         <span className="rounded-full bg-[#F2F5F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#71807A]">
-          6 mois
+          {n} mois
         </span>
       </div>
+      <div className="max-w-[800px]">
       <svg
         viewBox="0 0 600 190"
         width="100%"
         height="210"
-        preserveAspectRatio="none"
         className="mt-2 block"
+        onMouseLeave={() => setHovered(null)}
       >
         <line x1="40" y1="30" x2="600" y2="30" stroke="#EEF2EC" strokeWidth="1" />
         <line x1="40" y1="95" x2="600" y2="95" stroke="#EEF2EC" strokeWidth="1" />
         <line x1="40" y1="160" x2="600" y2="160" stroke="#E4E9E2" strokeWidth="1" />
+
+        {avgY != null && (
+          <>
+            <line
+              x1="40"
+              y1={avgY.toFixed(1)}
+              x2="600"
+              y2={avgY.toFixed(1)}
+              stroke="#B58A4A"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+            />
+            <text
+              x="46"
+              y={Math.max(22, avgY - 5).toFixed(1)}
+              fill="#B58A4A"
+              fontSize="11"
+              fontWeight="600"
+            >
+              {`Moy. ${euros(avg)}`}
+            </text>
+          </>
+        )}
+
         <defs>
           <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#1B4332" stopOpacity="0.16" />
@@ -348,9 +379,33 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
           strokeDasharray="1200"
           style={{ animation: "drawLine 1.4s ease both" }}
         />
+
+        {n <= 8 &&
+          xs.map((x, i) => (
+            <text
+              key={i}
+              x={x.toFixed(1)}
+              y={(ys[i] - 10).toFixed(1)}
+              textAnchor="middle"
+              fill="#71807A"
+              fontSize="11"
+              fontWeight="600"
+            >
+              {euros(months[i].value)}
+            </text>
+          ))}
+
         {xs.map((x, i) =>
           i === maxIdx ? (
-            <circle key={i} cx={x} cy={ys[i]} r="5" fill="#1B4332" />
+            <circle
+              key={i}
+              cx={x}
+              cy={ys[i]}
+              r="5"
+              fill="#1B4332"
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHovered(i)}
+            />
           ) : (
             <circle
               key={i}
@@ -360,10 +415,37 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
               fill="#fff"
               stroke="#1B4332"
               strokeWidth="3"
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => setHovered(i)}
             />
           ),
         )}
+
+        {hovered !== null && (
+          <g>
+            <rect
+              x={Math.max(20, Math.min(xs[hovered] - 36, 528)).toFixed(1)}
+              y={(ys[hovered] - 34).toFixed(1)}
+              width="72"
+              height="24"
+              rx="8"
+              fill="#16261D"
+            />
+            <text
+              x={Math.max(56, Math.min(xs[hovered], 564)).toFixed(1)}
+              y={(ys[hovered] - 17).toFixed(1)}
+              textAnchor="middle"
+              fill="white"
+              fontSize="11"
+              fontWeight="700"
+            >
+              {euros(months[hovered].value)}
+            </text>
+          </g>
+        )}
       </svg>
+      </div>
+
       <div className="mt-0.5 flex pl-10 pr-5">
         {months.map((m, i) => (
           <span
@@ -375,6 +457,13 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
             {capitalize(m.label)}
           </span>
         ))}
+      </div>
+
+      <div className="mt-4 border-t border-[#EEF1EC] pt-3 text-[13px] text-[#71807A]">
+        {"Total : "}
+        <strong className="font-semibold text-[#16261D]">{euros(total)}</strong>
+        {" · Moy./mois : "}
+        <strong className="font-semibold text-[#16261D]">{euros(avg)}</strong>
       </div>
     </div>
   );
