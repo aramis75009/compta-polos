@@ -272,10 +272,12 @@ export function useStats() {
 
 // ---------- Dashboard ----------
 
-export function useDashboard() {
+export type DashboardPeriode = "all" | "month" | "30j" | "3m";
+
+export function useDashboard(periode: DashboardPeriode = "all") {
   return useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => jsonFetch<DashboardDTO>("/api/dashboard"),
+    queryKey: ["dashboard", periode],
+    queryFn: () => jsonFetch<DashboardDTO>(`/api/dashboard?periode=${periode}`),
   });
 }
 

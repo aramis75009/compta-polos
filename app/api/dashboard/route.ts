@@ -19,8 +19,10 @@ import { fr } from "date-fns/locale";
 export const dynamic = "force-dynamic";
 
 // GET /api/dashboard — KPIs + récap par marque + CA hebdomadaire
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const periode = searchParams.get("periode") ?? "all";
     // Une seule requête, on agrège en mémoire (volume faible).
     const articles = await prisma.article.findMany({
       select: {
@@ -34,7 +36,23 @@ export async function GET() {
     });
 
     const totalArticles = articles.length;
-    const vendusList = articles.filter((a) => a.statut === STATUT_VENDU);
+    const allVendus = articles.filter((a) => a.statut === STATUT_VENDU);
+
+    // Filtre par période
+    const now = new Date();
+    let depuis: Date | null = null;
+    if (periode === "month") {
+      depuis = startOfMonth(now);
+    } else if (periode === "30j") {
+      depuis = new Date(now);
+      depuis.setDate(depuis.getDate() - 30);
+    } else if (periode === "3m") {
+      depuis = new Date(now);
+      depuis.setMonth(depuis.getMonth() - 3);
+    }
+    const vendusList = depuis
+      ? allVendus.filter((a) => a.dateVente && a.dateVente >= depuis!)
+      : allVendus;
     const vendus = vendusList.length;
     const enStock = articles.filter((a) => a.statut === "En stock").length;
 

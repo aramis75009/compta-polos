@@ -237,7 +237,8 @@ export default function MiseEnVentePage() {
             motsCles: s.motsCles ?? "",
             promptNom: "",
           });
-          setStep(4);
+          // article non sérialisable → on repart toujours de l'étape 1
+          setStep(1);
         }
       }
     } catch {
@@ -518,13 +519,23 @@ export default function MiseEnVentePage() {
 
   return (
     <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 pb-24 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <header className="mb-6">
-        <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-          Mise en vente
-        </h1>
-        <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
-          Génère une annonce à partir des photos et des caractéristiques.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
+            Mise en vente
+          </h1>
+          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+            Génère une annonce à partir des photos et des caractéristiques.
+          </p>
+        </div>
+        <button
+          onClick={resetAll}
+          title="Vider le cache de session"
+          className="mt-1 flex items-center gap-1.5 rounded-xl border border-[#E4E9E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#8A998F] transition-colors hover:border-[#CBD8CE] hover:text-[#3C4D44]"
+        >
+          <RefreshCw className="h-3.5 w-3.5" strokeWidth={2} />
+          Réinitialiser
+        </button>
       </header>
 
       <Stepper step={step} />
@@ -955,6 +966,32 @@ export default function MiseEnVentePage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ÉTAPE 4 — Fallback si article perdu après refresh */}
+        {step === 4 && !article && (
+          <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-8 py-12 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FBF3E2]">
+              <RefreshCw className="h-6 w-6 text-[#B5872E]" strokeWidth={2} />
+            </div>
+            <h2 className="font-grotesk text-[20px] font-bold text-[#16261D]">
+              Session expirée
+            </h2>
+            <p className="mt-2 mx-auto max-w-sm text-[14px] font-medium text-[#71807A]">
+              {"Les photos et les données de l'article n'ont pas pu être restaurées."}
+              {" Recommence depuis le début pour re-scanner le SKU."}
+            </p>
+            {result && (titre || description) && (
+              <div className="mt-6 space-y-3 text-left">
+                {titre && <CopyField label="Titre généré" value={titre} />}
+                {description && <CopyField label="Description générée" value={description} multiline />}
+              </div>
+            )}
+            <button onClick={resetAll} className={`${btnPrimary} mx-auto mt-6`}>
+              <RefreshCw className="h-4 w-4" strokeWidth={2} />
+              Recommencer
+            </button>
           </div>
         )}
 

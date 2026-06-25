@@ -292,6 +292,7 @@ export default function StatistiquesPage() {
 function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
   const [hovered, setHovered] = useState(-1);
   const max = Math.max(1, ...days.map((d) => d.vendus));
+  const allZero = days.length === 0 || days.every((d) => d.vendus === 0);
   let bestIdx = 0;
   days.forEach((d, i) => {
     if (d.vendus > days[bestIdx].vendus) bestIdx = i;
@@ -309,51 +310,58 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
             Nombre de ventes par jour
           </p>
         </div>
-        {champion && champion.vendus > 0 && (
+        {!allZero && champion && champion.vendus > 0 && (
           <span className="rounded-full bg-[#EAF3ED] px-2.5 py-1.5 text-[12px] font-bold text-[#2D6A4F]">
             🏆 {champion.jour}
-            {champion.dateRecente ? "" : ""}
           </span>
         )}
       </div>
-      <div className="relative mt-5 flex h-[200px] items-end gap-3 md:gap-4">
-        {days.map((d, i) => {
-          const isBest = i === bestIdx && d.vendus > 0;
-          const isHover = hovered === i;
-          const fill = isHover ? "#2D6A4F" : isBest ? "#1B4332" : "#B7D3C2";
-          return (
-            <div
-              key={i}
-              className="flex flex-1 flex-col items-center"
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(-1)}
-              title={champion?.dateRecente && isBest ? formatDateLongue(champion.dateRecente) : undefined}
-            >
-              <div className="relative flex w-full flex-1 items-end justify-center">
-                {isHover && (
+      {allZero ? (
+        <div className="flex h-[200px] items-center justify-center">
+          <p className="text-[13.5px] font-medium text-[#94A29A]">
+            Aucune vente enregistrée pour le moment.
+          </p>
+        </div>
+      ) : (
+        <div className="relative mt-5 flex h-[200px] items-end gap-3 md:gap-4">
+          {days.map((d, i) => {
+            const isBest = i === bestIdx && d.vendus > 0;
+            const isHover = hovered === i;
+            const fill = isHover ? "#2D6A4F" : isBest ? "#1B4332" : "#B7D3C2";
+            return (
+              <div
+                key={i}
+                className="flex flex-1 flex-col items-center"
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(-1)}
+                title={champion?.dateRecente && isBest ? formatDateLongue(champion.dateRecente) : undefined}
+              >
+                <div className="relative flex w-full flex-1 items-end justify-center">
+                  {isHover && (
+                    <div
+                      className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[#16261D] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
+                      style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
+                    >
+                      {d.vendus} vente{d.vendus > 1 ? "s" : ""}
+                    </div>
+                  )}
                   <div
-                    className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[#16261D] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
-                    style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
-                  >
-                    {d.vendus} ventes
-                  </div>
-                )}
-                <div
-                  className="w-full max-w-[40px] cursor-pointer transition-colors duration-200"
-                  style={{
-                    height: `${Math.round((d.vendus / max) * 100)}%`,
-                    background: fill,
-                    borderRadius: "8px 8px 4px 4px",
-                  }}
-                />
+                    className="w-full max-w-[40px] cursor-pointer transition-colors duration-200"
+                    style={{
+                      height: `${Math.max(4, Math.round((d.vendus / max) * 100))}%`,
+                      background: fill,
+                      borderRadius: "8px 8px 4px 4px",
+                    }}
+                  />
+                </div>
+                <span className="mt-2.5 text-[12px] font-semibold text-[#8A998F]">
+                  {d.jour.slice(0, 3)}
+                </span>
               </div>
-              <span className="mt-2.5 text-[12px] font-semibold text-[#8A998F]">
-                {d.jour.slice(0, 3)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

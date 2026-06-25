@@ -10,10 +10,18 @@ import {
   TrendingDown,
   Calendar,
   ChevronDown,
+  Check,
 } from "lucide-react";
-import { useDashboard } from "@/lib/hooks";
+import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 import type { BrandRow, DashboardDelta, WeekPoint } from "@/lib/types";
+
+const PERIODES: { key: DashboardPeriode; label: string }[] = [
+  { key: "all", label: "Tout l'historique" },
+  { key: "month", label: "Ce mois" },
+  { key: "30j", label: "30 derniers jours" },
+  { key: "3m", label: "3 derniers mois" },
+];
 
 // ─────────────────────────────────────────────────────────────────────────
 // Helpers d'affichage
@@ -68,9 +76,11 @@ function coefPillClasses(n: number): string {
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data, isLoading, isError, error } = useDashboard();
+  const [periode, setPeriode] = useState<DashboardPeriode>("all");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const { data, isLoading, isError, error } = useDashboard(periode);
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <Frame>
         <p className="text-[#71807A]">Chargement du dashboard…</p>
@@ -87,6 +97,8 @@ export default function DashboardPage() {
     );
   }
 
+  const periodeLabel = PERIODES.find((p) => p.key === periode)?.label ?? "Tout l’historique";
+
   return (
     <Frame>
       {/* TOPBAR */}
@@ -100,10 +112,46 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44]">
-            <Calendar className="h-4 w-4" strokeWidth={2} />
-            Tout l’historique
-            <ChevronDown className="h-[15px] w-[15px] opacity-55" strokeWidth={2} />
+          {/* Dropdown période */}
+          <div className="relative">
+            {showDropdown && (
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowDropdown(false)}
+              />
+            )}
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="relative z-20 flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            >
+              <Calendar className="h-4 w-4" strokeWidth={2} />
+              {periodeLabel}
+              <ChevronDown
+                className={`h-[15px] w-[15px] opacity-55 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+                strokeWidth={2}
+              />
+            </button>
+            {showDropdown && (
+              <div className="absolute right-0 top-full z-20 mt-1 w-[210px] overflow-hidden rounded-[14px] border border-[#E4E9E2] bg-white py-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,.15)]">
+                {PERIODES.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => {
+                      setPeriode(p.key);
+                      setShowDropdown(false);
+                    }}
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold transition-colors hover:bg-[#F7F9F6] ${
+                      periode === p.key ? "text-[#1B4332]" : "text-[#3C4D44]"
+                    }`}
+                  >
+                    {p.label}
+                    {periode === p.key && (
+                      <Check className="h-[14px] w-[14px] text-[#1B4332]" strokeWidth={2.5} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk font-bold text-[#CFE6D8]">
             A
@@ -117,6 +165,7 @@ export default function DashboardPage() {
           ca={data.caTotal}
           delta={data.caDelta}
           spark={data.caParSemaine}
+          periodeLabel={periodeLabel}
         />
         <MargeCard total={data.margeNetteTotal} moyenne={data.margeMoyenne} delta={data.margeDelta} />
       </div>
@@ -153,10 +202,12 @@ function HeroCard({
   ca,
   delta,
   spark,
+  periodeLabel,
 }: {
   ca: number;
   delta: DashboardDelta;
   spark: WeekPoint[];
+  periodeLabel: string;
 }) {
   const pct = signedPct(delta.pct);
   const positive = delta.pct == null || delta.pct >= 0;
@@ -183,7 +234,7 @@ function HeroCard({
             CA TOTAL
           </span>
           <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11.5px] font-semibold text-[#BFE3CE]">
-            Total
+            {periodeLabel}
           </span>
         </div>
         <Sparkline points={spark} />
