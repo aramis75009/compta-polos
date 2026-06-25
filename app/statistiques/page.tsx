@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { format, startOfWeek, endOfWeek } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Calendar, ChevronDown, Zap, Clock } from "lucide-react";
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
@@ -301,11 +299,6 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
   });
   const champion = days[bestIdx];
 
-  const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-  const periodeLabel = `Semaine du ${format(weekStart, "d MMM", { locale: fr })} au ${format(weekEnd, "d MMM", { locale: fr })}`;
-
   return (
     <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
       <div className="flex items-start justify-between">
@@ -317,7 +310,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
             Nombre de ventes par jour
           </p>
           <p className="mt-0.5 text-[12px] text-[#94A29A]">
-            {periodeLabel} · Basé sur tout l{"'"}historique
+            {"Basé sur tout l'historique"}
           </p>
         </div>
         {!allZero && champion && champion.vendus > 0 && (

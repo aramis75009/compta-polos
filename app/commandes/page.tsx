@@ -327,11 +327,11 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
           {n} mois
         </span>
       </div>
-      <div className="max-w-[800px]">
+      <div className="w-full overflow-hidden" style={{ maxHeight: 240 }}>
       <svg
         viewBox="0 0 600 190"
         width="100%"
-        height="210"
+        height="190"
         className="mt-2 block"
         onMouseLeave={() => setHovered(null)}
       >
