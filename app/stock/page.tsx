@@ -30,6 +30,18 @@ import NewCommandeModal from "@/components/NewCommandeModal";
 import CanalBadge from "@/components/CanalBadge";
 import StatutBadge from "@/components/StatutBadge";
 import Modal from "@/components/Modal";
+import {
+  Package,
+  Tag,
+  Check,
+  HandCoins,
+  Plus,
+  Download,
+  SlidersHorizontal,
+  Search,
+  FileText,
+  X,
+} from "lucide-react";
 
 // Petit indicateur vert : les photos de l'article sont prêtes (retouchées
 // et téléchargées depuis la page Photos).
@@ -128,8 +140,9 @@ function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
   return naturalSort(String(va), String(vb));
 }
 
+// Style "pill" blanc du redesign pour les selects de filtre.
 const inputCls =
-  "rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
+  "rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] outline-none transition-colors focus:border-[#CBD8CE]";
 
 // Détecte le breakpoint md (768px) pour ne rendre qu'une seule liste virtualisée
 // à la fois (sinon deux virtualizers tourneraient, dont un sur du DOM masqué).
@@ -191,7 +204,7 @@ const ArticleRow = memo(
       coefEffectif < a.coefObjectif;
     const cells: Record<SortKey, React.ReactNode> = {
       sku: (
-        <td key="sku" className="px-2 py-3 font-mono text-ink">
+        <td key="sku" className="px-2 py-3 font-grotesk font-bold text-[#16261D]">
           <span className="flex items-center gap-1.5">
             <EditableCell value={a.sku} onSave={(v) => onPatch(a.id, { sku: v })} />
             {a.photosPretes && <PhotosReadyIcon />}
@@ -334,37 +347,37 @@ const ArticleRow = memo(
       <tr
         ref={ref}
         {...rest}
-        className={`border-t border-line align-middle transition-colors hover:bg-surface-soft ${
-          isSelected ? "bg-primary/5" : ""
+        className={`border-b border-[#EEF1EC] align-middle transition-colors hover:bg-[#F7F9F6] ${
+          isSelected ? "bg-[#EAF3ED]" : ""
         }`}
       >
         <td className="px-3 py-3">
           <input
             type="checkbox"
             aria-label={`Sélectionner ${a.sku}`}
-            className="h-4 w-4 cursor-pointer accent-primary"
+            className="h-4 w-4 cursor-pointer accent-[#1B4332]"
             checked={isSelected}
             onChange={() => onToggleSelect(a.id)}
           />
         </td>
         {shownColumns.map((c) => cells[c.key])}
-        <td className="px-3 py-3 text-right">
-          <div className="flex items-center justify-end gap-2">
+        <td className="px-3 py-3">
+          <div className="flex items-center justify-end gap-2.5 text-[#A6B2A9]">
             <button
               onClick={() => onShowDetail(a)}
-              className={`transition-colors hover:text-primary ${
-                a.titreAnnonce ? "text-primary" : "text-ink-faint"
+              className={`transition-colors hover:text-[#1B4332] ${
+                a.titreAnnonce ? "text-[#1B4332]" : ""
               }`}
               title={a.titreAnnonce ? "Voir le détail (annonce générée)" : "Voir le détail"}
             >
-              📄
+              <FileText className="h-[17px] w-[17px]" strokeWidth={2} />
             </button>
             <button
               onClick={() => onDelete(a)}
-              className="text-ink-faint transition-colors hover:text-error"
+              className="transition-colors hover:text-[#C2603F]"
               title="Supprimer"
             >
-              ✕
+              <X className="h-[17px] w-[17px]" strokeWidth={2} />
             </button>
           </div>
         </td>
@@ -391,14 +404,14 @@ const ArticleCard = memo(
     return (
       <div ref={ref} {...rest} className="pb-3">
         <div
-          className={`flex gap-3 rounded-card border bg-surface p-4 shadow-card ${
-            isSelected ? "border-primary" : "border-line"
+          className={`flex gap-3 rounded-[18px] border bg-white p-4 ${
+            isSelected ? "border-[#1B4332]" : "border-[#E4E9E2]"
           }`}
         >
           <input
             type="checkbox"
             aria-label={`Sélectionner ${a.sku}`}
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#1B4332]"
             checked={isSelected}
             onChange={() => onToggleSelect(a.id)}
           />
@@ -408,32 +421,34 @@ const ArticleCard = memo(
           >
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-mono font-semibold text-ink">
+                <span className="truncate font-grotesk font-bold text-[#16261D]">
                   {a.sku}
                 </span>
                 {a.photosPretes && <PhotosReadyIcon />}
-                {a.titreAnnonce && <span title="Annonce générée">📄</span>}
+                {a.titreAnnonce && (
+                  <FileText className="h-4 w-4 text-[#1B4332]" strokeWidth={2} />
+                )}
               </span>
               <StatutBadge statut={a.statut} />
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="truncate text-ink-muted">{a.marque}</span>
+              <span className="truncate text-[#71807A]">{a.marque}</span>
               <CanalBadge canal={a.canal} />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
-              <span className="text-ink">{euros(a.prixAchat)}</span>
-              <span className="text-ink-faint">→</span>
-              <span className="text-ink">
+              <span className="text-[#3C4D44]">{euros(a.prixAchat)}</span>
+              <span className="text-[#A6B2A9]">→</span>
+              <span className="text-[#3C4D44]">
                 {a.prixVente != null ? euros(a.prixVente) : "—"}
               </span>
-              <span className="text-ink-faint">|</span>
+              <span className="text-[#A6B2A9]">|</span>
               <span
-                className={`font-medium ${
+                className={`font-semibold ${
                   a.margeNette != null && a.margeNette > 0
-                    ? "text-primary"
+                    ? "text-[#2D6A4F]"
                     : a.margeNette != null && a.margeNette < 0
-                      ? "text-error"
-                      : "text-ink-muted"
+                      ? "text-[#C2603F]"
+                      : "text-[#71807A]"
                 }`}
               >
                 {a.margeNette != null ? euros(a.margeNette) : "—"}
@@ -445,6 +460,53 @@ const ArticleCard = memo(
     );
   }),
 );
+
+// Carte de la barre de stats (redesign). Variante `dark` = carte verte pleine.
+function StatCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  value,
+  label,
+  dark,
+}: {
+  icon: typeof Package;
+  iconBg?: string;
+  iconColor?: string;
+  value: string;
+  label: string;
+  dark?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-2xl border px-4 py-4 ${
+        dark ? "border-[#1B4332] bg-[#1B4332] text-white" : "border-[#E4E9E2] bg-white"
+      }`}
+    >
+      <div
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+        style={{
+          background: dark ? "rgba(255,255,255,.13)" : iconBg,
+          color: dark ? "#9FD4B5" : iconColor,
+        }}
+      >
+        <Icon className="h-5 w-5" strokeWidth={2} />
+      </div>
+      <div className="min-w-0">
+        <div className="font-grotesk text-[23px] font-bold tracking-[-0.02em]">
+          {value}
+        </div>
+        <div
+          className={`text-[12px] font-semibold ${
+            dark ? "text-[#9FD4B5]" : "text-[#8A998F]"
+          }`}
+        >
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StockInner() {
   const router = useRouter();
@@ -628,18 +690,31 @@ function StockInner() {
 
   const totals = useMemo(() => {
     let enStock = 0;
+    let enVente = 0;
     let vendus = 0;
     let ca = 0;
     let net = 0;
+    let stockValue = 0; // coût d'achat des articles encore détenus (non vendus/perdus)
     for (const a of articles) {
       if (a.statut === "En stock") enStock += 1;
+      if (a.statut === "En vente") enVente += 1;
       if (a.statut === STATUT_VENDU) {
         vendus += 1;
         ca += a.prixVente ?? 0;
         net += a.margeNette ?? 0;
+      } else if (a.statut !== "Perdu" && a.statut !== "Fake") {
+        stockValue += a.prixAchat ?? 0;
       }
     }
-    return { total: articles.length, enStock, vendus, ca, net };
+    return {
+      total: articles.length,
+      enStock,
+      enVente,
+      vendus,
+      ca,
+      net,
+      stockValue,
+    };
   }, [articles]);
 
   // Export CSV des lignes affichées (filtres, tri ET colonnes visibles respectés).
@@ -736,61 +811,64 @@ function StockInner() {
     : null;
 
   return (
-    <main className="mx-auto max-w-[1400px] px-6 py-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+      <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-4xl">Stock</h1>
-          <p className="mt-1 text-sm text-ink-muted md:text-base">
+          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
+            Stock
+          </h1>
+          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
             Double-clic sur une cellule pour la modifier.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative hidden md:block" ref={colsRef}>
             <button
               onClick={() => setColsOpen((o) => !o)}
-              className="rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
             >
-              Colonnes ⚙️
+              <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+              Colonnes
             </button>
             {colsOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-60 rounded-card border border-line bg-surface p-2 shadow-card-hover">
-                <p className="px-3 py-2 text-label-sm uppercase tracking-wide text-ink-faint">
+              <div className="absolute right-0 z-30 mt-2 w-60 rounded-2xl border border-[#E4E9E2] bg-white p-2 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
+                <p className="px-3 py-2 text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
                   Colonnes affichées
                 </p>
                 {COLUMN_META.map((c) => (
                   <label
                     key={c.key}
-                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-body-md ${
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] ${
                       c.always
-                        ? "cursor-default text-ink-faint"
-                        : "cursor-pointer text-ink hover:bg-surface-container"
+                        ? "cursor-default text-[#8A998F]"
+                        : "cursor-pointer text-[#3C4D44] hover:bg-[#F1F4EF]"
                     }`}
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-default"
+                      className="h-4 w-4 cursor-pointer accent-[#1B4332] disabled:cursor-default"
                       checked={!!visibleCols[c.key]}
                       disabled={c.always}
                       onChange={() => toggleCol(c.key)}
                     />
                     {c.label}
                     {c.always && (
-                      <span className="ml-auto text-label-sm text-ink-faint">
+                      <span className="ml-auto text-[11.5px] text-[#A6B2A9]">
                         toujours
                       </span>
                     )}
                   </label>
                 ))}
-                <label className="flex cursor-default items-center gap-2.5 rounded-md px-3 py-2 text-body-md text-ink-faint">
+                <label className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-[#8A998F]">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 cursor-default accent-primary"
+                    className="h-4 w-4 cursor-default accent-[#1B4332]"
                     checked
                     disabled
                     readOnly
                   />
                   Actions
-                  <span className="ml-auto text-label-sm text-ink-faint">
+                  <span className="ml-auto text-[11.5px] text-[#A6B2A9]">
                     toujours
                   </span>
                 </label>
@@ -799,36 +877,61 @@ function StockInner() {
           </div>
           <button
             onClick={exportCSV}
-            className="w-full rounded-full border border-line px-5 py-2.5 text-body-md font-medium text-ink transition-colors hover:bg-surface-container md:w-auto"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
           >
-            📤 Exporter CSV
+            <Download className="h-4 w-4" strokeWidth={2} />
+            Exporter CSV
           </button>
           <button
             onClick={() => setNewCommande(true)}
-            className="w-full rounded-full bg-primary px-5 py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark md:w-auto"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
           >
-            + Nouvelle commande
+            <Plus className="h-4 w-4" strokeWidth={2.3} />
+            Nouvelle commande
           </button>
         </div>
       </header>
 
+      {/* Barre de stats */}
+      <div className="mb-5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <StatCard
+          icon={Package}
+          iconBg="#EAF3ED"
+          iconColor="#1B4332"
+          value={totals.total.toLocaleString("fr-FR")}
+          label="Articles au total"
+        />
+        <StatCard
+          icon={Tag}
+          iconBg="#E7F0FF"
+          iconColor="#3B6FD4"
+          value={totals.enVente.toLocaleString("fr-FR")}
+          label="En vente"
+        />
+        <StatCard
+          icon={Check}
+          iconBg="#E7F4EC"
+          iconColor="#2D6A4F"
+          value={totals.vendus.toLocaleString("fr-FR")}
+          label="Vendus"
+        />
+        <StatCard
+          icon={HandCoins}
+          dark
+          value={euros(totals.stockValue)}
+          label="Valeur du stock"
+        />
+      </div>
+
       {/* Filtres */}
-      <div className="mb-5 flex flex-col gap-3 md:flex-row md:flex-wrap">
-        <div className="relative w-full md:w-auto">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
-          >
-            <circle cx="11" cy="11" r="7" strokeWidth="1.6" />
-            <path d="m21 21-4.3-4.3" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:flex-wrap">
+        <div className="flex w-full items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 md:flex-1">
+          <Search className="h-[17px] w-[17px] flex-shrink-0 text-[#9BA89F]" strokeWidth={2} />
           <input
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Rechercher un SKU…"
-            className={`${inputCls} w-full rounded-full pl-9 md:w-auto`}
+            className="w-full bg-transparent text-[13.5px] font-medium text-[#16261D] outline-none placeholder:text-[#9BA89F]"
           />
         </div>
         <select
@@ -877,7 +980,7 @@ function StockInner() {
               setCommande("");
               router.replace("/stock");
             }}
-            className="w-full rounded-full border border-line px-4 py-2 text-body-md text-ink-muted transition-colors hover:bg-surface-container md:w-auto"
+            className="w-full rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-medium text-[#71807A] transition-colors hover:border-[#CBD8CE] md:w-auto"
           >
             Réinitialiser
           </button>
@@ -931,19 +1034,19 @@ function StockInner() {
       {isDesktop && (
       <div
         ref={desktopWrapRef}
-        className="overflow-x-auto rounded-card border border-line bg-surface shadow-card"
+        className="overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white"
       >
         <table
           style={{ minWidth: Math.max(640, colCount * 96) }}
           className="w-full border-collapse text-body-md"
         >
           <thead>
-            <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-              <th className="w-10 px-3 py-3.5">
+            <tr className="border-b border-[#E4E9E2] bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+              <th className="w-10 px-[22px] py-[15px]">
                 <input
                   type="checkbox"
                   aria-label="Tout sélectionner"
-                  className="h-4 w-4 cursor-pointer accent-primary"
+                  className="h-4 w-4 cursor-pointer accent-[#1B4332]"
                   checked={
                     sorted.length > 0 && sorted.every((a) => selected.has(a.id))
                   }
@@ -960,7 +1063,7 @@ function StockInner() {
                 <th
                   key={c.key}
                   onClick={() => toggleSort(c.key)}
-                  className={`cursor-pointer select-none whitespace-nowrap px-3 py-3.5 font-medium transition-colors hover:text-ink ${
+                  className={`cursor-pointer select-none whitespace-nowrap px-3 py-[15px] transition-colors hover:text-[#3C4D44] ${
                     c.align === "right" ? "text-right" : ""
                   }`}
                 >
@@ -968,7 +1071,7 @@ function StockInner() {
                   {sortIndicator(c.key)}
                 </th>
               ))}
-              <th className="px-3 py-3.5 text-right font-medium">Actions</th>
+              <th className="px-[22px] py-[15px] text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1037,40 +1140,40 @@ function StockInner() {
       )}
 
       {/* Compteur */}
-      <div className="mt-5 flex flex-wrap gap-x-8 gap-y-1 text-body-md text-ink-muted">
+      <div className="mt-5 flex flex-wrap gap-x-8 gap-y-1 text-[14px] text-[#71807A]">
         <span>
-          <strong className="text-ink">{totals.total}</strong> articles
+          <strong className="text-[#16261D]">{totals.total}</strong> articles
         </span>
         <span>
-          <strong className="text-ink">{totals.enStock}</strong> en stock
+          <strong className="text-[#16261D]">{totals.enStock}</strong> en stock
         </span>
         <span>
-          <strong className="text-ink">{totals.vendus}</strong> vendus
+          <strong className="text-[#16261D]">{totals.vendus}</strong> vendus
         </span>
         <span>
-          CA : <strong className="text-ink">{euros(totals.ca)}</strong>
+          CA : <strong className="text-[#16261D]">{euros(totals.ca)}</strong>
         </span>
         <span>
           Marge nette :{" "}
-          <strong className="text-primary">{euros(totals.net)}</strong>
+          <strong className="text-[#2D6A4F]">{euros(totals.net)}</strong>
         </span>
       </div>
 
       {/* Barre d'action de sélection en masse */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-sidebar">
-          <div className="flex flex-wrap items-center gap-3 rounded-full border border-line bg-surface px-5 py-3 shadow-card-hover">
-            <span className="text-body-md font-medium text-ink">
+          <div className="flex flex-wrap items-center gap-3 rounded-full border border-[#E4E9E2] bg-white px-5 py-3 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
+            <span className="text-[14px] font-semibold text-[#16261D]">
               {selected.size} article(s) sélectionné(s)
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-label-sm text-ink-faint">
+              <span className="text-[12px] font-medium text-[#8A998F]">
                 Changer le statut
               </span>
               <select
                 value={bulkStatut}
                 onChange={(e) => setBulkStatut(e.target.value)}
-                className="rounded-full border border-line bg-surface px-3 py-1.5 text-body-md text-ink outline-none focus:border-primary"
+                className="rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[14px] font-semibold text-[#3C4D44] outline-none focus:border-[#CBD8CE]"
               >
                 {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
                   <option key={s} value={s}>
@@ -1082,13 +1185,13 @@ function StockInner() {
             <button
               onClick={applyBulk}
               disabled={bulk.isPending}
-              className="rounded-full bg-primary px-4 py-1.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
+              className="rounded-full bg-[#1B4332] px-4 py-1.5 text-[14px] font-bold text-white transition-colors hover:bg-[#143528] disabled:opacity-60"
             >
               {bulk.isPending ? "…" : "Appliquer"}
             </button>
             <button
               onClick={clearSelection}
-              className="text-label-sm text-ink-faint hover:text-ink"
+              className="text-[12px] font-medium text-[#8A998F] hover:text-[#16261D]"
             >
               Annuler
             </button>
