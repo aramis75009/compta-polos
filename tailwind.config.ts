@@ -79,7 +79,7 @@ const config: Config = {
         "card-hover": "0 8px 28px rgba(0,0,0,0.08)",
       },
       spacing: {
-        sidebar: "260px",
+        sidebar: "256px",
       },
     },
   },

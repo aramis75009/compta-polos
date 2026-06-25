@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Check, RotateCw, Trash2 } from "lucide-react";
 import {
   useArticles,
   useComptabiliser,
+  useDashboard,
   useDeleteArticle,
   useUpdateArticle,
 } from "@/lib/hooks";
@@ -12,38 +14,37 @@ import type { ArticleDTO } from "@/lib/types";
 import SellModal from "@/components/SellModal";
 import StatutBadge from "@/components/StatutBadge";
 
-const IconTrash = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    className="h-4 w-4"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-  </svg>
-);
-
-const IconRefresh = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    className="h-4 w-4"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" />
-  </svg>
-);
+// Petite carte KPI du redesign.
+function KpiMini({
+  value,
+  label,
+  accent,
+}: {
+  value: string;
+  label: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-[18px] border border-[#E4E9E2] bg-white px-[22px] py-5">
+      <div
+        className={`font-grotesk text-[30px] font-bold tracking-[-0.02em] ${
+          accent ? "text-[#2D6A4F]" : "text-[#16261D]"
+        }`}
+      >
+        {value}
+      </div>
+      <div className="mt-1 text-[12.5px] font-semibold text-[#8A998F]">
+        {label}
+      </div>
+    </div>
+  );
+}
 
 export default function AComptabiliserPage() {
   const { data: articles = [], isLoading, isError, error } = useArticles({
     statut: STATUT_A_COMPTABILISER,
   });
+  const { data: dashboard } = useDashboard();
   // Tri naturel des SKU (l'API ne trie plus côté serveur).
   const sorted = useMemo(
     () => [...articles].sort((a, b) => naturalSort(a.sku, b.sku)),
@@ -68,198 +69,220 @@ export default function AComptabiliserPage() {
     supprimer.mutate(toDelete.id, { onSuccess: () => setToDelete(null) });
   };
 
+  const showEmpty = !isLoading && !isError && articles.length === 0;
+
   return (
-    <main className="mx-auto max-w-[1200px] px-6 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-error md:text-4xl">
+    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+      <header className="mb-[22px]">
+        <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[#16261D] md:text-[30px]">
           À comptabiliser
         </h1>
-        <p className="mt-1 text-sm text-ink-muted md:text-base">
-          Articles livrés en attente de validation comptable.
+        <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          Les ventes en attente de saisie comptable.
         </p>
       </header>
 
-      {/* Vue cartes mobile (< md) */}
-      <div className="space-y-3 md:hidden">
-        {isLoading && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-            Chargement…
-          </p>
-        )}
-        {isError && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
-            {(error as Error).message}
-          </p>
-        )}
-        {!isLoading && !isError && articles.length === 0 && (
-          <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-            Rien à comptabiliser. 🎉
-          </p>
-        )}
-        {sorted.map((a) => (
-          <div
-            key={a.id}
-            className="rounded-card border border-line bg-surface p-4 shadow-card"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate font-mono font-semibold text-ink">
-                {a.sku}
-              </span>
-              <StatutBadge statut={a.statut} />
-            </div>
-            <dl className="mt-3 space-y-1.5 text-body-md">
-              <div className="flex justify-between gap-2">
-                <dt className="text-ink-faint">Marque</dt>
-                <dd className="text-ink">{a.marque}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-ink-faint">Catégorie</dt>
-                <dd className="text-ink-muted">{a.categorie}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt className="text-ink-faint">Prix achat</dt>
-                <dd className="text-ink">{euros(a.prixAchat)}</dd>
-              </div>
-            </dl>
-            <div className="mt-4 space-y-2">
-              <button
-                onClick={() => setTarget(a)}
-                className="w-full rounded-full bg-primary px-4 py-3 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
-              >
-                Valider
-              </button>
-              <button
-                onClick={() =>
-                  remettreEnStock.mutate({
-                    id: a.id,
-                    patch: { statut: "En stock" },
-                  })
-                }
-                disabled={
-                  remettreEnStock.isPending &&
-                  remettreEnStock.variables?.id === a.id
-                }
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-4 py-3 text-label-sm font-medium text-primary transition-colors hover:bg-mint/20 disabled:opacity-50"
-              >
-                {IconRefresh}
-                Remettre en stock
-              </button>
-              <button
-                onClick={() => setToDelete(a)}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-4 py-3 text-label-sm font-medium text-error transition-colors hover:bg-error/20"
-              >
-                {IconTrash}
-                Supprimer
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Mini stats */}
+      <div className="mb-[22px] grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KpiMini
+          value={String(articles.length)}
+          label="Ventes en attente"
+          accent={articles.length === 0}
+        />
+        <KpiMini
+          value={dashboard ? dashboard.vendus.toLocaleString("fr-FR") : "—"}
+          label="Ventes comptabilisées"
+        />
+        <KpiMini value="Temps réel" label="Synchronisation" />
       </div>
 
-      {/* Tableau (≥ md) */}
-      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-card md:block">
-        <table className="w-full min-w-[900px] border-collapse text-body-md">
-          <thead>
-            <tr className="text-left text-label-sm uppercase tracking-wide text-ink-faint">
-              <th className="sticky left-0 z-10 bg-surface px-6 py-3.5 font-medium">
-                SKU
-              </th>
-              <th className="px-3 py-3.5 font-medium">Marque</th>
-              <th className="px-3 py-3.5 font-medium">Catégorie</th>
-              <th className="px-3 py-3.5 text-right font-medium">Prix achat</th>
-              <th className="px-3 py-3.5 font-medium">Transporteur</th>
-              <th className="px-3 py-3.5 text-right font-medium">Prix vente</th>
-              <th className="px-3 py-3.5 font-medium">Date vente</th>
-              <th className="px-6 py-3.5 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-ink-faint">
-                  Chargement…
-                </td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-error">
-                  {(error as Error).message}
-                </td>
-              </tr>
-            )}
-            {!isLoading && !isError && articles.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-6 py-10 text-center text-ink-faint">
-                  Rien à comptabiliser. 🎉
-                </td>
-              </tr>
-            )}
+      {/* Empty state (synchro auto, pas de bouton) */}
+      {showEmpty && (
+        <div className="rounded-[24px] border border-[#E4E9E2] bg-white px-8 py-[70px] text-center">
+          <div
+            className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full shadow-[0_16px_30px_-16px_rgba(45,106,79,.55)]"
+            style={{
+              background:
+                "radial-gradient(circle at 30% 25%, #E4F3EA, #CDEAD9)",
+              animation: "pop .6s cubic-bezier(.2,.8,.2,1) both",
+            }}
+          >
+            <Check className="h-12 w-12 text-[#1B4332]" strokeWidth={2.6} />
+          </div>
+          <h2 className="font-grotesk text-[24px] font-bold tracking-[-0.02em] text-[#16261D]">
+            Tout est à jour !
+          </h2>
+          <p className="mx-auto mt-2.5 max-w-[400px] text-[14.5px] font-medium leading-[1.55] text-[#71807A]">
+            Aucune vente n’attend d’être comptabilisée. Les nouvelles ventes
+            apparaissent ici automatiquement dès leur synchronisation.
+          </p>
+        </div>
+      )}
+
+      {/* États chargement / erreur */}
+      {isLoading && (
+        <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-10 text-center text-[#8A998F]">
+          Chargement…
+        </div>
+      )}
+      {isError && (
+        <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-10 text-center text-[#C2603F]">
+          {(error as Error).message}
+        </div>
+      )}
+
+      {/* Liste (s'il y a des éléments en attente) */}
+      {!isLoading && !isError && articles.length > 0 && (
+        <>
+          {/* Vue cartes mobile (< md) */}
+          <div className="space-y-3 md:hidden">
             {sorted.map((a) => (
-              <tr
+              <div
                 key={a.id}
-                className="border-t border-line transition-colors hover:bg-surface-soft"
+                className="rounded-[18px] border border-[#E4E9E2] bg-white p-4"
               >
-                <td className="sticky left-0 z-10 bg-surface px-6 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-ink">{a.sku}</span>
-                    <StatutBadge statut={a.statut} />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-grotesk font-bold text-[#16261D]">
+                    {a.sku}
+                  </span>
+                  <StatutBadge statut={a.statut} />
+                </div>
+                <dl className="mt-3 space-y-1.5 text-[14px]">
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-[#94A29A]">Marque</dt>
+                    <dd className="text-[#16261D]">{a.marque}</dd>
                   </div>
-                </td>
-                <td className="px-3 py-3.5 text-ink">{a.marque}</td>
-                <td className="px-3 py-3.5 text-ink-muted">{a.categorie}</td>
-                <td className="px-3 py-3.5 text-right text-ink">
-                  {euros(a.prixAchat)}
-                </td>
-                <td className="px-3 py-3.5 text-ink-muted">
-                  {a.transporteur ?? "—"}
-                </td>
-                <td className="px-3 py-3.5 text-right text-ink-muted">
-                  {a.prixVente != null ? euros(a.prixVente) : "—"}
-                </td>
-                <td className="px-3 py-3.5 text-ink-muted">
-                  {a.dateVente
-                    ? new Date(a.dateVente).toLocaleDateString("fr-FR")
-                    : "—"}
-                </td>
-                <td className="px-6 py-3.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => setTarget(a)}
-                      className="rounded-full bg-primary px-4 py-1.5 text-label-sm font-medium text-on-primary transition-colors hover:bg-primary-dark"
-                    >
-                      Valider
-                    </button>
-                    <button
-                      onClick={() =>
-                        remettreEnStock.mutate({
-                          id: a.id,
-                          patch: { statut: "En stock" },
-                        })
-                      }
-                      disabled={
-                        remettreEnStock.isPending &&
-                        remettreEnStock.variables?.id === a.id
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-full border border-mint/40 bg-mint/10 px-3 py-1.5 text-label-sm font-medium text-primary transition-colors hover:bg-mint/20 disabled:opacity-50"
-                    >
-                      {IconRefresh}
-                      Remettre en stock
-                    </button>
-                    <button
-                      onClick={() => setToDelete(a)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-3 py-1.5 text-label-sm font-medium text-error transition-colors hover:bg-error/20"
-                    >
-                      {IconTrash}
-                      Supprimer
-                    </button>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-[#94A29A]">Catégorie</dt>
+                    <dd className="text-[#71807A]">{a.categorie}</dd>
                   </div>
-                </td>
-              </tr>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-[#94A29A]">Prix achat</dt>
+                    <dd className="text-[#16261D]">{euros(a.prixAchat)}</dd>
+                  </div>
+                </dl>
+                <div className="mt-4 space-y-2">
+                  <button
+                    onClick={() => setTarget(a)}
+                    className="w-full rounded-xl bg-[#1B4332] px-4 py-3 text-[13.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    onClick={() =>
+                      remettreEnStock.mutate({
+                        id: a.id,
+                        patch: { statut: "En stock" },
+                      })
+                    }
+                    disabled={
+                      remettreEnStock.isPending &&
+                      remettreEnStock.variables?.id === a.id
+                    }
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E4E9E2] bg-white px-4 py-3 text-[13.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+                  >
+                    <RotateCw className="h-4 w-4" strokeWidth={2} />
+                    Remettre en stock
+                  </button>
+                  <button
+                    onClick={() => setToDelete(a)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[13.5px] font-semibold text-[#C2603F] transition-colors hover:bg-[#F6E1D6]"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={2} />
+                    Supprimer
+                  </button>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+
+          {/* Tableau (≥ md) */}
+          <div className="hidden overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white md:block">
+            <table className="w-full min-w-[900px] border-collapse text-[14px]">
+              <thead>
+                <tr className="border-b border-[#E4E9E2] bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+                  <th className="px-[22px] py-[15px]">SKU</th>
+                  <th className="px-3 py-[15px]">Marque</th>
+                  <th className="px-3 py-[15px]">Catégorie</th>
+                  <th className="px-3 py-[15px] text-right">Prix achat</th>
+                  <th className="px-3 py-[15px]">Transporteur</th>
+                  <th className="px-3 py-[15px] text-right">Prix vente</th>
+                  <th className="px-3 py-[15px]">Date vente</th>
+                  <th className="px-[22px] py-[15px] text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((a) => (
+                  <tr
+                    key={a.id}
+                    className="border-b border-[#EEF1EC] transition-colors hover:bg-[#F7F9F6]"
+                  >
+                    <td className="px-[22px] py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-grotesk font-bold text-[#16261D]">
+                          {a.sku}
+                        </span>
+                        <StatutBadge statut={a.statut} />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3.5 text-[#3C4D44]">{a.marque}</td>
+                    <td className="px-3 py-3.5 text-[#71807A]">{a.categorie}</td>
+                    <td className="px-3 py-3.5 text-right text-[#3C4D44]">
+                      {euros(a.prixAchat)}
+                    </td>
+                    <td className="px-3 py-3.5 text-[#71807A]">
+                      {a.transporteur ?? "—"}
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-[#71807A]">
+                      {a.prixVente != null ? euros(a.prixVente) : "—"}
+                    </td>
+                    <td className="px-3 py-3.5 text-[#71807A]">
+                      {a.dateVente
+                        ? new Date(a.dateVente).toLocaleDateString("fr-FR")
+                        : "—"}
+                    </td>
+                    <td className="px-[22px] py-3.5">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setTarget(a)}
+                          className="rounded-full bg-[#1B4332] px-4 py-1.5 text-[12.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+                        >
+                          Valider
+                        </button>
+                        <button
+                          onClick={() =>
+                            remettreEnStock.mutate({
+                              id: a.id,
+                              patch: { statut: "En stock" },
+                            })
+                          }
+                          disabled={
+                            remettreEnStock.isPending &&
+                            remettreEnStock.variables?.id === a.id
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+                          title="Remettre en stock"
+                        >
+                          <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
+                          Remettre en stock
+                        </button>
+                        <button
+                          onClick={() => setToDelete(a)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#F3D9CC] bg-[#FBEEE7] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2603F] transition-colors hover:bg-[#F6E1D6]"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <SellModal
         open={!!target}
@@ -278,17 +301,21 @@ export default function AComptabiliserPage() {
           onClick={() => !supprimer.isPending && setToDelete(null)}
         >
           <div
-            className="w-full max-w-md rounded-card border border-line bg-surface p-6 shadow-card"
+            className="w-full max-w-md rounded-[20px] border border-[#E4E9E2] bg-white p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-headline-md text-ink">Supprimer l’article</h2>
-            <p className="mt-2 text-body-md text-ink-muted">
+            <h2 className="font-grotesk text-[20px] font-bold text-[#16261D]">
+              Supprimer l’article
+            </h2>
+            <p className="mt-2 text-[14px] text-[#71807A]">
               Supprimer l’article{" "}
-              <span className="font-mono text-ink">{toDelete.sku}</span> ? Cette
-              action est irréversible.
+              <span className="font-grotesk font-bold text-[#16261D]">
+                {toDelete.sku}
+              </span>{" "}
+              ? Cette action est irréversible.
             </p>
             {supprimer.isError && (
-              <p className="mt-3 text-body-sm text-error">
+              <p className="mt-3 text-[13px] text-[#C2603F]">
                 {(supprimer.error as Error).message}
               </p>
             )}
@@ -296,14 +323,14 @@ export default function AComptabiliserPage() {
               <button
                 onClick={() => setToDelete(null)}
                 disabled={supprimer.isPending}
-                className="rounded-full bg-surface-soft px-4 py-1.5 text-label-sm font-medium text-ink-muted transition-colors hover:bg-line disabled:opacity-50"
+                className="rounded-full border border-[#E4E9E2] bg-white px-4 py-1.5 text-[13px] font-semibold text-[#71807A] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={supprimer.isPending}
-                className="rounded-full bg-error px-4 py-1.5 text-label-sm font-medium text-white transition-colors hover:bg-error/90 disabled:opacity-50"
+                className="rounded-full bg-[#C2603F] px-4 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-[#A84F31] disabled:opacity-50"
               >
                 {supprimer.isPending ? "Suppression…" : "Supprimer"}
               </button>
