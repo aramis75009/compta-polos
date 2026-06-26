@@ -75,6 +75,8 @@ function coefPillClasses(n: number): string {
 // Page
 // ─────────────────────────────────────────────────────────────────────────
 
+const name = process.env.NEXT_PUBLIC_USER_NAME ?? "Alex";
+
 export default function DashboardPage() {
   const [periode, setPeriode] = useState<DashboardPeriode>("all");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -105,7 +107,7 @@ export default function DashboardPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[#16261D] md:text-[30px]">
-            Bonjour Aramis 👋
+            Bonjour {name} 👋
           </h1>
           <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
             {todayLabel()}
