@@ -2,13 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileSpreadsheet, Plus, ShoppingBag, HandCoins } from "lucide-react";
+import { Plus, ShoppingBag, HandCoins } from "lucide-react";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import type { CommandeDTO } from "@/lib/types";
 
 import NewCommandeModal from "@/components/NewCommandeModal";
-import ImportExcelModal from "@/components/ImportExcelModal";
 
 // Initiales d'un fournisseur pour le badge carré.
 function initials(name: string): string {
@@ -464,7 +463,6 @@ export default function CommandesPage() {
   const { data: commandes = [], isLoading, isError, error } = useCommandes();
   const del = useDeleteCommande();
   const [newCommande, setNewCommande] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleDetail = (id: string) =>
@@ -540,13 +538,6 @@ export default function CommandesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
-          >
-            <FileSpreadsheet className="h-4 w-4" strokeWidth={2} />
-            Importer un Excel
-          </button>
           <button
             onClick={() => setNewCommande(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
@@ -788,7 +779,6 @@ export default function CommandesPage() {
       </div>
 
       <NewCommandeModal open={newCommande} onClose={() => setNewCommande(false)} />
-      <ImportExcelModal open={importOpen} onClose={() => setImportOpen(false)} />
     </main>
   );
 }
