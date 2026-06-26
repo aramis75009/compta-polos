@@ -365,7 +365,7 @@ function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
   const r = 58;
   const circ = 2 * Math.PI * r;
   let acc = 0;
-  const segments = data.map((s, i) => {
+  const segments = data.map((s) => {
     const frac = total ? s.count / total : 0;
     const seg = {
       color: statutColor(s.statut).text,
