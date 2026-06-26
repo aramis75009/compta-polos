@@ -17,9 +17,7 @@ export const STATUTS = [
   "À comptabiliser",
   "Vendu",
   "En lavage",
-  "Litige",
   "Perdu",
-  "Fake",
 ] as const;
 
 /** Statut « à comptabiliser » : article livré, en attente de validation comptable. */

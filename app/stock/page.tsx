@@ -702,7 +702,7 @@ function StockInner() {
         vendus += 1;
         ca += a.prixVente ?? 0;
         net += a.margeNette ?? 0;
-      } else if (a.statut !== "Perdu" && a.statut !== "Fake") {
+      } else if (a.statut !== "Perdu") {
         stockValue += a.prixAchat ?? 0;
       }
     }

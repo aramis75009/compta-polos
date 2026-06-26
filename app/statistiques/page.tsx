@@ -5,6 +5,7 @@ import { Calendar, ChevronDown, Zap, Clock } from "lucide-react";
 import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import type { CanalCA, StatutCount, WeekdayPoint } from "@/lib/types";
+import { statutColor } from "@/lib/statutColors";
 
 // "9 juin 2026" — date réelle du meilleur jour de la semaine.
 const formatDateLongue = (iso: string) =>
@@ -17,16 +18,6 @@ const formatDateLongue = (iso: string) =>
 const frNum = (n: number, d = 1) =>
   n.toLocaleString("fr-FR", { maximumFractionDigits: d });
 
-const DONUT_COLORS = [
-  "#1B4332",
-  "#52B788",
-  "#B7D3C2",
-  "#2D6A4F",
-  "#9FD4B5",
-  "#7CC79E",
-  "#CDE3D5",
-  "#8A998F",
-];
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -377,7 +368,7 @@ function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
   const segments = data.map((s, i) => {
     const frac = total ? s.count / total : 0;
     const seg = {
-      color: DONUT_COLORS[i % DONUT_COLORS.length],
+      color: statutColor(s.statut).text,
       len: frac * circ,
       offset: -acc,
       statut: s.statut,
