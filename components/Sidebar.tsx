@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   BarChart3,
   Settings,
+  UserCircle,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -40,7 +41,8 @@ const NAV: NavItem[] = [
   { href: "/calendrier", label: "Calendrier", short: "Agenda", icon: Calendar },
   { href: "/commandes", label: "Commandes", short: "Cmd", icon: ShoppingBag },
   { href: "/statistiques", label: "Statistiques", short: "Stats", icon: BarChart3 },
-  { href: "/parametres", label: "Paramètres", short: "Config", icon: Settings },
+  { href: "/parametres", label: "Prompts", short: "Prompts", icon: Settings },
+  { href: "/compte", label: "Mon compte", short: "Compte", icon: UserCircle },
 ];
 
 function isActive(pathname: string, href: string) {
