@@ -40,7 +40,7 @@ const NAV: NavItem[] = [
   { href: "/calendrier", label: "Calendrier", short: "Agenda", icon: Calendar },
   { href: "/commandes", label: "Commandes", short: "Cmd", icon: ShoppingBag },
   { href: "/statistiques", label: "Statistiques", short: "Stats", icon: BarChart3 },
-  { href: "/parametres/prompts", label: "Paramètres", short: "Config", icon: Settings },
+  { href: "/parametres", label: "Paramètres", short: "Config", icon: Settings },
 ];
 
 function isActive(pathname: string, href: string) {
