@@ -9,10 +9,18 @@ function LoginForm() {
   const params = useSearchParams();
   const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
 
+  const [mode, setMode] = useState<"login" | "forgot">("login");
+
+  // Login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Forgot
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotDone, setForgotDone] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,60 +40,123 @@ function LoginForm() {
     router.refresh();
   }
 
+  async function onForgot(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setForgotLoading(true);
+    await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: forgotEmail }),
+    });
+    setForgotLoading(false);
+    setForgotDone(true);
+  }
+
+  const inputCls =
+    "mb-4 w-full rounded-xl border border-[#E4E9E2] bg-[#F7F9F6] px-4 py-3 text-[14px] text-[#16261D] outline-none transition-colors placeholder:text-[#A6B2A9] focus:border-[#1B4332] focus:bg-white";
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface-soft px-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-card border border-line bg-surface p-8 shadow-card"
-      >
-        <div className="mb-6 flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary">
-            <span className="text-lg font-bold">M</span>
+    <main className="flex min-h-screen items-center justify-center bg-[#EEF1EC] px-4">
+      <div className="w-full max-w-sm rounded-[22px] border border-[#E4E9E2] bg-white p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
+        <div className="mb-6 flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#1B4332] font-bold text-white text-lg">
+            M
           </span>
           <div>
-            <h1 className="text-title-sm font-semibold text-ink">MyFlip</h1>
-            <p className="text-label-sm text-ink-faint">
-              Connecte-toi pour continuer.
+            <p className="font-bold text-[#16261D]">MyFlip</p>
+            <p className="text-[13px] text-[#71807A]">
+              {mode === "login" ? "Connecte-toi pour continuer." : "Réinitialiser ton mot de passe"}
             </p>
           </div>
         </div>
 
-        <label className="mb-1.5 block text-label-sm text-ink-muted">Email</label>
-        <input
-          type="email"
-          required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-        />
-
-        <label className="mb-1.5 block text-label-sm text-ink-muted">
-          Mot de passe
-        </label>
-        <input
-          type="password"
-          required
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-        />
-
-        {error && (
-          <p className="mb-4 text-body-md text-error" role="alert">
-            {error}
-          </p>
+        {mode === "login" ? (
+          <form onSubmit={onSubmit} className="flex flex-col">
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputCls}
+            />
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+              Mot de passe
+            </label>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputCls}
+            />
+            {error && (
+              <p className="mb-4 rounded-xl bg-[#FBEEE7] px-4 py-2.5 text-[13.5px] text-[#C2603F]">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-[#1B4332] py-3 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528] disabled:opacity-60"
+            >
+              {loading ? "Connexion…" : "Se connecter"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(null); }}
+              className="mt-4 text-center text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+            >
+              Mot de passe oublié ?
+            </button>
+          </form>
+        ) : forgotDone ? (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-[#E4F3EA] px-4 py-4 text-[14px] font-medium text-[#2D6A4F]">
+              Si cet email est enregistré, un lien de réinitialisation a été envoyé.
+            </div>
+            <button
+              onClick={() => { setMode("login"); setForgotDone(false); setForgotEmail(""); }}
+              className="text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+            >
+              ← Retour à la connexion
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onForgot} className="flex flex-col">
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+              Ton adresse email
+            </label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              placeholder="aramis@exemple.com"
+              className={inputCls}
+            />
+            <button
+              type="submit"
+              disabled={forgotLoading}
+              className="w-full rounded-xl bg-[#1B4332] py-3 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528] disabled:opacity-60"
+            >
+              {forgotLoading ? "Envoi…" : "Envoyer le lien"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className="mt-4 text-center text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+            >
+              ← Retour à la connexion
+            </button>
+          </form>
         )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-primary py-2.5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
-        >
-          {loading ? "Connexion…" : "Se connecter"}
-        </button>
-      </form>
+      </div>
     </main>
   );
 }

@@ -60,13 +60,13 @@ export default function Sidebar() {
     <>
       {/* Sidebar verticale fixe (desktop) */}
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-sidebar flex-col border-r border-[#E4E9E2] bg-white px-[18px] pb-[22px] pt-[26px] md:flex">
-        <div className="mb-[22px] flex items-center gap-[11px] px-2">
-          <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-[#1B4332] font-grotesk text-[19px] font-bold text-white">
-            M
-          </span>
-          <span className="font-grotesk text-[20px] font-bold tracking-[-0.02em] text-[#16261D]">
-            MyFlip
-          </span>
+        <div className="mb-[22px] px-2">
+          <img
+            src="/logo-atlas/myflip-sidebar.svg"
+            height={44}
+            alt="MyFlip"
+            className="h-11 w-auto"
+          />
         </div>
 
         <div className="px-3 pb-2 pt-1 text-[11px] font-bold uppercase tracking-[0.09em] text-[#9BA89F]">
@@ -107,6 +107,29 @@ export default function Sidebar() {
             <LogOut className="h-[19px] w-[19px] flex-shrink-0" strokeWidth={2} />
             Déconnexion
           </button>
+          <div className="mt-2 border-t border-[#E4E9E2] px-4 pb-2 pt-3">
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              <a
+                href="/legal/mentions-legales"
+                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+              >
+                Mentions légales
+              </a>
+              <a
+                href="/legal/cgu"
+                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+              >
+                CGU
+              </a>
+              <a
+                href="/legal/confidentialite"
+                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+              >
+                Confidentialité
+              </a>
+            </div>
+            <p className="mt-1.5 text-[10px] text-[#B8C4BE]">© 2026 MyFlip</p>
+          </div>
         </div>
       </aside>
 

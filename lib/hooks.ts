@@ -5,6 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   ArticleDTO,
   CalendarDTO,
@@ -20,6 +21,13 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  if (res.status === 401) {
+    toast.error("Session expirée, reconnecte-toi.");
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 1500);
+    throw new Error("Session expirée.");
+  }
   if (!res.ok) {
     let message = "Une erreur est survenue.";
     try {

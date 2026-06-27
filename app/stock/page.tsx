@@ -30,6 +30,8 @@ import NewCommandeModal from "@/components/NewCommandeModal";
 import CanalBadge from "@/components/CanalBadge";
 import StatutBadge from "@/components/StatutBadge";
 import Modal from "@/components/Modal";
+import Loader from "@/components/Loader";
+import { toast } from "sonner";
 import {
   Package,
   Tag,
@@ -773,7 +775,11 @@ function StockInner() {
 
   const handleDelete = useCallback(
     (a: ArticleDTO) => {
-      if (confirm(`Supprimer ${a.sku} ?`)) del.mutate(a.id);
+      if (confirm(`Supprimer ${a.sku} ?`))
+        del.mutate(a.id, {
+          onSuccess: () => toast.success(`${a.sku} supprimé.`),
+          onError: (e) => toast.error((e as Error).message),
+        });
     },
     [del],
   );
@@ -990,11 +996,7 @@ function StockInner() {
       {/* Vue cartes mobile (< md) — virtualisée */}
       {!isDesktop && (
         <div ref={mobileWrapRef}>
-          {isLoading && (
-            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-              Chargement…
-            </p>
-          )}
+          {isLoading && <Loader label="Chargement du stock" />}
           {isError && (
             <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
               {(error as Error).message}
@@ -1077,8 +1079,8 @@ function StockInner() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={colCount} className="px-3 py-10 text-center text-ink-faint">
-                  Chargement…
+                <td colSpan={colCount + 1} className="py-12">
+                  <Loader label="Chargement du stock" />
                 </td>
               </tr>
             )}

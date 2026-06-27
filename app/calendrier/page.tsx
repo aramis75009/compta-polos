@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Loader from "@/components/Loader";
 import {
   addMonths,
   eachDayOfInterval,
@@ -140,14 +141,13 @@ export default function CalendrierPage() {
           const days = [...(data?.days ?? [])].sort((a, b) =>
             a.date.localeCompare(b.date),
           );
+          if (isLoading) return <Loader label="Chargement du calendrier" />;
           if (days.length === 0) {
             return (
               <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-6 text-center text-[14px] text-[#8A998F]">
-                {isLoading
-                  ? "Chargement…"
-                  : isError
-                    ? "Erreur lors du chargement du calendrier."
-                    : "Aucune vente ce mois-ci."}
+                {isError
+                  ? "Erreur lors du chargement du calendrier."
+                  : "Aucune vente ce mois-ci."}
               </p>
             );
           }
@@ -430,14 +430,18 @@ export default function CalendrierPage() {
             </div>
           ) : (
             <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-12 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F1F4EF] text-[#9BA89F]">
-                <CalendarIcon className="h-6 w-6" strokeWidth={2} />
-              </div>
-              <p className="text-[13.5px] font-medium text-[#8A998F]">
-                {isLoading
-                  ? "Chargement…"
-                  : "Clique sur un jour avec des ventes pour voir le détail."}
-              </p>
+              {isLoading ? (
+                <Loader size="sm" />
+              ) : (
+                <>
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F1F4EF] text-[#9BA89F]">
+                    <CalendarIcon className="h-6 w-6" strokeWidth={2} />
+                  </div>
+                  <p className="text-[13.5px] font-medium text-[#8A998F]">
+                    Clique sur un jour avec des ventes pour voir le détail.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </aside>

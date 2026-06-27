@@ -15,6 +15,8 @@ import {
 import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 import type { BrandRow, DashboardDelta, WeekPoint } from "@/lib/types";
+import Loader from "@/components/Loader";
+import WelcomeModal from "@/components/WelcomeModal";
 
 const PERIODES: { key: DashboardPeriode; label: string }[] = [
   { key: "all", label: "Tout l'historique" },
@@ -85,7 +87,7 @@ export default function DashboardPage() {
   if (isLoading && !data) {
     return (
       <Frame>
-        <p className="text-[#71807A]">Chargement du dashboard…</p>
+        <Loader label="Chargement du dashboard" />
       </Frame>
     );
   }
@@ -103,6 +105,7 @@ export default function DashboardPage() {
 
   return (
     <Frame>
+      <WelcomeModal />
       {/* TOPBAR */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

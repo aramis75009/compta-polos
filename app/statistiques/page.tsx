@@ -6,6 +6,7 @@ import { useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import type { CanalCA, StatutCount, WeekdayPoint } from "@/lib/types";
 import { statutColor } from "@/lib/statutColors";
+import Loader from "@/components/Loader";
 
 // "9 juin 2026" — date réelle du meilleur jour de la semaine.
 const formatDateLongue = (iso: string) =>
@@ -33,7 +34,7 @@ export default function StatistiquesPage() {
   if (isLoading) {
     return (
       <Frame>
-        <p className="text-[#71807A]">Chargement des statistiques…</p>
+        <Loader label="Chargement des statistiques" />
       </Frame>
     );
   }

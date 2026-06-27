@@ -11,6 +11,7 @@ import {
 } from "@/lib/hooks";
 import type { PromptTemplateDTO } from "@/lib/types";
 import Modal from "@/components/Modal";
+import Loader from "@/components/Loader";
 
 const inputCls =
   "w-full rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[14px] text-[#16261D] outline-none transition-colors focus:border-[#CBD8CE]";
@@ -175,8 +176,8 @@ export default function PromptsPage() {
       </h2>
 
       {isLoading ? (
-        <p className="text-[14px] text-[#8A998F]">Chargement…</p>
-      ) : prompts.length === 0 ? (
+        <Loader />
+      ) :prompts.length === 0 ? (
         <p className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-12 text-center text-[#8A998F]">
           Aucun prompt.
         </p>

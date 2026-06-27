@@ -68,6 +68,17 @@ body {
     transform: rotate(360deg);
   }
 }
+@keyframes atlas-draw {
+  0%   { stroke-dashoffset: 100; }
+  42%  { stroke-dashoffset: 0; }
+  58%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -100; }
+}
+@keyframes atlas-dots {
+  0%, 20%  { opacity: .2; }
+  50%      { opacity: 1; }
+  80%, 100%{ opacity: .2; }
+}
 
 /* Scrollbar discrète, cohérente avec l'esprit épuré du design system */
 ::-webkit-scrollbar {

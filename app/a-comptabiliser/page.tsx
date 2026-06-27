@@ -10,6 +10,7 @@ import {
   useUpdateArticle,
 } from "@/lib/hooks";
 import { euros, naturalSort, STATUT_A_COMPTABILISER } from "@/lib/calc";
+import Loader from "@/components/Loader";
 import type { ArticleDTO } from "@/lib/types";
 import SellModal from "@/components/SellModal";
 import StatutBadge from "@/components/StatutBadge";
@@ -120,11 +121,7 @@ export default function AComptabiliserPage() {
       )}
 
       {/* États chargement / erreur */}
-      {isLoading && (
-        <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-10 text-center text-[#8A998F]">
-          Chargement…
-        </div>
-      )}
+      {isLoading && <Loader />}
       {isError && (
         <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-10 text-center text-[#C2603F]">
           {(error as Error).message}

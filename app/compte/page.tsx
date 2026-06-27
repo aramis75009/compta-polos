@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Check, AlertCircle, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ComptePage() {
   const { data: session } = useSession();
@@ -11,16 +12,12 @@ export default function ComptePage() {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSuccess(false);
-    setError(null);
 
     if (next !== confirm) {
-      setError("Les nouveaux mots de passe ne correspondent pas.");
+      toast.error("Les nouveaux mots de passe ne correspondent pas.");
       return;
     }
 
@@ -33,15 +30,15 @@ export default function ComptePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Une erreur est survenue.");
+        toast.error(json.error ?? "Une erreur est survenue.");
       } else {
-        setSuccess(true);
+        toast.success("Mot de passe mis à jour avec succès.");
         setCurrent("");
         setNext("");
         setConfirm("");
       }
     } catch {
-      setError("Impossible de contacter le serveur.");
+      toast.error("Impossible de contacter le serveur.");
     } finally {
       setLoading(false);
     }
@@ -120,20 +117,6 @@ export default function ComptePage() {
                 className={inputCls}
               />
             </div>
-
-            {error && (
-              <div className="flex items-center gap-2.5 rounded-xl bg-[#FBEEE7] px-4 py-3 text-[13.5px] font-medium text-[#C2603F]">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" strokeWidth={2} />
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="flex items-center gap-2.5 rounded-xl bg-[#E4F3EA] px-4 py-3 text-[13.5px] font-medium text-[#2D6A4F]">
-                <Check className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
-                Mot de passe mis à jour avec succès.
-              </div>
-            )}
 
             <button
               type="submit"

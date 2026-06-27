@@ -7,7 +7,7 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isPublic = ["/login"].includes(nextUrl.pathname);
+      const isPublic = ["/login", "/reset-password"].includes(nextUrl.pathname);
       if (isPublic) return true;
       return isLoggedIn;
     },

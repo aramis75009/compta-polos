@@ -3,9 +3,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ShoppingBag, HandCoins } from "lucide-react";
+import { toast } from "sonner";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
 import type { CommandeDTO } from "@/lib/types";
+import Loader from "@/components/Loader";
 
 import NewCommandeModal from "@/components/NewCommandeModal";
 
@@ -117,11 +119,7 @@ function CommandeDetail({
   const { data, isLoading, isError, error } = useCommandeStats(commandeId);
 
   if (isLoading) {
-    return (
-      <div className="px-6 py-4 text-[14px] text-[#94A29A]">
-        Chargement du détail…
-      </div>
-    );
+    return <Loader label="Chargement du détail" size="sm" />;
   }
   if (isError || !data) {
     return (
@@ -696,8 +694,8 @@ export default function CommandesPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-[#8A998F]">
-                  Chargement…
+                <td colSpan={6} className="py-12">
+                  <Loader label="Chargement des commandes" />
                 </td>
               </tr>
             )}
@@ -755,7 +753,12 @@ export default function CommandesPage() {
                               `Supprimer la commande « ${c.fournisseur} » et ses articles ?`,
                             )
                           )
-                            del.mutate(c.id);
+                            del.mutate(c.id, {
+                              onSuccess: () =>
+                                toast.success("Commande supprimée."),
+                              onError: (e) =>
+                                toast.error((e as Error).message),
+                            });
                         }}
                       />
                     </td>

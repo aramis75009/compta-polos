@@ -8,7 +8,7 @@ import ChatBot from "./ChatBot";
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/reset-password" || pathname.startsWith("/legal")) {
     return <>{children}</>;
   }
 
