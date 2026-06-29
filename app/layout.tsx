@@ -31,6 +31,11 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     type: "website",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MyFlip",
+  },
 };
 
 // viewport-fit=cover → l'app occupe toute la largeur sous l'encoche iPhone ;
@@ -39,6 +44,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#1B4332",
 };
 
 export default function RootLayout({
