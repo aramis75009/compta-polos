@@ -79,6 +79,58 @@ body {
   50%      { opacity: 1; }
   80%, 100%{ opacity: .2; }
 }
+@keyframes sheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  60%, 100% { transform: translateX(320%) skewX(-18deg); }
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-12px, -18px); }
+}
+@keyframes driftB {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(14px, -10px); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: .12; }
+  50% { opacity: .7; }
+}
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: .55; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+@keyframes cellPop {
+  from { opacity: 0; transform: translateY(13px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+@keyframes crownFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%       { transform: translateY(-2.5px) rotate(-7deg); }
+}
+@keyframes tipIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes gridFadeR {
+  from { opacity: 0; transform: translateX(42px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes gridFadeL {
+  from { opacity: 0; transform: translateX(-42px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes gridFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
 
 /* Scrollbar discrète, cohérente avec l'esprit épuré du design system */
 ::-webkit-scrollbar {

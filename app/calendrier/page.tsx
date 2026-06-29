@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Loader from "@/components/Loader";
 import {
   addMonths,
@@ -15,31 +15,76 @@ import {
   subMonths,
 } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  ShoppingCart,
-  X,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useCalendar } from "@/lib/hooks";
 import { coef, euros, moyenne } from "@/lib/calc";
 import type { CalendarDay } from "@/lib/types";
 
-const JOURS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const JOURS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"];
 
-// Pill coef selon le barème du redesign : ≥2,3 vert / 2,0–2,29 ambre / <2 rouge.
-function coefPill(c: number): string {
-  if (c >= 2.3) return "bg-[#E4F3EA] text-[#2D6A4F]";
-  if (c >= 2.0) return "bg-[#FBF3E2] text-[#B5872E]";
-  return "bg-[#FBEEE7] text-[#C2603F]";
+/* ─── CountUp ────────────────────────────────────────────────────────────── */
+function CountUp({
+  value,
+  duration = 850,
+  fmt = (v: number) => String(Math.round(v)),
+}: {
+  value: number;
+  duration?: number;
+  fmt?: (v: number) => string;
+}) {
+  const [display, setDisplay] = useState(0);
+  const lastRef = useRef(0);
+
+  useEffect(() => {
+    const from = lastRef.current;
+    const t0 = performance.now();
+    let raf: number;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      const e = 1 - Math.pow(1 - p, 3);
+      setDisplay(from + (value - from) * e);
+      if (p < 1) raf = requestAnimationFrame(step);
+      else lastRef.current = value;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+
+  return <>{fmt(display)}</>;
 }
 
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+function coefPillStyle(v: number): React.CSSProperties {
+  let color = "#C2603F",
+    background = "#FBEEE7";
+  if (v >= 2.3) {
+    color = "#2D6A4F";
+    background = "#E4F3EA";
+  } else if (v >= 2.0) {
+    color = "#B5872E";
+    background = "#FBF3E2";
+  }
+  return {
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontWeight: 700,
+    fontSize: 12.5,
+    color,
+    background,
+    padding: "3px 9px",
+    borderRadius: 16,
+    display: "inline-block",
+    whiteSpace: "nowrap",
+  };
+}
+
+/* ─── Page ───────────────────────────────────────────────────────────────── */
 export default function CalendrierPage() {
   const [current, setCurrent] = useState(() => startOfMonth(new Date()));
+  const [dir, setDir] = useState<"init" | "next" | "prev">("init");
   const month = format(current, "yyyy-MM");
   const { data, isLoading, isError } = useCalendar(month);
   const [selected, setSelected] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   const dayMap = useMemo(() => {
     const m = new Map<string, CalendarDay>();
@@ -52,13 +97,10 @@ export default function CalendrierPage() {
     const gridEnd = endOfWeek(endOfMonth(current), { weekStartsOn: 1 });
     const allDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
     const result: Date[][] = [];
-    for (let i = 0; i < allDays.length; i += 7) {
-      result.push(allDays.slice(i, i + 7));
-    }
+    for (let i = 0; i < allDays.length; i += 7) result.push(allDays.slice(i, i + 7));
     return result;
   }, [current]);
 
-  // Totaux mensuels (coef moyen + panier moyen dérivés des ventes du mois).
   const monthly = useMemo(() => {
     const days = data?.days ?? [];
     const coefs = days.flatMap((d) => d.articles.map((a) => a.coefficient));
@@ -75,90 +117,110 @@ export default function CalendrierPage() {
 
   const selectedDay = selected ? dayMap.get(selected) : undefined;
 
+  function navigate(delta: number) {
+    setDir(delta > 0 ? "next" : "prev");
+    setCurrent((c) => (delta > 0 ? addMonths(c, 1) : subMonths(c, 1)));
+    setSelected(null);
+    setHovered(null);
+  }
+
+  function goToday() {
+    const n = startOfMonth(new Date());
+    const cur = current.getFullYear() * 12 + current.getMonth();
+    const tgt = n.getFullYear() * 12 + n.getMonth();
+    setDir(tgt >= cur ? "next" : "prev");
+    setCurrent(n);
+    setSelected(null);
+    setHovered(null);
+  }
+
+  const gridAnim =
+    dir === "next"
+      ? "gridFadeR .5s cubic-bezier(.22,1,.36,1) both"
+      : dir === "prev"
+        ? "gridFadeL .5s cubic-bezier(.22,1,.36,1) both"
+        : "gridFadeUp .5s cubic-bezier(.22,1,.36,1) both";
+
   return (
     <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      {/* En-tête / navigation */}
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+
+      {/* ── En-tête ─────────────────────────────────────────────────────── */}
+      <div
+        className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+        style={{ animation: "fadeUp .4s both" }}
+      >
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Calendrier
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] font-medium text-[#71807A]">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-[4px] bg-green-100 ring-1 ring-[#CDE3D5]" />
-              Vente
-            </span>
-            <span className="inline-flex items-center gap-1.5">👑 Meilleur jour</span>
-          </div>
+          <p className="mt-[7px] text-[14.5px] font-medium text-[#71807A]">
+            Tes ventes jour par jour — la couronne marque le meilleur jour de chaque semaine.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={() => {
-              setCurrent((c) => subMonths(c, 1));
-              setSelected(null);
-            }}
+            onClick={() => navigate(-1)}
             aria-label="Mois précédent"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E4E9E2] bg-white text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-[#E4E9E2] bg-white text-[#3C4D44] transition-all hover:-translate-x-0.5 hover:border-[#CBD8CE] hover:bg-[#F7F9F6]"
           >
-            <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={2} />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
           </button>
           <button
-            onClick={() => {
-              setCurrent(startOfMonth(new Date()));
-              setSelected(null);
-            }}
-            className="rounded-xl border border-[#E4E9E2] bg-white px-4 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            onClick={goToday}
+            className="h-10 rounded-[11px] border border-[#E4E9E2] bg-white px-4 text-[13.5px] font-semibold text-[#3C4D44] transition-all hover:border-[#CBD8CE] hover:bg-[#F7F9F6]"
           >
-            Aujourd’hui
+            Aujourd&apos;hui
           </button>
           <button
-            onClick={() => {
-              setCurrent((c) => addMonths(c, 1));
-              setSelected(null);
-            }}
+            onClick={() => navigate(1)}
             aria-label="Mois suivant"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E4E9E2] bg-white text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-[#E4E9E2] bg-white text-[#3C4D44] transition-all hover:translate-x-0.5 hover:border-[#CBD8CE] hover:bg-[#F7F9F6]"
           >
-            <ChevronRight className="h-[18px] w-[18px]" strokeWidth={2} />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Titre de mois */}
-      <h2 className="mb-3 font-grotesk text-[21px] font-bold capitalize tracking-[-0.01em]">
-        {format(current, "MMMM yyyy", { locale: fr })}
-      </h2>
+      {/* ── Mois + légende ──────────────────────────────────────────────── */}
+      <div className="mb-4 flex items-center gap-4" style={{ animation: "fadeUp .4s .04s both" }}>
+        <h2 className="font-grotesk text-[21px] font-bold capitalize tracking-[-0.01em]">
+          {format(current, "MMMM yyyy", { locale: fr })}
+        </h2>
+        <div className="flex-1" />
+        <div className="hidden items-center gap-4 text-[12px] font-semibold text-[#8A998F] md:flex">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-[13px] w-[13px] rounded-[4px] bg-[#E4F1E9]" />
+            Jour avec ventes
+          </span>
+          <span>👑 Meilleur jour</span>
+        </div>
+      </div>
 
       {isError && (
-        <p className="mb-4 hidden rounded-[14px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[14px] text-[#C2603F] md:block">
+        <p className="mb-4 rounded-[14px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[14px] text-[#C2603F]">
           Erreur lors du chargement du calendrier.
         </p>
       )}
 
-      {/* Vue liste mobile (< md) */}
+      {/* ── Vue liste mobile ─────────────────────────────────────────────── */}
       <div className="space-y-2 md:hidden">
-        {(() => {
-          const days = [...(data?.days ?? [])].sort((a, b) =>
-            a.date.localeCompare(b.date),
-          );
-          if (isLoading) return <Loader label="Chargement du calendrier" />;
-          if (days.length === 0) {
-            return (
-              <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-6 text-center text-[14px] text-[#8A998F]">
-                {isError
-                  ? "Erreur lors du chargement du calendrier."
-                  : "Aucune vente ce mois-ci."}
-              </p>
-            );
-          }
-          return days.map((dd) => {
+        {isLoading ? (
+          <Loader label="Chargement du calendrier" />
+        ) : (data?.days ?? []).length === 0 ? (
+          <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-6 text-center text-[14px] text-[#8A998F]">
+            Aucune vente ce mois-ci.
+          </p>
+        ) : (
+          [...(data?.days ?? [])].sort((a, b) => a.date.localeCompare(b.date)).map((dd) => {
             const active = selected === dd.date;
             return (
               <div
                 key={dd.date}
-                className={`overflow-hidden rounded-[18px] border bg-white transition-colors ${
-                  active ? "border-[#1B4332]" : "border-[#E4E9E2]"
-                }`}
+                className={`overflow-hidden rounded-[18px] border bg-white transition-colors ${active ? "border-[#1B4332]" : "border-[#E4E9E2]"}`}
               >
                 <button
                   onClick={() => setSelected(active ? null : dd.date)}
@@ -166,7 +228,7 @@ export default function CalendrierPage() {
                 >
                   <div className="min-w-0">
                     <div className="font-semibold capitalize text-[#16261D]">
-                      {new Date(dd.date).toLocaleDateString("fr-FR", {
+                      {new Date(dd.date + "T00:00:00").toLocaleDateString("fr-FR", {
                         weekday: "long",
                         day: "numeric",
                         month: "long",
@@ -177,34 +239,21 @@ export default function CalendrierPage() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="font-grotesk font-bold text-[#16261D]">
-                      {euros(dd.ca)}
-                    </div>
-                    <div className="text-[12px] text-[#2D6A4F]">
-                      NET {euros(dd.net)}
-                    </div>
+                    <div className="font-grotesk font-bold text-[#16261D]">{euros(dd.ca)}</div>
+                    <div className="text-[12px] text-[#2D6A4F]">NET {euros(dd.net)}</div>
                   </div>
                 </button>
                 {active && (
                   <ul className="space-y-2 border-t border-[#EEF1EC] px-4 py-3">
                     {dd.articles.map((a) => (
-                      <li
-                        key={a.id}
-                        className="rounded-[10px] border border-[#E4E9E2] px-3 py-2 text-[12px]"
-                      >
+                      <li key={a.id} className="rounded-[10px] border border-[#E4E9E2] px-3 py-2 text-[12px]">
                         <div className="flex justify-between gap-2">
-                          <span className="font-grotesk font-bold text-[#16261D]">
-                            {a.sku}
-                          </span>
-                          <span className="font-semibold text-[#16261D]">
-                            {euros(a.prixVente)}
-                          </span>
+                          <span className="font-grotesk font-bold text-[#16261D]">{a.sku}</span>
+                          <span className="font-semibold text-[#16261D]">{euros(a.prixVente)}</span>
                         </div>
                         <div className="mt-0.5 flex justify-between gap-2 text-[#94A29A]">
                           <span className="truncate">{a.marque}</span>
-                          <span className="shrink-0">
-                            {coef(a.coefficient)} · NET {euros(a.margeNette)}
-                          </span>
+                          <span className="shrink-0">{coef(a.coefficient)} · NET {euros(a.margeNette)}</span>
                         </div>
                       </li>
                     ))}
@@ -212,274 +261,374 @@ export default function CalendrierPage() {
                 )}
               </div>
             );
-          });
-        })()}
+          })
+        )}
       </div>
 
-      <div className="hidden gap-5 md:flex">
-        {/* Grille */}
-        <div className="min-w-0 flex-1 overflow-x-auto">
-          <div className="min-w-[820px]">
-            {/* En-têtes de colonnes : 7 jours + récap */}
-            <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_1.05fr] gap-2 px-0.5 text-[11.5px] font-bold uppercase tracking-[0.06em]">
-              {JOURS.map((j) => (
-                <div key={j} className="px-2 py-1 text-[#B58A4A]">
-                  {j}
-                </div>
-              ))}
-              <div className="px-2 py-1 text-[#B58A4A]">Récap</div>
-            </div>
-
-            {weeks.map((week, wi) => {
-              const daysData = week
-                .map((d) => dayMap.get(format(d, "yyyy-MM-dd")))
-                .filter((d): d is CalendarDay => !!d);
-              const ca = daysData.reduce((s, d) => s + d.ca, 0);
-              const net = daysData.reduce((s, d) => s + d.net, 0);
-              const nb = daysData.reduce((s, d) => s + d.nbArticles, 0);
-              const coefs = daysData.flatMap((d) =>
-                d.articles.map((a) => a.coefficient),
-              );
-              const weekCoef = moyenne(coefs);
-              const panierMoyen = nb ? ca / nb : 0;
-
-              const topDayKey =
-                daysData.length > 0
-                  ? daysData.reduce((best, d) => (d.ca > best.ca ? d : best)).date
-                  : null;
-
-              return (
-                <div
-                  key={wi}
-                  className="mt-2 grid grid-cols-[repeat(7,minmax(0,1fr))_1.05fr] gap-2"
-                >
-                  {week.map((d) => {
-                    const key = format(d, "yyyy-MM-dd");
-                    const dd = dayMap.get(key);
-                    const inMonth = isSameMonth(d, current);
-                    const active = selected === key;
-                    // Vert UNI fixe dès qu'il y a une vente (pas de heatmap).
-                    const hasVente = !!dd && inMonth && dd.ca > 0;
-                    const isTopDay =
-                      topDayKey === key && dd && dd.ca > 0 && inMonth;
-                    const today = isToday(d) && inMonth;
-
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => setSelected(dd ? key : null)}
-                        className={`relative min-h-[96px] overflow-hidden rounded-[13px] p-2 text-left transition-all ${
-                          !inMonth
-                            ? "border border-transparent bg-[#F5F6F4] opacity-40 cursor-default"
-                            : hasVente
-                              ? "bg-green-100 border border-[#CDE3D5] cursor-pointer"
-                              : `bg-white border border-[#E4E9E2] ${dd ? "cursor-pointer" : "cursor-default"}`
-                        } ${(active || today) && inMonth ? "ring-2 ring-[#1B4332]" : ""}`}
-                      >
-                        {isTopDay && (
-                          <span className="absolute right-1 top-0.5 text-[13px] leading-none">
-                            👑
-                          </span>
-                        )}
-
-                        <span
-                          className={
-                            !inMonth
-                              ? "font-grotesk text-[13px] font-bold text-[#C4CFC7]"
-                              : today
-                                ? "flex h-6 w-6 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[12px] font-bold text-white"
-                                : "font-grotesk text-[13px] font-bold text-[#16261D]"
-                          }
-                        >
-                          {format(d, "d")}
-                        </span>
-
-                        {dd && inMonth && dd.ca > 0 && (
-                          <div className="mt-1 leading-tight">
-                            <div className="font-grotesk font-bold text-[14px] text-[#16261D]">
-                              {euros(dd.ca)}
-                            </div>
-                            <div className="text-[11px] text-[#71807A]">
-                              ART {dd.nbArticles}
-                            </div>
-                            <div className="text-[12px] font-semibold text-[#2D6A4F]">
-                              NET {euros(dd.net)}
-                            </div>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  {/* Récap de la semaine */}
-                  <div className="min-h-[96px] rounded-[13px] border border-[#E4E9E2] bg-white p-2.5 leading-tight">
-                    <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[#B58A4A]">
-                      Récap
-                    </div>
-                    <div className="text-[11px] font-semibold text-[#8A998F]">
-                      CA
-                    </div>
-                    <div className="font-grotesk text-[15px] font-bold text-[#16261D]">
-                      {euros(ca)}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#71807A]">
-                      {nb} art. · <span className="text-[#94A29A]">NET</span>{" "}
-                      <span className="font-semibold text-[#2D6A4F]">
-                        {euros(net)}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${coefPill(weekCoef)}`}
-                      >
-                        {coef(weekCoef)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#71807A]">
-                        <ShoppingCart className="h-3 w-3" strokeWidth={2} />
-                        {euros(panierMoyen)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Panneau latéral */}
-        <aside className="hidden w-[300px] shrink-0 lg:block">
-          {selectedDay ? (
-            <div className="rounded-[20px] border border-[#E4E9E2] bg-white p-5">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="font-grotesk text-[16px] font-bold capitalize text-[#16261D]">
-                  {new Date(selectedDay.date).toLocaleDateString("fr-FR", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </h2>
-                <button
-                  onClick={() => setSelected(null)}
-                  aria-label="Fermer"
-                  className="text-[#A6B2A9] transition-colors hover:text-[#16261D]"
-                >
-                  <X className="h-[18px] w-[18px]" strokeWidth={2} />
-                </button>
-              </div>
-
-              <div
-                className="mt-4 rounded-[16px] p-4 text-white"
+      {/* ── Grille desktop ───────────────────────────────────────────────── */}
+      <div className="hidden md:block">
+        <div
+          className="rounded-[22px] border border-[#E4E9E2] bg-white shadow-[0_1px_2px_rgba(22,38,29,.03)]"
+          style={{ padding: "18px 20px", animation: "fadeUp .45s .06s both" }}
+        >
+          {/* En-têtes jours */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr) 0.82fr", gap: 9, paddingBottom: 12 }}>
+            {JOURS.map((j) => (
+              <span
+                key={j}
                 style={{
-                  background: "linear-gradient(135deg,#2D6A4F 0%, #1B4332 100%)",
+                  fontSize: 11.5, fontWeight: 700, color: "#BE6E26", textAlign: "center",
+                  letterSpacing: ".04em", background: "#FBEEDD", border: "1px solid #F3DCC0",
+                  borderRadius: 9, padding: "7px 0",
                 }}
               >
-                <div className="text-[11px] font-bold tracking-[0.08em] text-[#9FD4B5]">
-                  CHIFFRE D’AFFAIRES
-                </div>
-                <div className="mt-1 font-grotesk text-[28px] font-bold tracking-[-0.02em]">
-                  {euros(selectedDay.ca)}
-                </div>
-              </div>
+                {j}
+              </span>
+            ))}
+            <span
+              style={{
+                fontSize: 11.5, fontWeight: 700, color: "#1B4332", textAlign: "center",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              RÉCAP SEMAINE
+            </span>
+          </div>
 
-              <div className="mt-4 space-y-2.5">
-                <div className="flex items-center justify-between text-[13.5px]">
-                  <span className="text-[#71807A]">Marge nette</span>
-                  <span className="font-grotesk font-bold text-[#2D6A4F]">
-                    {euros(selectedDay.net)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[13.5px]">
-                  <span className="text-[#71807A]">Articles vendus</span>
-                  <span className="font-grotesk font-bold text-[#16261D]">
-                    {selectedDay.nbArticles}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[13.5px]">
-                  <span className="text-[#71807A]">Taux de marge</span>
-                  <span className="font-grotesk font-bold text-[#16261D]">
-                    {selectedDay.ca > 0
-                      ? `${Math.round((selectedDay.net / selectedDay.ca) * 100)} %`
-                      : "—"}
-                  </span>
-                </div>
-              </div>
-
-              <ul className="mt-4 space-y-2 border-t border-[#EEF1EC] pt-4">
-                {selectedDay.articles.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-[10px] border border-[#E4E9E2] px-3 py-2 text-[12px]"
-                  >
-                    <div className="flex justify-between">
-                      <span className="font-grotesk font-bold text-[#16261D]">
-                        {a.sku}
-                      </span>
-                      <span className="font-semibold text-[#16261D]">
-                        {euros(a.prixVente)}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 flex justify-between text-[#94A29A]">
-                      <span className="truncate">{a.marque}</span>
-                      <span className="shrink-0">
-                        {coef(a.coefficient)} · NET {euros(a.margeNette)}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+          {/* Corps */}
+          {isLoading ? (
+            <div className="flex justify-center py-14">
+              <Loader label="Chargement du calendrier" />
             </div>
           ) : (
-            <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-12 text-center">
-              {isLoading ? (
-                <Loader size="sm" />
-              ) : (
-                <>
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F1F4EF] text-[#9BA89F]">
-                    <CalendarIcon className="h-6 w-6" strokeWidth={2} />
+            <div key={format(current, "yyyy-MM") + "-" + dir} style={{ animation: gridAnim }}>
+              {weeks.map((week, wi) => {
+                const daysData = week
+                  .map((d) => dayMap.get(format(d, "yyyy-MM-dd")))
+                  .filter(Boolean) as CalendarDay[];
+                const wca = daysData.reduce((s, d) => s + d.ca, 0);
+                const wnet = daysData.reduce((s, d) => s + d.net, 0);
+                const wnb = daysData.reduce((s, d) => s + d.nbArticles, 0);
+                const wcoefs = daysData.flatMap((d) => d.articles.map((a) => a.coefficient));
+                const wcoef = moyenne(wcoefs);
+                const wpanier = wnb ? wca / wnb : 0;
+                const topDayKey =
+                  daysData.length > 0
+                    ? daysData.reduce((b, d) => (d.ca > b.ca ? d : b)).date
+                    : null;
+
+                return (
+                  <div
+                    key={wi}
+                    style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr) 0.82fr", gap: 9, marginBottom: 9 }}
+                  >
+                    {/* Cellules jours */}
+                    {week.map((d, di) => {
+                      const key = format(d, "yyyy-MM-dd");
+                      const dd = dayMap.get(key);
+                      const inMonth = isSameMonth(d, current);
+                      const hasSale = !!dd && inMonth && dd.ca > 0;
+                      const isTopDay = topDayKey === key && hasSale;
+                      const today = isToday(d) && inMonth;
+                      const isHov = hovered === key && hasSale;
+                      const cellIdx = wi * 7 + di;
+
+                      const cellBg =
+                        isHov ? "#C2E2CF" : !inMonth ? "transparent" : hasSale ? "#E4F1E9" : "#FFFFFF";
+                      const cellShadow =
+                        isHov
+                          ? "0 22px 40px -14px rgba(27,67,50,.5), inset 0 0 0 1.5px #1B4332"
+                          : today
+                            ? "inset 0 0 0 2px #1B4332"
+                            : "none";
+
+                      return (
+                        <div
+                          key={key}
+                          onClick={() => { if (hasSale) setSelected(key); }}
+                          onMouseEnter={() => { if (hasSale) setHovered(key); else setHovered(null); }}
+                          onMouseLeave={() => setHovered(null)}
+                          style={{
+                            minHeight: 94,
+                            borderRadius: 13,
+                            padding: "9px 11px",
+                            background: cellBg,
+                            border: !inMonth
+                              ? "1px solid transparent"
+                              : hasSale
+                                ? "1px solid transparent"
+                                : "1px solid #EEF1EC",
+                            boxShadow: cellShadow,
+                            opacity: inMonth ? 1 : 0.5,
+                            cursor: hasSale ? "pointer" : "default",
+                            display: "flex",
+                            flexDirection: "column",
+                            position: "relative",
+                            transition:
+                              "transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s ease, background .2s ease",
+                            transform: isHov ? "translateY(-6px) scale(1.045)" : undefined,
+                            zIndex: isHov ? 5 : undefined,
+                            animation: `cellPop .5s cubic-bezier(.22,1,.36,1) ${cellIdx * 0.014}s backwards`,
+                          }}
+                        >
+                          {/* Numéro + couronne */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span
+                              style={
+                                today
+                                  ? {
+                                      width: 24, height: 24, borderRadius: "50%",
+                                      background: "#1B4332", color: "#fff",
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 13,
+                                    }
+                                  : {
+                                      fontFamily: "'Space Grotesk', sans-serif",
+                                      fontWeight: 700, fontSize: 14,
+                                      color: inMonth ? "#16261D" : "#C4CFC7",
+                                    }
+                              }
+                            >
+                              {format(d, "d")}
+                            </span>
+                            {isTopDay && (
+                              <span
+                                style={{ fontSize: 12, display: "inline-block", animation: "crownFloat 2.6s ease-in-out infinite" }}
+                              >
+                                👑
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Données vente */}
+                          {hasSale && dd && (
+                            <div style={{ marginTop: "auto" }}>
+                              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: "#16261D", letterSpacing: "-0.01em" }}>
+                                {euros(dd.ca)}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "#5E7268", marginTop: 2 }}>
+                                NET {euros(dd.net)}
+                              </div>
+                              <div style={{ fontSize: 10.5, fontWeight: 500, color: "#94A29A", marginTop: 1 }}>
+                                {dd.nbArticles} art.
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tooltip hover */}
+                          {isHov && hasSale && dd && (
+                            <div
+                              style={{
+                                position: "absolute", bottom: "calc(100% + 9px)", left: "50%",
+                                transform: "translateX(-50%)", whiteSpace: "nowrap",
+                                background: "#16261D", color: "#fff", padding: "8px 12px",
+                                borderRadius: 10, fontSize: 11, fontWeight: 600, letterSpacing: ".01em",
+                                boxShadow: "0 12px 28px -8px rgba(22,38,29,.55)",
+                                zIndex: 30, pointerEvents: "none",
+                                animation: "tipIn .16s ease both",
+                              }}
+                            >
+                              {euros(dd.ca)} · {dd.nbArticles} art. · clique pour le détail
+                              <span
+                                style={{
+                                  position: "absolute", top: "100%", left: "50%",
+                                  transform: "translateX(-50%)", width: 0, height: 0,
+                                  borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+                                  borderTop: "6px solid #16261D",
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Récap semaine */}
+                    <div
+                      style={{
+                        borderRadius: 13, background: "#fff",
+                        border: "1px solid #E7EDE5", borderLeft: "3px solid #1B4332",
+                        padding: "11px 13px", display: "flex", flexDirection: "column",
+                        transition: "box-shadow .18s ease, transform .18s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.boxShadow = "0 10px 22px -14px rgba(22,38,29,.25)";
+                        el.style.transform = "translateY(-2px)";
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget as HTMLElement;
+                        el.style.boxShadow = "";
+                        el.style.transform = "";
+                      }}
+                    >
+                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".07em", color: "#9BA89F" }}>
+                        CA SEMAINE
+                      </span>
+                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em", color: "#16261D", marginTop: 2 }}>
+                        {euros(wca)}
+                      </span>
+                      <div style={{ height: 1, background: "#ECEFEA", margin: "9px 0" }} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <RecapRow label="Net" value={euros(wnet)} valueColor="#2D6A4F" />
+                        <RecapRow label="Articles" value={String(wnb)} />
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94A29A" }}>Coef</span>
+                          <span style={coefPillStyle(wcoef)}>{coef(wcoef)}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94A29A" }}>Panier</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 12, color: "#16261D", whiteSpace: "nowrap" }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A29A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                            </svg>
+                            {euros(wpanier)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[13.5px] font-medium text-[#8A998F]">
-                    Clique sur un jour avec des ventes pour voir le détail.
-                  </p>
-                </>
-              )}
+                );
+              })}
             </div>
           )}
-        </aside>
+        </div>
+
+        {/* ── Bande totaux du mois ──────────────────────────────────────── */}
+        <div
+          className="mt-[18px] flex items-center rounded-[20px] border border-[#E4E9E2] bg-white px-2 py-5 shadow-[0_1px_2px_rgba(22,38,29,.03)]"
+          style={{ animation: "fadeUp .45s .16s both" }}
+        >
+          <MetricBand label="CA TOTAL" value={<CountUp value={monthly.ca} fmt={euros} />} />
+          <div className="h-[42px] w-px bg-[#E4E9E2]" />
+          <MetricBand label="ARTICLES VENDUS" value={<CountUp value={monthly.nb} fmt={(v) => String(Math.round(v))} />} />
+          <div className="h-[42px] w-px bg-[#E4E9E2]" />
+          <MetricBand
+            label="MARGE NETTE"
+            accent
+            value={<CountUp value={monthly.net} fmt={euros} />}
+          />
+          <div className="h-[42px] w-px bg-[#E4E9E2]" />
+          <MetricBand
+            label="COEF MOYEN"
+            value={
+              <CountUp
+                value={monthly.coefMoyen}
+                fmt={(v) =>
+                  v
+                    ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×"
+                    : "0,00×"
+                }
+              />
+            }
+          />
+          <div className="h-[42px] w-px bg-[#E4E9E2]" />
+          <MetricBand label="PANIER MOYEN" value={<CountUp value={monthly.panierMoyen} fmt={euros} />} />
+        </div>
       </div>
 
-      {/* Total du mois (bande) */}
-      <div className="mt-6 grid grid-cols-2 gap-y-4 rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 sm:grid-cols-3 lg:grid-cols-5 lg:divide-x lg:divide-[#EEF1EC]">
-        <Metric label="CA TOTAL" value={euros(monthly.ca)} />
-        <Metric label="ARTICLES VENDUS" value={String(monthly.nb)} />
-        <Metric label="MARGE NETTE" value={euros(monthly.net)} accent />
-        <Metric label="COEF MOYEN" value={coef(monthly.coefMoyen)} />
-        <Metric label="PANIER MOYEN" value={euros(monthly.panierMoyen)} />
-      </div>
+      {/* ── Modal détail du jour ─────────────────────────────────────────── */}
+      {selectedDay && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-6"
+          style={{ background: "rgba(22,38,29,.4)", animation: "overlayIn .2s ease both" }}
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="w-full max-w-[448px] rounded-[22px] bg-white p-[26px] shadow-[0_30px_80px_-20px_rgba(22,38,29,.55)]"
+            style={{ animation: "modalIn .34s cubic-bezier(.22,1,.36,1) both" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <div className="text-[12px] font-semibold text-[#8A998F]">Détail du jour</div>
+                <div className="mt-0.5 font-grotesk text-[23px] font-bold capitalize tracking-[-0.02em]">
+                  {new Date(selectedDay.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                    weekday: "long", day: "numeric", month: "long", year: "numeric",
+                  })}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-[#F2F5F0] text-[#94A29A] transition-colors hover:bg-[#E7EDE5] hover:text-[#3C4D44]"
+              >
+                <X className="h-4 w-4" strokeWidth={2.2} />
+              </button>
+            </div>
+
+            {/* Carte CA avec sheen */}
+            <div
+              className="relative mb-[14px] overflow-hidden rounded-[16px] p-5 text-white"
+              style={{ background: "radial-gradient(120% 130% at 88% 8%, #2D6A4F, #1B4332)" }}
+            >
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0"
+                style={{
+                  width: "34%",
+                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent)",
+                  animation: "sheen 2.4s ease-in-out .25s infinite",
+                }}
+              />
+              <div className="relative text-[11px] font-bold tracking-[.07em] text-[#9FD4B5]">
+                CHIFFRE D&apos;AFFAIRES
+              </div>
+              <div className="relative mt-1 font-grotesk text-[34px] font-bold tracking-[-0.02em]">
+                <CountUp value={selectedDay.ca} duration={600} fmt={euros} />
+              </div>
+            </div>
+
+            {/* Lignes détail */}
+            <div className="flex flex-col gap-2.5">
+              <ModalRow label="Marge nette" value={euros(selectedDay.net)} />
+              <ModalRow label="Articles vendus" value={String(selectedDay.nbArticles)} />
+              <ModalRow
+                label="Taux de marge"
+                value={
+                  selectedDay.ca > 0
+                    ? `${Math.round((selectedDay.net / selectedDay.ca) * 100)} %`
+                    : "—"
+                }
+                accent
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-function Metric({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
+/* ─── Sous-composants ────────────────────────────────────────────────────── */
+function RecapRow({ label, value, valueColor = "#16261D" }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div className="lg:px-6 lg:first:pl-0">
-      <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
-        {label}
-      </div>
-      <div
-        className={`mt-1 font-grotesk text-[22px] font-bold tracking-[-0.02em] md:text-[26px] ${
-          accent ? "text-[#2D6A4F]" : "text-[#16261D]"
-        }`}
-      >
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94A29A" }}>{label}</span>
+      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 12, color: valueColor, whiteSpace: "nowrap" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function MetricBand({ label, value, accent }: { label: string; value: React.ReactNode; accent?: boolean }) {
+  return (
+    <div className="flex-1 px-[14px] text-center">
+      <div className="text-[11.5px] font-bold tracking-[.05em] text-[#8A998F]">{label}</div>
+      <div className={`mt-[5px] font-grotesk text-[26px] font-bold tracking-[-0.02em] ${accent ? "text-[#2D6A4F]" : "text-[#16261D]"}`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function ModalRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between rounded-[13px] bg-[#F7F9F6] px-[15px] py-[13px] transition-colors hover:bg-[#F1F4EF]">
+      <span className="text-[13.5px] font-semibold text-[#71807A]">{label}</span>
+      <span className={`font-grotesk text-[16px] font-bold ${accent ? "text-[#2D6A4F]" : "text-[#16261D]"}`}>
+        {value}
+      </span>
     </div>
   );
 }
