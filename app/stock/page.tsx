@@ -392,6 +392,8 @@ type ArticleCardProps = {
   a: ArticleDTO;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
+  onStatutChange: (a: ArticleDTO, value: string) => void;
+  onDelete: (a: ArticleDTO) => void;
   onShowDetail: (a: ArticleDTO) => void;
   "data-index"?: number;
 };
@@ -400,29 +402,29 @@ type ArticleCardProps = {
 // hauteur mesurée par le virtualizer inclue l'espacement entre cartes.
 const ArticleCard = memo(
   forwardRef<HTMLDivElement, ArticleCardProps>(function ArticleCard(
-    { a, isSelected, onToggleSelect, onShowDetail, ...rest },
+    { a, isSelected, onToggleSelect, onStatutChange, onDelete, onShowDetail, ...rest },
     ref,
   ) {
     return (
       <div ref={ref} {...rest} className="pb-3">
         <div
-          className={`flex gap-3 rounded-[18px] border bg-white p-4 ${
+          className={`rounded-[18px] border bg-white p-4 ${
             isSelected ? "border-[#1B4332]" : "border-[#E4E9E2]"
           }`}
         >
-          <input
-            type="checkbox"
-            aria-label={`Sélectionner ${a.sku}`}
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#1B4332]"
-            checked={isSelected}
-            onChange={() => onToggleSelect(a.id)}
-          />
-          <div
-            className="min-w-0 flex-1 cursor-pointer"
-            onClick={() => onShowDetail(a)}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-1.5">
+          <div className="flex gap-3">
+            <input
+              type="checkbox"
+              aria-label={`Sélectionner ${a.sku}`}
+              className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#1B4332]"
+              checked={isSelected}
+              onChange={() => onToggleSelect(a.id)}
+            />
+            <div
+              className="min-w-0 flex-1 cursor-pointer"
+              onClick={() => onShowDetail(a)}
+            >
+              <div className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-grotesk font-bold text-[#16261D]">
                   {a.sku}
                 </span>
@@ -430,32 +432,68 @@ const ArticleCard = memo(
                 {a.titreAnnonce && (
                   <FileText className="h-4 w-4 text-[#1B4332]" strokeWidth={2} />
                 )}
-              </span>
-              <StatutBadge statut={a.statut} />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="truncate text-[#71807A]">{a.marque}</span>
+                <CanalBadge canal={a.canal} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
+                <span className="text-[#3C4D44]">{euros(a.prixAchat)}</span>
+                <span className="text-[#A6B2A9]">→</span>
+                <span className="text-[#3C4D44]">
+                  {a.prixVente != null ? euros(a.prixVente) : "—"}
+                </span>
+                <span className="text-[#A6B2A9]">|</span>
+                <span
+                  className={`font-semibold ${
+                    a.margeNette != null && a.margeNette > 0
+                      ? "text-[#2D6A4F]"
+                      : a.margeNette != null && a.margeNette < 0
+                        ? "text-[#C2603F]"
+                        : "text-[#71807A]"
+                  }`}
+                >
+                  {a.margeNette != null ? euros(a.margeNette) : "—"}
+                </span>
+              </div>
             </div>
-            <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="truncate text-[#71807A]">{a.marque}</span>
-              <CanalBadge canal={a.canal} />
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
-              <span className="text-[#3C4D44]">{euros(a.prixAchat)}</span>
-              <span className="text-[#A6B2A9]">→</span>
-              <span className="text-[#3C4D44]">
-                {a.prixVente != null ? euros(a.prixVente) : "—"}
-              </span>
-              <span className="text-[#A6B2A9]">|</span>
-              <span
-                className={`font-semibold ${
-                  a.margeNette != null && a.margeNette > 0
-                    ? "text-[#2D6A4F]"
-                    : a.margeNette != null && a.margeNette < 0
-                      ? "text-[#C2603F]"
-                      : "text-[#71807A]"
-                }`}
-              >
-                {a.margeNette != null ? euros(a.margeNette) : "—"}
-              </span>
-            </div>
+          </div>
+
+          {/* Actions (parité avec les lignes du tableau) — touch targets 44px */}
+          <div className="mt-3 flex items-center gap-2 border-t border-[#EEF1EC] pt-3">
+            <select
+              value={a.statut}
+              aria-label={`Statut de ${a.sku}`}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onStatutChange(a, e.target.value)}
+              style={{
+                backgroundColor: statutColor(a.statut).bg,
+                color: statutColor(a.statut).text,
+              }}
+              className="h-11 min-w-0 flex-1 cursor-pointer rounded-full border-0 px-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              {STATUTS.map((s) => (
+                <option key={s} value={s} style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => onShowDetail(a)}
+              aria-label="Voir le détail"
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[#E4E9E2] transition-colors active:bg-[#F7F9F6] ${
+                a.titreAnnonce ? "text-[#1B4332]" : "text-[#A6B2A9]"
+              }`}
+            >
+              <FileText className="h-[18px] w-[18px]" strokeWidth={2} />
+            </button>
+            <button
+              onClick={() => onDelete(a)}
+              aria-label={`Supprimer ${a.sku}`}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[#E4E9E2] text-[#A6B2A9] transition-colors active:text-[#C2603F]"
+            >
+              <X className="h-[18px] w-[18px]" strokeWidth={2} />
+            </button>
           </div>
         </div>
       </div>
@@ -1034,7 +1072,7 @@ function StockInner() {
 
       {/* Vue cartes mobile (< md) — virtualisée */}
       {!isDesktop && (
-        <div ref={mobileWrapRef}>
+        <div ref={mobileWrapRef} className="md:hidden">
           {isLoading && <Loader label="Chargement du stock" />}
           {isError && (
             <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
@@ -1059,6 +1097,8 @@ function StockInner() {
                     a={a}
                     isSelected={selected.has(a.id)}
                     onToggleSelect={toggleOne}
+                    onStatutChange={handleStatutChange}
+                    onDelete={handleDelete}
                     onShowDetail={handleShowDetail}
                   />
                 );
@@ -1075,7 +1115,7 @@ function StockInner() {
       {isDesktop && (
       <div
         ref={desktopWrapRef}
-        className="overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white"
+        className="hidden overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white md:block"
       >
         <table
           style={{ minWidth: Math.max(640, colCount * 96) }}
