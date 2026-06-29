@@ -49,7 +49,7 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
     <div style={{ borderRadius: 22, background: "#fff", border: "1px solid #E4E9E2", padding: "24px 26px 18px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
-          <h2 style={{ margin: 0, fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 18, color: "#16261D" }}>
+          <h2 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 18, color: "#16261D" }}>
             Investissements dans le temps
           </h2>
           <p style={{ margin: "5px 0 0", fontSize: 13, color: "#8A998F", fontWeight: 500 }}>
@@ -63,8 +63,7 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
       <svg
         viewBox="0 0 620 216"
         width="100%"
-        style={{ display: "block", height: "auto", overflow: "visible", marginTop: 14 }}
-        fontFamily="'Space Grotesk', sans-serif"
+        style={{ display: "block", height: "auto", overflow: "visible", marginTop: 14, fontFamily: "var(--font-grotesk)" }}
         onMouseLeave={() => setHovered(null)}
       >
         <defs>
@@ -409,7 +408,7 @@ function CommandeRow({
         onClick={onToggle}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
             {initials(c.fournisseur)}
           </div>
           <div className="min-w-0">
@@ -420,7 +419,7 @@ function CommandeRow({
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15.5, color: "#16261D", fontFamily: "'Space Grotesk'" }}>{euros(c.coutTotal)}</div>
+          <div style={{ fontWeight: 700, fontSize: 15.5, color: "#16261D", fontFamily: "var(--font-grotesk)" }}>{euros(c.coutTotal)}</div>
           {statut && <div style={{ fontSize: 11.5, fontWeight: 700, color: statut.color }}>{statut.label}</div>}
         </div>
       </div>
@@ -564,7 +563,7 @@ export default function CommandesPage() {
         style={{ animation: "fadeUp .4s both" }}
       >
         <div>
-          <h1 style={{ margin: 0, fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 30, letterSpacing: "-.025em" }}>
+          <h1 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 30, letterSpacing: "-.025em" }}>
             Commandes
           </h1>
           <p style={{ margin: "7px 0 0", color: "#71807A", fontSize: 14.5, fontWeight: 500 }}>
@@ -602,7 +601,7 @@ export default function CommandesPage() {
           boxShadow: "0 18px 40px -24px rgba(20,53,40,.7)",
         }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".07em", color: "#9FD4B5" }}>TOTAL INVESTI</div>
-          <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 42, letterSpacing: "-.025em", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>
+          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 42, letterSpacing: "-.025em", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>
             {euros(kpis.totalInvesti)}
           </div>
           <div style={{ fontSize: 13, color: "#BBD3C5", fontWeight: 500, marginTop: 6 }}>
@@ -616,7 +615,7 @@ export default function CommandesPage() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <div>
-              <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{kpis.nbCommandes}</div>
+              <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{kpis.nbCommandes}</div>
               <div style={{ fontSize: 12.5, color: "#8A998F", fontWeight: 600 }}>Commandes passées</div>
             </div>
           </div>
@@ -628,7 +627,7 @@ export default function CommandesPage() {
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div>
-              <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{euros(kpis.prixUnitMoyen)}</div>
+              <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{euros(kpis.prixUnitMoyen)}</div>
               <div style={{ fontSize: 12.5, color: "#8A998F", fontWeight: 600 }}>Prix unitaire moyen</div>
             </div>
           </div>
@@ -643,7 +642,7 @@ export default function CommandesPage() {
       {/* Suppliers */}
       {suppliers.length > 0 && (
         <div className="mb-6" style={{ animation: "fadeUp .45s .12s both" }}>
-          <h2 style={{ margin: "2px 2px 16px", fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
+          <h2 style={{ margin: "2px 2px 16px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
             Par fournisseur
           </h2>
           <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
@@ -656,7 +655,7 @@ export default function CommandesPage() {
 
       {/* Commandes list */}
       <div style={{ animation: "fadeUp .45s .18s both" }}>
-        <h2 style={{ margin: "2px 2px 14px", fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
+        <h2 style={{ margin: "2px 2px 14px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
           Détail des commandes
         </h2>
 
@@ -741,7 +740,7 @@ function SupplierCard({
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 15 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 15 }}>
             {initials(s.name)}
           </div>
           <div>
@@ -758,15 +757,15 @@ function SupplierCard({
       <div style={{ display: "flex", gap: 26, marginTop: 20, paddingTop: 18, borderTop: "1px solid #EEF1EC" }}>
         <div>
           <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Coût total</div>
-          <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.total)}</div>
+          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.total)}</div>
         </div>
         <div>
           <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Articles</div>
-          <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{s.articles}</div>
+          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{s.articles}</div>
         </div>
         <div>
           <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Prix unit.</div>
-          <div style={{ fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.unit)}</div>
+          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.unit)}</div>
         </div>
       </div>
     </button>

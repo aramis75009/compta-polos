@@ -65,7 +65,7 @@ function coefPillStyle(v: number): React.CSSProperties {
     background = "#FBF3E2";
   }
   return {
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: "var(--font-grotesk)",
     fontWeight: 700,
     fontSize: 12.5,
     color,
@@ -380,10 +380,10 @@ export default function CalendrierPage() {
                                       width: 24, height: 24, borderRadius: "50%",
                                       background: "#1B4332", color: "#fff",
                                       display: "flex", alignItems: "center", justifyContent: "center",
-                                      fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 13,
+                                      fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 13,
                                     }
                                   : {
-                                      fontFamily: "'Space Grotesk', sans-serif",
+                                      fontFamily: "var(--font-grotesk)",
                                       fontWeight: 700, fontSize: 14,
                                       color: inMonth ? "#16261D" : "#C4CFC7",
                                     }
@@ -403,7 +403,7 @@ export default function CalendrierPage() {
                           {/* Données vente */}
                           {hasSale && dd && (
                             <div style={{ marginTop: "auto" }}>
-                              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: "#16261D", letterSpacing: "-0.01em" }}>
+                              <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 14, color: "#16261D", letterSpacing: "-0.01em" }}>
                                 {euros(dd.ca)}
                               </div>
                               <div style={{ fontSize: 11, fontWeight: 600, color: "#5E7268", marginTop: 2 }}>
@@ -465,7 +465,7 @@ export default function CalendrierPage() {
                       <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".07em", color: "#9BA89F" }}>
                         CA SEMAINE
                       </span>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em", color: "#16261D", marginTop: 2 }}>
+                      <span style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em", color: "#16261D", marginTop: 2 }}>
                         {euros(wca)}
                       </span>
                       <div style={{ height: 1, background: "#ECEFEA", margin: "9px 0" }} />
@@ -478,7 +478,7 @@ export default function CalendrierPage() {
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                           <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94A29A" }}>Panier</span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 12, color: "#16261D", whiteSpace: "nowrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 12, color: "#16261D", whiteSpace: "nowrap" }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A29A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
                               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
@@ -604,7 +604,7 @@ function RecapRow({ label, value, valueColor = "#16261D" }: { label: string; val
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
       <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94A29A" }}>{label}</span>
-      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 12, color: valueColor, whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 12, color: valueColor, whiteSpace: "nowrap" }}>
         {value}
       </span>
     </div>
