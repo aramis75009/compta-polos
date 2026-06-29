@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ShoppingBag, HandCoins } from "lucide-react";
+import { FileSpreadsheet, Plus, ShoppingBag, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
@@ -526,19 +526,26 @@ export default function CommandesPage() {
 
   return (
     <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <header className="mb-[22px] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="mb-[22px] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between" style={{ animation: "fadeUp .4s both" }}>
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Commandes
           </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          <p className="mt-[7px] text-[14.5px] font-medium text-[#71807A]">
             Tes achats en lot, par fournisseur.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-[11px]">
+          <button
+            onClick={() => toast.info("Import Excel — bientôt disponible.")}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-[15px] py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+          >
+            <FileSpreadsheet className="h-4 w-4" strokeWidth={2} />
+            Importer un Excel
+          </button>
           <button
             onClick={() => setNewCommande(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-[17px] py-[11px] text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.3} />
             Nouvelle commande
@@ -547,7 +554,7 @@ export default function CommandesPage() {
       </header>
 
       {/* KPIs */}
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-[18px] sm:grid-cols-3" style={{ animation: "fadeUp .45s both" }}>
         <div
           className="rounded-[20px] px-6 py-6 text-white"
           style={{
@@ -595,13 +602,13 @@ export default function CommandesPage() {
       </div>
 
       {/* Graphe investissements */}
-      <div className="mb-5">
+      <div className="mb-5" style={{ animation: "fadeUp .45s .06s both" }}>
         <InvestChart months={months} />
       </div>
 
       {/* Par fournisseur */}
       {suppliers.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-6" style={{ animation: "fadeUp .45s .12s both" }}>
           <h2 className="mx-0.5 mb-4 font-grotesk text-[19px] font-bold text-[#16261D]">
             Par fournisseur
           </h2>
@@ -610,7 +617,7 @@ export default function CommandesPage() {
               <button
                 key={s.name}
                 onClick={() => router.push(`/stock`)}
-                className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 text-left transition-all hover:border-[#CBD8CE] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
+                className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-[22px] text-left transition-all hover:border-[#CBD8CE] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
