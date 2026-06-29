@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { STATUTS } from "@/lib/calc";
 
@@ -9,6 +9,22 @@ export const runtime = "nodejs";
 const SHEET_NAME = "GESTION DE STOCK";
 
 // --- Helpers de parsing ---
+
+// Normalise la valeur brute d'une cellule ExcelJS.
+// ExcelJS renvoie des objets pour les formules ({ formula, result }),
+// le rich text ({ richText: [...] }) et les hyperliens ({ text, hyperlink }).
+function cellValue(v: unknown): unknown {
+  if (v == null || v instanceof Date) return v;
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    if ("result" in o) return o.result; // cellule formule → valeur calculée
+    if ("text" in o) return o.text; // hyperlien → texte affiché
+    if (Array.isArray(o.richText)) {
+      return o.richText.map((t) => (t as { text?: string }).text ?? "").join("");
+    }
+  }
+  return v;
+}
 
 function parseNum(val: unknown): number | null {
   if (val == null || val === "") return null;
@@ -78,23 +94,29 @@ export async function POST(req: NextRequest) {
 
     const date = dateStr ? new Date(dateStr) : new Date();
 
-    // Lecture du classeur (cellDates → cellules date en objets Date).
+    // Lecture du classeur. ExcelJS convertit nativement les dates en objets Date.
     const buffer = Buffer.from(await file.arrayBuffer());
-    const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
-    const sheet = wb.Sheets[SHEET_NAME];
+    const wb = new ExcelJS.Workbook();
+    // Cast vers le type exact attendu par exceljs : friction de générique `Buffer`
+    // entre @types/node récent et les typings d'exceljs (même objet à l'exécution).
+    await wb.xlsx.load(buffer as unknown as Parameters<typeof wb.xlsx.load>[0]);
+    const sheet = wb.getWorksheet(SHEET_NAME);
     if (!sheet) {
+      const sheetNames = wb.worksheets.map((w) => w.name).join(", ");
       return NextResponse.json(
         {
-          error: `Feuille « ${SHEET_NAME} » introuvable. Feuilles disponibles : ${wb.SheetNames.join(", ")}`,
+          error: `Feuille « ${SHEET_NAME} » introuvable. Feuilles disponibles : ${sheetNames}`,
         },
         { status: 400 },
       );
     }
 
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-      header: 1,
-      raw: true,
-      blankrows: false,
+    // Construit un tableau de lignes 0-indexées (col A → index 0) pour coller
+    // au format précédent. ExcelJS expose row.values en 1-indexé (index 0 vide).
+    const rows: unknown[][] = [];
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      const values = (row.values as unknown[]).slice(1).map(cellValue);
+      rows.push(values);
     });
 
     let nbErreurs = 0;
