@@ -12,10 +12,8 @@ type Body = { prixVente?: number; dateVente?: string; canal?: string };
 // 1. Marque l'article comme vendu (prixVente, dateVente, marges, coef, canal)
 // 2. Retire l'étiquette « À comptabiliser » de la carte Trello
 //    (la carte reste visible dans Trello — pas d'archivage).
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const body = (await req.json()) as Body;
     const prixVente = Number(body.prixVente);

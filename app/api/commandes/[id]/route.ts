@@ -14,10 +14,8 @@ type PatchBody = {
 // Si coutTotal ou nbArticles change, le prix unitaire est recalculé et propagé
 // au prix d'achat de tous les articles de la commande (et les marges des
 // articles vendus sont recalculées en conséquence).
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const body = (await req.json()) as PatchBody;
 
@@ -124,10 +122,8 @@ export async function PATCH(
 }
 
 // DELETE /api/commandes/[id] — supprime la commande et ses articles
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     await prisma.$transaction([
       prisma.article.deleteMany({ where: { commandeId: params.id } }),
