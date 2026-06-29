@@ -203,6 +203,18 @@ function Frame({ children }: { children: React.ReactNode }) {
 // Hero (CA total)
 // ─────────────────────────────────────────────────────────────────────────
 
+const HERO_PARTICLES = [
+  { left: "18%", top: "30%", size: 5,   anim: "drift",  dur: 7,   delay: 0,   opacity: .5  },
+  { left: "34%", top: "64%", size: 3,   anim: "driftB", dur: 9,   delay: .8,  opacity: .35 },
+  { left: "52%", top: "22%", size: 4,   anim: "drift",  dur: 8,   delay: 1.4, opacity: .45 },
+  { left: "62%", top: "70%", size: 6,   anim: "driftB", dur: 11,  delay: .4,  opacity: .3  },
+  { left: "72%", top: "40%", size: 3,   anim: "drift",  dur: 6.5, delay: 1.1, opacity: .5  },
+  { left: "44%", top: "46%", size: 2.5, anim: "driftB", dur: 10,  delay: 2,   opacity: .4  },
+  { left: "26%", top: "52%", size: 3.5, anim: "drift",  dur: 8.5, delay: 1.7, opacity: .35 },
+  { left: "80%", top: "60%", size: 4,   anim: "driftB", dur: 7.5, delay: .2,  opacity: .4  },
+  { left: "12%", top: "70%", size: 2.5, anim: "drift",  dur: 9.5, delay: 2.4, opacity: .45 },
+] as const;
+
 function HeroCard({
   ca,
   delta,
@@ -218,19 +230,50 @@ function HeroCard({
   const positive = delta.pct == null || delta.pct >= 0;
   return (
     <div
-      className="relative overflow-hidden rounded-[22px] px-7 py-7 text-white md:px-8"
+      className="relative overflow-hidden rounded-[22px] px-7 py-7 text-white shadow-[0_18px_40px_-22px_rgba(20,53,40,.7)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-26px_rgba(20,53,40,.85)] md:px-8"
       style={{
         background:
           "radial-gradient(120% 130% at 88% 8%, #2D6A4F 0%, #1B4332 46%, #143528 100%)",
-        boxShadow: "0 18px 40px -22px rgba(20,53,40,.7)",
       }}
     >
-      {/* halo */}
+      {/* ATLAS watermark */}
+      <svg
+        width="300" height="300" viewBox="0 0 96 96" fill="none"
+        className="pointer-events-none absolute -bottom-[70px] -right-[46px] opacity-[.06]"
+      >
+        <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {/* halo animé */}
       <div
         className="pointer-events-none absolute -right-8 -top-16 h-60 w-60 rounded-full"
         style={{
-          background:
-            "radial-gradient(circle, rgba(116,217,162,.28), transparent 70%)",
+          background: "radial-gradient(circle, rgba(116,217,162,.28), transparent 70%)",
+          animation: "floatGlow 9s ease-in-out infinite",
+        }}
+      />
+      {/* particules */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {HERO_PARTICLES.map((p, i) => (
+          <span
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: p.left, top: p.top,
+              width: p.size, height: p.size,
+              background: "#A8D5B5",
+              opacity: p.opacity,
+              boxShadow: "0 0 6px rgba(168,213,181,.7)",
+              animation: `${p.anim} ${p.dur}s ease-in-out ${p.delay}s infinite, twinkle ${p.dur * 0.6}s ease-in-out ${p.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+      {/* sheen */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 w-20"
+        style={{
+          background: "linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent)",
+          animation: "sheen 6.5s ease-in-out 1.2s infinite",
         }}
       />
       <div className="relative flex items-center justify-between gap-4">
@@ -280,19 +323,31 @@ function Sparkline({ points }: { points: WeekPoint[] }) {
   const max = Math.max(1, ...vals);
   const min = Math.min(...vals, 0);
   const n = vals.length;
-  const coords = vals.map((v, i) => {
-    const x = n > 1 ? 2 + (i * 70) / (n - 1) : 37;
-    const y = 28 - ((v - min) / (max - min || 1)) * 25;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
+  const pts = vals.map((v, i) => ({
+    x: n > 1 ? 2 + (i * 70) / (n - 1) : 37,
+    y: 28 - ((v - min) / (max - min || 1)) * 25,
+  }));
+  const d =
+    pts.length > 0
+      ? `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)} ${pts
+          .slice(1)
+          .map((p) => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+          .join(" ")}`
+      : "";
   return (
     <svg width="74" height="34" viewBox="0 0 74 34" fill="none" className="opacity-90">
-      <polyline
-        points={coords.join(" ")}
+      <path
+        d={d}
+        fill="none"
         stroke="#7CE0A8"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        pathLength={100}
+        style={{
+          strokeDasharray: 100,
+          animation: "atlas-draw 4.5s ease-in-out 0.3s infinite",
+        }}
       />
     </svg>
   );
@@ -314,7 +369,7 @@ function MargeCard({
   const pct = signedPct(delta.pct);
   const positive = delta.pct == null || delta.pct >= 0;
   return (
-    <div className="flex flex-col justify-between rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
+    <div className="flex flex-col justify-between rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[#8A998F]">
@@ -357,7 +412,7 @@ function MargeCard({
 
 function StockCard({ enStock, total }: { enStock: number; total: number }) {
   return (
-    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px]">
+    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="flex h-[50px] w-[50px] flex-shrink-0 items-center justify-center rounded-[14px] bg-[#EAF3ED] text-[#1B4332]">
         <Package className="h-6 w-6" strokeWidth={2} />
       </div>
@@ -387,7 +442,7 @@ function TauxVenteCard({ pct, vendus }: { pct: number; vendus: number }) {
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(1, Math.max(0, pct)));
   return (
-    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px]">
+    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="relative h-[58px] w-[58px] flex-shrink-0">
         <svg width="58" height="58" viewBox="0 0 58 58" style={{ transform: "rotate(-90deg)" }}>
           <circle cx="29" cy="29" r={r} fill="none" stroke="#EAF0EB" strokeWidth="7" />
@@ -435,17 +490,26 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
   data.forEach((d, i) => {
     if (d.ca > data[bestIdx].ca) bestIdx = i;
   });
+  const avg = data.length > 0 ? data.reduce((s, d) => s + d.ca, 0) / data.length : 0;
+  const avgBottom = max > 0 ? 26 + (avg / max) * 222 : 0;
 
   return (
-    <div className="mb-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6 md:px-7">
+    <div className="mb-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6 transition-[box-shadow,border-color] duration-300 hover:border-[#CBD8CE] hover:shadow-[0_24px_50px_-32px_rgba(20,53,40,.45)] md:px-7">
       <div className="mb-2 flex items-start justify-between">
         <div>
           <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[#16261D]">
             CA par semaine
           </h2>
-          <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
-            Survole une barre pour le détail
-          </p>
+          <div className="mt-2 flex items-center gap-4">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#8A998F]">
+              <span className="h-[9px] w-[9px] rounded-[3px] bg-[#1B4332]" />
+              Meilleure semaine
+            </span>
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#8A998F]">
+              <span className="w-3.5 border-t-2 border-dashed border-[#B59A4F]" />
+              Moyenne
+            </span>
+          </div>
         </div>
         <span className="rounded-full bg-[#F2F5F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#71807A]">
           8 dernières semaines
@@ -461,12 +525,33 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-[#E4E9E2]" />
         </div>
+        {/* ligne moyenne */}
+        {avg > 0 && (
+          <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{ bottom: avgBottom }}
+          >
+            <div className="border-t-2 border-dashed border-[#D9C58A]" />
+            <span className="absolute right-0 -top-[9px] bg-white px-1 text-[10.5px] font-bold text-[#B59A4F]">
+              moy. {Math.round(avg).toLocaleString("fr-FR")} €
+            </span>
+          </div>
+        )}
         {/* bars */}
         <div className="absolute inset-0 flex items-stretch gap-2 md:gap-3.5">
           {data.map((d, i) => {
             const isBest = i === bestIdx && d.ca > 0;
             const isHover = hovered === i;
-            const fill = isHover ? "#2D6A4F" : isBest ? "#1B4332" : "#9DBEAD";
+            const fill = isHover
+              ? "linear-gradient(180deg,#3A8463,#1B4332)"
+              : isBest
+                ? "linear-gradient(180deg,#2D6A4F,#1B4332)"
+                : "linear-gradient(180deg,#B8D4C4,#9DBEAD)";
+            const boxShadow = isHover
+              ? "0 12px 24px -8px rgba(27,67,50,.7)"
+              : isBest
+                ? "0 10px 22px -10px rgba(27,67,50,.6)"
+                : "none";
             const height = `${Math.round((d.ca / max) * 100)}%`;
             return (
               <div
@@ -490,15 +575,11 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
                     </div>
                   )}
                   <div
-                    className="w-full max-w-[46px] cursor-pointer transition-colors duration-200"
-                    style={{
-                      height,
-                      background: fill,
-                      borderRadius: "9px 9px 5px 5px",
-                    }}
+                    className="w-full max-w-[46px] cursor-pointer transition-[background,box-shadow] duration-200"
+                    style={{ height, background: fill, borderRadius: "9px 9px 5px 5px", boxShadow }}
                   />
                 </div>
-                <span className="mt-2.5 text-[12px] font-semibold text-[#8A998F]">
+                <span className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[#16261D]" : "text-[#8A998F]"}`}>
                   {d.semaine}
                 </span>
               </div>
@@ -542,7 +623,7 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
               onClick={() =>
                 router.push(`/stock?marque=${encodeURIComponent(b.marque)}`)
               }
-              className="group rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 text-left transition-all hover:border-[#CBD8CE] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
+              className="group rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_22px_40px_-26px_rgba(20,53,40,.55)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

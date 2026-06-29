@@ -349,7 +349,7 @@ const ArticleRow = memo(
       <tr
         ref={ref}
         {...rest}
-        className={`border-b border-[#EEF1EC] align-middle transition-colors hover:bg-[#F7F9F6] ${
+        className={`border-b border-[#EEF1EC] align-middle transition-[background-color,box-shadow] duration-150 hover:bg-[#F7F9F6] hover:shadow-[inset_3px_0_0_#1B4332] ${
           isSelected ? "bg-[#EAF3ED]" : ""
         }`}
       >
@@ -481,12 +481,22 @@ function StatCard({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl border px-4 py-4 ${
-        dark ? "border-[#1B4332] bg-[#1B4332] text-white" : "border-[#E4E9E2] bg-white"
+      className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-4 transition-[transform,box-shadow,border-color] duration-[260ms] hover:-translate-y-[3px] ${
+        dark
+          ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_14px_30px_-20px_rgba(20,53,40,.7)] hover:shadow-[0_24px_44px_-22px_rgba(20,53,40,.85)]"
+          : "border-[#E4E9E2] bg-white hover:border-[#CBD8CE] hover:shadow-[0_18px_34px_-24px_rgba(20,53,40,.55)]"
       }`}
     >
+      {dark && (
+        <svg
+          width="120" height="120" viewBox="0 0 96 96" fill="none"
+          className="pointer-events-none absolute -bottom-8 -right-6 opacity-[.08]"
+        >
+          <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#fff" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
       <div
-        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+        className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
         style={{
           background: dark ? "rgba(255,255,255,.13)" : iconBg,
           color: dark ? "#9FD4B5" : iconColor,
@@ -494,7 +504,7 @@ function StatCard({
       >
         <Icon className="h-5 w-5" strokeWidth={2} />
       </div>
-      <div className="min-w-0">
+      <div className="relative min-w-0">
         <div className="font-grotesk text-[23px] font-bold tracking-[-0.02em]">
           {value}
         </div>
@@ -952,10 +962,11 @@ function StockInner() {
             </option>
           ))}
         </select>
+        {/* Statut select — mobile only ; desktop uses chips below */}
         <select
           value={statut}
           onChange={(e) => setStatut(e.target.value)}
-          className={`${inputCls} w-full md:w-auto`}
+          className={`${inputCls} w-full md:hidden`}
         >
           <option value="">Tous les statuts</option>
           {STATUTS.map((s) => (
@@ -991,6 +1002,34 @@ function StockInner() {
             Réinitialiser
           </button>
         )}
+      </div>
+
+      {/* Chips statut — desktop uniquement */}
+      <div className="mb-4 hidden flex-wrap gap-2 md:flex">
+        {[{ label: "Tous", value: "" }, ...STATUTS.map((s) => ({ label: s, value: s }))].map((chip) => {
+          const active = statut === chip.value;
+          const cnt = chip.value === "" ? articles.length : articles.filter((a) => a.statut === chip.value).length;
+          return (
+            <button
+              key={chip.value}
+              onClick={() => setStatut(chip.value)}
+              className={`inline-flex items-center gap-1.5 rounded-[11px] border px-3.5 py-2 text-[13px] font-bold transition-[border-color,background,box-shadow] duration-200 ${
+                active
+                  ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_8px_20px_-12px_rgba(20,53,40,.8)]"
+                  : "border-[#E4E9E2] bg-white text-[#3C4D44] hover:border-[#CBD8CE]"
+              }`}
+            >
+              {chip.label}
+              <span
+                className={`rounded-full px-1.5 py-px text-[11px] font-bold ${
+                  active ? "bg-white/20 text-[#CFE6D8]" : "bg-[#F1F4EF] text-[#8A998F]"
+                }`}
+              >
+                {cnt}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Vue cartes mobile (< md) — virtualisée */}
@@ -1142,22 +1181,19 @@ function StockInner() {
       )}
 
       {/* Compteur */}
-      <div className="mt-5 flex flex-wrap gap-x-8 gap-y-1 text-[14px] text-[#71807A]">
+      <div className="mt-5 flex flex-wrap gap-x-7 gap-y-1 text-[14px] text-[#71807A]">
         <span>
-          <strong className="text-[#16261D]">{totals.total}</strong> articles
+          <strong className="font-bold text-[#16261D]">{sorted.length.toLocaleString("fr-FR")}</strong> article(s) affiché(s)
         </span>
         <span>
-          <strong className="text-[#16261D]">{totals.enStock}</strong> en stock
+          <strong className="font-bold text-[#16261D]">{totals.enStock}</strong> en stock
         </span>
         <span>
-          <strong className="text-[#16261D]">{totals.vendus}</strong> vendus
+          <strong className="font-bold text-[#16261D]">{totals.vendus}</strong> vendus
         </span>
         <span>
-          CA : <strong className="text-[#16261D]">{euros(totals.ca)}</strong>
-        </span>
-        <span>
-          Marge nette :{" "}
-          <strong className="text-[#2D6A4F]">{euros(totals.net)}</strong>
+          Marge nette filtrée :{" "}
+          <strong className="font-bold text-[#2D6A4F]">{euros(totals.net)}</strong>
         </span>
       </div>
 
