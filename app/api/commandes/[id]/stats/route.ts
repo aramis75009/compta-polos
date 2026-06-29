@@ -7,10 +7,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/commandes/[id]/stats
 // Récap par catégorie : total + répartition par statut + CA + marge nette.
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const articles = await prisma.article.findMany({
       where: { commandeId: params.id },
