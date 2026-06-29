@@ -196,7 +196,38 @@ export default function StatistiquesPage() {
       <CanalCard data={data.caParCanal} />
 
       {/* Marques les plus rentables */}
-      <div className="mt-5 overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white">
+      <section className="mt-5">
+        {/* Cartes mobile (< md) */}
+        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[#16261D] md:hidden">
+          Marques les plus rentables
+        </h2>
+        <div className="space-y-3 md:hidden">
+          {data.marquesRentables.map((b) => (
+            <div key={b.marque} className="rounded-[18px] border border-[#E4E9E2] bg-white p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-grotesk font-bold text-[#16261D]">{b.marque}</span>
+                <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(b.margeNette)}</span>
+              </div>
+              <dl className="mt-3 space-y-1.5 text-[14px]">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[#94A29A]">Coef moyen</dt>
+                  <dd className="text-[#71807A]">{coef(b.coefMoyen)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[#94A29A]">Vendus</dt>
+                  <dd className="text-[#16261D]">{b.vendus}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {data.marquesRentables.length === 0 && (
+            <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-8 text-center text-[#8A998F]">
+              Aucune vente pour le moment.
+            </p>
+          )}
+        </div>
+        {/* Tableau (≥ md) */}
+        <div className="hidden overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white md:block">
         <h2 className="border-b border-[#E4E9E2] px-6 py-4 font-grotesk text-[18px] font-bold text-[#16261D]">
           Marques les plus rentables
         </h2>
@@ -233,10 +264,42 @@ export default function StatistiquesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      </section>
 
       {/* Top 5 articles */}
-      <div className="mt-5 overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white">
+      <section className="mt-5">
+        {/* Cartes mobile (< md) */}
+        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[#16261D] md:hidden">
+          Top 5 articles (prix de vente)
+        </h2>
+        <div className="space-y-3 md:hidden">
+          {data.topArticles.map((a) => (
+            <div key={a.sku} className="rounded-[18px] border border-[#E4E9E2] bg-white p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate font-grotesk font-bold text-[#16261D]">{a.sku}</span>
+                <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(a.margeNette)}</span>
+              </div>
+              <dl className="mt-3 space-y-1.5 text-[14px]">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[#94A29A]">Marque</dt>
+                  <dd className="text-[#71807A]">{a.marque}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[#94A29A]">Prix vente</dt>
+                  <dd className="text-[#16261D]">{euros(a.prixVente)}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+          {data.topArticles.length === 0 && (
+            <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-8 text-center text-[#8A998F]">
+              Aucune vente pour le moment.
+            </p>
+          )}
+        </div>
+        {/* Tableau (≥ md) */}
+        <div className="hidden overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white md:block">
         <h2 className="border-b border-[#E4E9E2] px-6 py-4 font-grotesk text-[18px] font-bold text-[#16261D]">
           Top 5 articles (prix de vente)
         </h2>
@@ -275,7 +338,8 @@ export default function StatistiquesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      </section>
     </Frame>
   );
 }
