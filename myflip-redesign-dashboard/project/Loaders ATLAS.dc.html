@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; font-family:'Plus Jakarta Sans',sans-serif; }
+  @keyframes atlas-draw {
+    0%   { stroke-dashoffset:100; }
+    42%  { stroke-dashoffset:0; }
+    58%  { stroke-dashoffset:0; }
+    100% { stroke-dashoffset:-100; }
+  }
+  @keyframes atlas-breathe {
+    0%,100% { transform:scale(1);   opacity:1;   }
+    50%     { transform:scale(1.03);opacity:.92; }
+  }
+  @keyframes atlas-sweep {
+    0%   { transform:translateX(-64px); }
+    100% { transform:translateX(160px); }
+  }
+  @keyframes atlas-comet {
+    from { stroke-dashoffset:100; }
+    to   { stroke-dashoffset:0;   }
+  }
+  @keyframes atlas-pulsefade {
+    0%,100% { opacity:.35; }
+    50%     { opacity:.7;  }
+  }
+  @keyframes atlas-rowshimmer {
+    0%   { background-position:-220px 0; }
+    100% { background-position:340px 0;  }
+  }
+  @keyframes atlas-dots {
+    0%,20%  { opacity:.2; }
+    50%     { opacity:1;  }
+    80%,100%{ opacity:.2; }
+  }
+</style>
+</helmet>
+
+<div style="position:absolute; left:80px; top:64px; width:340px;">
+  <div data-drags-parent="1" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.04em; color:#5d6b63;">
+    <span style="font-weight:700; color:#1B4332;">01</span> TRACE
+    <span style="color:#9aa79f;">· le monoline se dessine</span>
+  </div>
+  <div style="background:#fff; border:1px solid #E4E9E2; border-radius:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); padding:40px 28px 30px; text-align:center;">
+    <div style="display:inline-flex; padding:14px; border-radius:28px; background:radial-gradient(120% 120% at 50% 0%, #214f3b 0%, #16261D 100%);">
+      <svg width="104" height="104" viewBox="0 0 96 96" fill="none">
+        <rect width="96" height="96" rx="24" fill="none"></rect>
+        <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#2D6A4F" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.28"></path>
+        <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#A8D5B5" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" pathLength="100" style="stroke-dasharray:100; animation:atlas-draw 2.1s cubic-bezier(.65,.05,.36,1) infinite; filter:drop-shadow(0 0 5px rgba(168,213,181,.45));"></path>
+      </svg>
+    </div>
+    <div style="margin-top:22px; display:flex; align-items:baseline; justify-content:center; gap:3px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:#16261D; letter-spacing:-.01em;">
+      Chargement
+      <span style="display:inline-flex; gap:3px;">
+        <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite; animation-delay:0s;"></span>
+        <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite; animation-delay:.2s;"></span>
+        <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite; animation-delay:.4s;"></span>
+      </span>
+    </div>
+    <div style="margin-top:6px; font-family:'Space Mono',monospace; font-size:11px; color:#9aa79f;">stroke-dashoffset · 2.1s loop</div>
+  </div>
+</div>
+
+<div style="position:absolute; left:460px; top:64px; width:340px;">
+  <div data-drags-parent="1" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.04em; color:#5d6b63;">
+    <span style="font-weight:700; color:#1B4332;">02</span> SHIMMER
+    <span style="color:#9aa79f;">· skeleton brandé</span>
+  </div>
+  <div style="background:#fff; border:1px solid #E4E9E2; border-radius:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); padding:40px 28px 30px; text-align:center;">
+    <div style="display:inline-flex; padding:14px; border-radius:28px; background:#EEF1EC;">
+      <svg width="104" height="104" viewBox="0 0 96 96" fill="none">
+        <defs>
+          <mask id="atlasMaskM" maskUnits="userSpaceOnUse">
+            <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </mask>
+          <linearGradient id="atlasShine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#2D6A4F" stop-opacity="0"></stop>
+            <stop offset="0.5" stop-color="#2D6A4F" stop-opacity="1"></stop>
+            <stop offset="1" stop-color="#2D6A4F" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
+        <g mask="url(#atlasMaskM)">
+          <rect x="0" y="0" width="96" height="96" fill="#C4D2C7"></rect>
+          <rect x="0" y="0" width="64" height="96" fill="url(#atlasShine)" style="animation:atlas-sweep 1.7s cubic-bezier(.4,0,.2,1) infinite;"></rect>
+        </g>
+      </svg>
+    </div>
+    <div style="margin-top:22px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:#16261D; letter-spacing:-.01em;">Synchronisation…</div>
+    <div style="margin-top:6px; font-family:'Space Mono',monospace; font-size:11px; color:#9aa79f;">sweep masqué · 1.7s loop</div>
+  </div>
+</div>
+
+<div style="position:absolute; left:840px; top:64px; width:340px;">
+  <div data-drags-parent="1" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.04em; color:#5d6b63;">
+    <span style="font-weight:700; color:#1B4332;">03</span> COMET
+    <span style="color:#9aa79f;">· point lumineux</span>
+  </div>
+  <div style="background:#fff; border:1px solid #E4E9E2; border-radius:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); padding:40px 28px 30px; text-align:center;">
+    <div style="display:inline-flex; padding:14px; border-radius:28px; background:#EEF1EC;">
+      <svg width="104" height="104" viewBox="0 0 96 96" fill="none">
+        <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#CBD7CD" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" style="animation:atlas-pulsefade 1.8s ease-in-out infinite;"></path>
+        <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#2D6A4F" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" pathLength="100" style="stroke-dasharray:16 84; animation:atlas-comet 1.8s linear infinite; filter:drop-shadow(0 0 4px rgba(45,106,79,.55));"></path>
+      </svg>
+    </div>
+    <div style="margin-top:22px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; color:#16261D; letter-spacing:-.01em;">Chargement</div>
+    <div style="margin-top:6px; font-family:'Space Mono',monospace; font-size:11px; color:#9aa79f;">dash en orbite · 1.8s loop</div>
+  </div>
+</div>
+
+<div style="position:absolute; left:80px; top:392px; width:1100px;">
+  <div data-drags-parent="1" style="display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.04em; color:#5d6b63;">
+    <span style="font-weight:700; color:#1B4332;">EN CONTEXTE</span>
+    <span style="color:#9aa79f;">· remplace les skeleton loaders d'une page</span>
+  </div>
+  <div style="background:#EEF1EC; border:1px solid #E4E9E2; border-radius:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); padding:26px; display:grid; grid-template-columns:300px 1fr; gap:26px;">
+
+    <div style="background:#fff; border:1px solid #E4E9E2; border-radius:16px; padding:30px 24px; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px;">
+      <div style="display:inline-flex; padding:12px; border-radius:24px; background:radial-gradient(120% 120% at 50% 0%, #214f3b 0%, #16261D 100%);">
+        <svg width="76" height="76" viewBox="0 0 96 96" fill="none">
+          <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#2D6A4F" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.28"></path>
+          <path d="M27 69 V31 L48 54 L69 31 V69" fill="none" stroke="#A8D5B5" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round" pathLength="100" style="stroke-dasharray:100; animation:atlas-draw 2.1s cubic-bezier(.65,.05,.36,1) infinite; filter:drop-shadow(0 0 5px rgba(168,213,181,.45));"></path>
+        </svg>
+      </div>
+      <div style="margin-top:20px; display:flex; align-items:baseline; gap:3px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; color:#16261D;">
+        Chargement du stock
+        <span style="display:inline-flex; gap:3px;">
+          <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite;"></span>
+          <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite; animation-delay:.2s;"></span>
+          <span style="width:3px; height:3px; border-radius:50%; background:#2D6A4F; animation:atlas-dots 1.4s infinite; animation-delay:.4s;"></span>
+        </span>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; gap:14px; align-items:center; background:#fff; border:1px solid #E4E9E2; border-radius:14px; padding:16px;">
+        <div style="width:56px; height:56px; border-radius:12px; flex:none; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite;"></div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:9px;">
+          <div style="height:11px; width:62%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite;"></div>
+          <div style="height:11px; width:40%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.15s;"></div>
+        </div>
+        <div style="width:64px; height:24px; border-radius:8px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.3s;"></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:center; background:#fff; border:1px solid #E4E9E2; border-radius:14px; padding:16px;">
+        <div style="width:56px; height:56px; border-radius:12px; flex:none; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.1s;"></div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:9px;">
+          <div style="height:11px; width:54%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.1s;"></div>
+          <div style="height:11px; width:46%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.25s;"></div>
+        </div>
+        <div style="width:64px; height:24px; border-radius:8px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.4s;"></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:center; background:#fff; border:1px solid #E4E9E2; border-radius:14px; padding:16px;">
+        <div style="width:56px; height:56px; border-radius:12px; flex:none; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.2s;"></div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:9px;">
+          <div style="height:11px; width:58%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.2s;"></div>
+          <div style="height:11px; width:36%; border-radius:6px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.35s;"></div>
+        </div>
+        <div style="width:64px; height:24px; border-radius:8px; background:linear-gradient(90deg,#E7ECE6 0%,#F4F7F2 50%,#E7ECE6 100%); background-size:220px 100%; animation:atlas-rowshimmer 1.6s linear infinite; animation-delay:.5s;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

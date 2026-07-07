@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d4dcd6; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes cellPop { from { opacity: 0; transform: translateY(13px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes gridFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes gridFadeR { from { opacity: 0; transform: translateX(42px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes gridFadeL { from { opacity: 0; transform: translateX(-42px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes panelIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes crownFloat { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-2.5px) rotate(-7deg); } }
+  @keyframes tipIn { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  @keyframes sheen { 0% { transform: translateX(-130%) skewX(-18deg); } 100% { transform: translateX(330%) skewX(-18deg); } }
+</style>
+</helmet>
+
+<div style="display:flex; height:100vh; width:100%; background:#EEF1EC; color:#16261D; overflow:hidden;">
+
+  <aside style="width:256px; flex-shrink:0; background:#FFFFFF; border-right:1px solid #E4E9E2; display:flex; flex-direction:column; padding:26px 18px 22px; gap:6px;">
+    <div style="display:flex; align-items:center; gap:11px; padding:0 8px 22px;">
+      <svg width="38" height="38" viewBox="0 0 96 96" fill="none"><rect width="96" height="96" rx="24" fill="#1B4332"/><path d="M27 69 V31 L48 54 L69 31 V69" stroke="#EAF3ED" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-family:'Space Grotesk'; font-weight:700; font-size:20px; letter-spacing:-.02em;">MyFlip</span>
+    </div>
+    <div style="font-size:11px; font-weight:700; letter-spacing:.09em; color:#9BA89F; padding:4px 12px 8px;">PILOTAGE</div>
+    <a href="Dashboard.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="Stock.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      Stock
+    </a>
+    <a href="Mise en vente.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      Mise en vente
+    </a>
+    <a href="À comptabiliser.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M9 13h6"/><path d="M9 17h3"/></svg>
+      À comptabiliser
+    </a>
+    <a href="#" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; background:#1B4332; color:#fff; text-decoration:none; font-weight:600; font-size:14.5px; box-shadow:0 8px 20px -8px rgba(27,67,50,.5);">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendrier
+    </a>
+    <a href="Commandes.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Commandes
+    </a>
+    <a href="Statistiques.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      Statistiques
+    </a>
+    <a href="Paramètres.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Paramètres
+    </a>
+    <div style="margin-top:auto; padding-top:14px; border-top:1px solid #EDF0EA;">
+      <a href="#" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px; transition:background .18s ease, color .18s ease;" style-hover="background:#F1F4EF; color:#1B4332;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        Déconnexion
+      </a>
+    </div>
+  </aside>
+
+  <main style="flex:1; overflow-y:auto; padding:30px 38px 46px;">
+
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:20px; animation:fadeUp .4s both;">
+      <div>
+        <h1 style="margin:0; font-family:'Space Grotesk'; font-weight:700; font-size:30px; letter-spacing:-.025em;">Calendrier</h1>
+        <p style="margin:7px 0 0; color:#71807A; font-size:14.5px; font-weight:500;">Tes ventes jour par jour — la couronne marque le meilleur jour de chaque semaine.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button onClick="{{ goPrev }}" style="display:inline-flex; align-items:center; gap:7px; width:40px; height:40px; justify-content:center; border-radius:11px; background:#fff; border:1px solid #E4E9E2; color:#3C4D44; cursor:pointer; transition:border-color .18s ease, background .18s ease, transform .18s ease;" style-hover="border-color:#CBD8CE; background:#F7F9F6; transform:translateX(-2px);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button onClick="{{ goToday }}" style="background:#fff; border:1px solid #E4E9E2; border-radius:11px; padding:0 16px; height:40px; font-size:13.5px; font-weight:600; color:#3C4D44; font-family:inherit; cursor:pointer; transition:border-color .18s ease, background .18s ease;" style-hover="border-color:#CBD8CE; background:#F7F9F6;">Aujourd'hui</button>
+        <button onClick="{{ goNext }}" style="display:inline-flex; align-items:center; gap:7px; width:40px; height:40px; justify-content:center; border-radius:11px; background:#fff; border:1px solid #E4E9E2; color:#3C4D44; cursor:pointer; transition:border-color .18s ease, background .18s ease, transform .18s ease;" style-hover="border-color:#CBD8CE; background:#F7F9F6; transform:translateX(2px);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px; animation:fadeUp .4s both; animation-delay:.04s;">
+      <h2 style="margin:0; font-family:'Space Grotesk'; font-weight:700; font-size:21px;">{{ monthLabel }}</h2>
+      <div style="flex:1;"></div>
+      <div style="display:flex; align-items:center; gap:16px; font-size:12px; font-weight:600; color:#8A998F;">
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span style="width:13px; height:13px; border-radius:4px; background:#E4F1E9;"></span>Jour avec ventes</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;">👑 Meilleur jour</span>
+      </div>
+    </div>
+
+    <div>
+
+      <!-- CALENDAR -->
+      <div style="background:#fff; border:1px solid #E4E9E2; border-radius:22px; padding:18px 20px; box-shadow:0 1px 2px rgba(22,38,29,.03); animation:fadeUp .45s both; animation-delay:.06s;">
+        <div style="display:grid; grid-template-columns:repeat(7,1fr) 0.82fr; gap:9px; padding:0 0 12px; align-items:stretch;">
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">LUN</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;" data-comment-anchor="ddc70eaa4b-span">MAR</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">MER</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">JEU</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">VEN</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">SAM</span>
+          <span style="font-size:11.5px; font-weight:700; color:#BE6E26; text-align:center; letter-spacing:.04em; background:#FBEEDD; border:1px solid #F3DCC0; border-radius:9px; padding:7px 0;">DIM</span>
+          <span style="font-size:11.5px; font-weight:700; color:#1B4332; text-align:center; display:flex; align-items:center; justify-content:center;">RÉCAP SEMAINE</span>
+        </div>
+
+        <div key="{{ monthKey }}" style="{{ gridStyle }}">
+        <sc-for list="{{ weeks }}" as="w" hint-placeholder-count="5">
+          <div style="display:grid; grid-template-columns:repeat(7,1fr) 0.82fr; gap:9px; margin-bottom:9px;">
+            <sc-for list="{{ w.days }}" as="d" hint-placeholder-count="7">
+              <div style="{{ d.cellStyle }}" onClick="{{ d.onClick }}" onMouseEnter="{{ d.onEnter }}" onMouseLeave="{{ d.onLeave }}">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="{{ d.numStyle }}">{{ d.num }}</span>
+                  <sc-if value="{{ d.isBest }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px; display:inline-block; animation:crownFloat 2.6s ease-in-out infinite;">👑</span></sc-if>
+                </div>
+                <sc-if value="{{ d.hasSale }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top:auto;">
+                    <div style="font-family:'Space Grotesk'; font-weight:700; font-size:14px; color:#16261D; letter-spacing:-.01em;">{{ d.ca }}</div>
+                    <div style="font-size:11px; font-weight:600; color:#5E7268; margin-top:2px;">NET {{ d.net }}</div>
+                    <div style="font-size:10.5px; font-weight:500; color:#94A29A; margin-top:1px;">{{ d.arts }}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ d.showTip }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%); white-space:nowrap; background:#16261D; color:#fff; padding:8px 12px; border-radius:10px; font-size:11px; font-weight:600; letter-spacing:.01em; box-shadow:0 12px 28px -8px rgba(22,38,29,.55); z-index:30; pointer-events:none; animation:tipIn .16s ease both;">
+                    {{ d.tipText }}
+                    <span style="position:absolute; top:100%; left:50%; transform:translateX(-50%); width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:6px solid #16261D;"></span>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+
+            <!-- récap -->
+            <div style="border-radius:13px; background:#fff; border:1px solid #E7EDE5; border-left:3px solid #1B4332; padding:11px 13px; display:flex; flex-direction:column; transition:box-shadow .18s ease, transform .18s ease;" style-hover="box-shadow:0 10px 22px -14px rgba(22,38,29,.25); transform:translateY(-2px);" data-comment-anchor="296a2ea5be-div">
+              <span style="font-size:9.5px; font-weight:700; letter-spacing:.07em; color:#9BA89F;">CA SEMAINE</span>
+              <span style="font-family:'Space Grotesk'; font-weight:700; font-size:17px; letter-spacing:-.02em; color:#16261D; margin-top:2px;">{{ w.ca }}</span>
+              <div style="height:1px; background:#ECEFEA; margin:9px 0;"></div>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:10.5px; font-weight:600; color:#94A29A;">Net</span>
+                  <span style="font-family:'Space Grotesk'; font-weight:700; font-size:12px; color:#2D6A4F; white-space:nowrap;">{{ w.net }}</span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:10.5px; font-weight:600; color:#94A29A;">Articles</span>
+                  <span style="font-family:'Space Grotesk'; font-weight:700; font-size:12px; color:#16261D;">{{ w.arts }}</span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:10.5px; font-weight:600; color:#94A29A;">Coef</span>
+                  <span style="{{ w.coefStyle }}">{{ w.coef }}</span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:10.5px; font-weight:600; color:#94A29A;">Panier</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-family:'Space Grotesk'; font-weight:700; font-size:12px; color:#16261D; white-space:nowrap;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94A29A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                    {{ w.panier }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MONTH BAND -->
+    <div style="margin-top:18px; background:#fff; border:1px solid #E4E9E2; border-radius:20px; padding:20px 8px; display:flex; align-items:center; box-shadow:0 1px 2px rgba(22,38,29,.03); animation:fadeUp .45s both; animation-delay:.16s;">
+      <div style="flex:1; text-align:center; padding:0 14px;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:#8A998F;">CA TOTAL</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:26px; letter-spacing:-.02em; margin-top:5px;">{{ mCa }}</div>
+      </div>
+      <div style="width:1px; height:42px; background:#E4E9E2;"></div>
+      <div style="flex:1; text-align:center; padding:0 14px;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:#8A998F;">ARTICLES VENDUS</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:26px; letter-spacing:-.02em; margin-top:5px;">{{ mNb }}</div>
+      </div>
+      <div style="width:1px; height:42px; background:#E4E9E2;"></div>
+      <div style="flex:1; text-align:center; padding:0 14px;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:#8A998F;">MARGE NETTE</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:26px; letter-spacing:-.02em; margin-top:5px; color:#2D6A4F;">{{ mNet }}</div>
+      </div>
+      <div style="width:1px; height:42px; background:#E4E9E2;"></div>
+      <div style="flex:1; text-align:center; padding:0 14px;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:#8A998F;">COEF MOYEN</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:26px; letter-spacing:-.02em; margin-top:5px;">{{ mCoef }}</div>
+      </div>
+      <div style="width:1px; height:42px; background:#E4E9E2;"></div>
+      <div style="flex:1; text-align:center; padding:0 14px;">
+        <div style="font-size:11.5px; font-weight:700; letter-spacing:.05em; color:#8A998F;">PANIER MOYEN</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:26px; letter-spacing:-.02em; margin-top:5px;">{{ mPanier }}</div>
+      </div>
+    </div>
+
+    <!-- MODAL DÉTAIL DU JOUR -->
+    <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(22,38,29,.4); animation:overlayIn .2s ease both;" onClick="{{ clearSel }}">
+        <div key="{{ sel.num }}" style="width:100%; max-width:448px; background:#fff; border-radius:22px; padding:26px; box-shadow:0 30px 80px -20px rgba(22,38,29,.55); animation:modalIn .34s cubic-bezier(.22,1,.36,1) both;" onClick="{{ stopProp }}">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div>
+              <div style="font-size:12px; font-weight:600; color:#8A998F;">Détail du jour</div>
+              <div style="font-family:'Space Grotesk'; font-weight:700; font-size:23px; letter-spacing:-.02em; margin-top:2px;">{{ sel.dateLabel }}</div>
+            </div>
+            <button style="width:34px; height:34px; border-radius:11px; background:#F2F5F0; border:none; color:#94A29A; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .18s ease, color .18s ease;" style-hover="background:#E7EDE5; color:#3C4D44;" onClick="{{ clearSel }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style="position:relative; overflow:hidden; border-radius:16px; background:radial-gradient(120% 130% at 88% 8%, #2D6A4F, #1B4332); color:#fff; padding:20px 22px; margin-bottom:14px;">
+            <div style="position:absolute; top:0; left:0; width:34%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation:sheen 2.4s ease-in-out .25s infinite;"></div>
+            <div style="position:relative; font-size:11px; font-weight:700; letter-spacing:.07em; color:#9FD4B5;">CHIFFRE D'AFFAIRES</div>
+            <div style="position:relative; font-family:'Space Grotesk'; font-weight:700; font-size:34px; letter-spacing:-.02em; margin-top:4px;">{{ sel.caLive }}</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 15px; border-radius:13px; background:#F7F9F6; transition:background .18s ease;" style-hover="background:#F1F4EF;">
+              <span style="font-size:13.5px; font-weight:600; color:#71807A;">Marge nette</span>
+              <span style="font-family:'Space Grotesk'; font-weight:700; font-size:16px;">{{ sel.net }}</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 15px; border-radius:13px; background:#F7F9F6; transition:background .18s ease;" style-hover="background:#F1F4EF;">
+              <span style="font-size:13.5px; font-weight:600; color:#71807A;">Articles vendus</span>
+              <span style="font-family:'Space Grotesk'; font-weight:700; font-size:16px;">{{ sel.arts }}</span>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 15px; border-radius:13px; background:#F7F9F6; transition:background .18s ease;" style-hover="background:#F1F4EF;">
+              <span style="font-size:13.5px; font-weight:600; color:#71807A;">Taux de marge</span>
+              <span style="font-family:'Space Grotesk'; font-weight:700; font-size:16px; color:#2D6A4F;">{{ sel.marge }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Animation&quot;},&quot;counterDuration&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:850,&quot;min&quot;:300,&quot;max&quot;:2000,&quot;step&quot;:50,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Animation&quot;}}">
+class Component extends DCLogic {
+  // compteur animé autonome (gère son propre rAF — indépendant du cycle de rendu DC)
+  static CountUp = function CountUp({ value, fmt, dur, reduced }) {
+    const [disp, setDisp] = React.useState(reduced ? value : 0);
+    const last = React.useRef(reduced ? value : 0);
+    React.useEffect(() => {
+      if (reduced) { last.current = value; setDisp(value); return; }
+      const from = last.current, t0 = performance.now();
+      let raf;
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+        setDisp(from + (value - from) * e);
+        if (p < 1) raf = requestAnimationFrame(step); else last.current = value;
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, [value, reduced, dur]);
+    return fmt(disp);
+  };
+
+  state = (() => {
+    const n = new Date();
+    return { y: n.getFullYear(), m: n.getMonth(), dir: 'init', selected: null, hovered: null };
+  })();
+
+  // --- données : juin 2026 conservées à l'identique ---
+  monthSales(y, m) {
+    if (y === 2026 && m === 5) return {
+      1: [48.16, 26.97, 3], 2: [15.47, 6.36, 1], 3: [24.90, 15.20, 1], 4: [14.50, 0.00, 1], 6: [97.71, 66.56, 5], 7: [18.47, 12.39, 1],
+      9: [44.17, 31.85, 2], 11: [21.46, 7.92, 2], 13: [24.70, 14.43, 1],
+      17: [41.71, 18.19, 3], 18: [80.44, 32.04, 5], 19: [21.67, 14.20, 1], 20: [36.69, 16.10, 3], 21: [66.11, 25.98, 4],
+      22: [29.49, 10.69, 3], 23: [35.71, 14.44, 1],
+    };
+    return {};
+  }
+  // coef hebdo de juin (par index de semaine) — valeurs existantes préservées
+  weekCoef(y, m, wi) {
+    if (y === 2026 && m === 5) return [2.62, 3.13, 2.04, 1.78, 0][wi] || 0;
+    return 0;
+  }
+  monthCoef(y, m) { return (y === 2026 && m === 5) ? 2.18 : 0; }
+
+  fmt(n) {
+    return (n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\u202f/g, ' ') + ' €';
+  }
+  coefFmt(v) {
+    return v ? v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '×' : '—';
+  }
+
+  reduced() { return !!this.props.reduceMotion; }
+  dur() { return this.props.counterDuration != null ? this.props.counterDuration : 850; }
+
+  monthTotals(y, m) {
+    const s = this.monthSales(y, m);
+    let ca = 0, nb = 0, net = 0;
+    for (const k in s) { ca += s[k][0]; net += s[k][1]; nb += s[k][2]; }
+    return { ca, nb, net, coef: this.monthCoef(y, m), panier: nb ? ca / nb : 0 };
+  }
+
+  go(delta) {
+    const d = new Date(this.state.y, this.state.m + delta, 1);
+    this.setState({ y: d.getFullYear(), m: d.getMonth(), dir: delta > 0 ? 'next' : 'prev', selected: null });
+  }
+  goToday() {
+    const n = new Date();
+    const cur = this.state.y * 12 + this.state.m, tgt = n.getFullYear() * 12 + n.getMonth();
+    this.setState({ y: n.getFullYear(), m: n.getMonth(), dir: tgt >= cur ? 'next' : 'prev', selected: null });
+  }
+
+  coefStyle(v) {
+    let c = '#C2603F', bg = '#FBEEE7';
+    if (v >= 2.3) { c = '#2D6A4F'; bg = '#E4F3EA'; }
+    else if (v >= 2.0) { c = '#B5872E'; bg = '#FBF3E2'; }
+    return { fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '12.5px', color: c, background: bg, padding: '3px 9px', borderRadius: '16px' };
+  }
+
+  renderVals() {
+    const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const ML = MONTHS.map(s => s.toLowerCase());
+    const { y, m, dir } = this.state;
+    const sales = this.monthSales(y, m);
+    const reduced = this.reduced();
+    // l'animation d'entrée ne joue que pendant la phase de montage (évite tout conflit avec le hover)
+    if (!this._t0) this._t0 = Date.now();
+    const entering = (Date.now() - this._t0) < 1500;
+    const now = new Date();
+    const isTodayDate = (dt) => dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+
+    // grille basée sur les dates (lundi premier)
+    const first = new Date(y, m, 1);
+    const startDow = (first.getDay() + 6) % 7;
+    const gridStart = new Date(y, m, 1 - startDow);
+    const lastDate = new Date(y, m + 1, 0).getDate();
+    const numWeeks = Math.ceil((startDow + lastDate) / 7);
+
+    let gi = 0;
+    const weeks = [];
+    for (let w = 0; w < numWeeks; w++) {
+      const metas = [];
+      let bestDay = -1, bestCa = -1, wca = 0, wnet = 0, wnb = 0;
+      for (let i = 0; i < 7; i++) {
+        const dt = new Date(gridStart); dt.setDate(gridStart.getDate() + w * 7 + i);
+        const inMonth = dt.getMonth() === m && dt.getFullYear() === y;
+        const num = dt.getDate();
+        const s = inMonth ? sales[num] : null;
+        metas.push({ dt, inMonth, num, s });
+        if (inMonth && s) { wca += s[0]; wnet += s[1]; wnb += s[2]; if (s[0] > bestCa) { bestCa = s[0]; bestDay = num; } }
+      }
+
+      const days = metas.map((mt) => {
+        const { dt, inMonth, num, s } = mt;
+        const hasSale = !!s;
+        const ca = s ? s[0] : 0;
+        const isToday = inMonth && isTodayDate(dt);
+        const isBest = inMonth && hasSale && num === bestDay && ca > 0;
+        let bg = 'transparent';
+        if (inMonth) bg = hasSale ? '#E4F1E9' : '#FFFFFF';
+        const numColor = inMonth ? (isToday ? '#fff' : '#16261D') : '#C4CFC7';
+
+        const cellStyle = {
+          minHeight: '94px', borderRadius: '13px', padding: '9px 11px', background: bg, position: 'relative',
+          border: inMonth ? (hasSale ? '1px solid transparent' : '1px solid #EEF1EC') : '1px solid transparent',
+          boxShadow: isToday ? 'inset 0 0 0 2px #1B4332' : 'none',
+          opacity: inMonth ? 1 : 0.5,
+          display: 'flex', flexDirection: 'column',
+          cursor: hasSale ? 'pointer' : 'default',
+          transition: 'transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s ease, background .2s ease',
+          animation: (reduced || !entering) ? 'none' : 'cellPop .5s cubic-bezier(.22,1,.36,1) backwards',
+          animationDelay: (reduced || !entering) ? '0s' : (gi * 0.014) + 's',
+        };
+        gi++;
+
+        // hover piloté en JS (le runtime ne compile pas un style-hover lié à un objet)
+        // jours avec ventes uniquement : élévation marquée + fond vert intense + anneau vert
+        // jours sans vente : aucun hover (clarté sur ce qui est cliquable)
+        const isHovered = hasSale && this.state.hovered === num;
+        const finalCellStyle = isHovered ? {
+          ...cellStyle,
+          animation: 'none',
+          transform: 'translateY(-6px) scale(1.045)',
+          boxShadow: '0 22px 40px -14px rgba(27,67,50,.5), inset 0 0 0 1.5px #1B4332' + (isToday ? ', inset 0 0 0 2px #1B4332' : ''),
+          background: '#C2E2CF',
+          zIndex: 5,
+        } : cellStyle;
+
+        const numStyle = isToday
+          ? { width: '24px', height: '24px', borderRadius: '50%', background: '#1B4332', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '13px' }
+          : { fontFamily: "'Space Grotesk'", fontWeight: 700, fontSize: '14px', color: numColor };
+
+        const marge = s && s[0] > 0 ? Math.round(s[1] / s[0] * 100) + ' %' : '0 %';
+        const label = num + ' ' + ML[m] + ' ' + y;
+        return {
+          num, hasSale, isBest,
+          ca: s ? this.fmt(s[0]) : '', net: s ? this.fmt(s[1]) : '', arts: s ? (s[2] + ' art.') : '',
+          cellStyle: finalCellStyle, numStyle,
+          showTip: isHovered,
+          tipText: s ? (this.fmt(s[0]) + ' · ' + s[2] + ' art. · clique pour le détail') : '',
+          onEnter: hasSale ? () => this.setState({ hovered: num }) : null,
+          onLeave: hasSale ? () => this.setState({ hovered: null }) : null,
+          onClick: hasSale ? () => this.setState({ selected: { num, caNum: s[0], net: this.fmt(s[1]), arts: String(s[2]), marge, dateLabel: label } }) : null,
+        };
+      });
+
+      const coefV = this.weekCoef(y, m, w);
+      weeks.push({
+        days,
+        ca: this.fmt(wca),
+        net: this.fmt(wnet),
+        arts: String(wnb),
+        coef: this.coefFmt(coefV),
+        coefStyle: this.coefStyle(coefV),
+        panier: wnb ? this.fmt(wca / wnb) : '—',
+      });
+    }
+
+    const gridAnim = reduced ? 'none' : ((dir === 'next' ? 'gridFadeR' : dir === 'prev' ? 'gridFadeL' : 'gridFadeUp') + ' .5s cubic-bezier(.22,1,.36,1) backwards');
+    const sel = this.state.selected;
+    const tot = this.monthTotals(y, m);
+    const dur = this.dur();
+    const ce = React.createElement, CU = Component.CountUp;
+    const eur = (v) => this.fmt(v);
+    const coefF = (v) => v ? v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '×' : '0,00×';
+
+    return {
+      weeks,
+      monthLabel: MONTHS[m] + ' ' + y,
+      monthKey: y + '-' + m + '-' + dir,
+      gridStyle: { animation: gridAnim },
+      panelStyle: reduced ? {} : { animation: 'panelIn .34s cubic-bezier(.22,1,.36,1) both' },
+      goPrev: () => this.go(-1),
+      goNext: () => this.go(1),
+      goToday: () => this.goToday(),
+      hasSelection: !!sel,
+      noSelection: !sel,
+      sel: sel ? { ...sel, caLive: ce(CU, { value: sel.caNum, dur: 600, reduced, fmt: eur }) } : {},
+      clearSel: () => this.setState({ selected: null }),
+      stopProp: (e) => e.stopPropagation(),
+      mCa: ce(CU, { value: tot.ca, dur, reduced, fmt: eur }),
+      mNb: ce(CU, { value: tot.nb, dur, reduced, fmt: (v) => String(Math.round(v)) }),
+      mNet: ce(CU, { value: tot.net, dur, reduced, fmt: eur }),
+      mCoef: ce(CU, { value: tot.coef, dur, reduced, fmt: coefF }),
+      mPanier: ce(CU, { value: tot.panier, dur, reduced, fmt: eur }),
+    };
+  }
+}
+</script>
+</body>
+</html>

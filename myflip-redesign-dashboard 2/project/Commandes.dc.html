@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d4dcd6; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rowIn { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes drawLine { from { stroke-dashoffset: 640; } to { stroke-dashoffset: 0; } }
+  @keyframes pulseBadge { 0%,100% { box-shadow: 0 0 0 0 rgba(194,96,63,.40); } 50% { box-shadow: 0 0 0 7px rgba(194,96,63,0); } }
+  @keyframes pulseDot { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: .55; } }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</helmet>
+
+<div style="display:flex; height:100vh; width:100%; background:#EEF1EC; color:#16261D; overflow:hidden;">
+
+  <aside style="width:256px; flex-shrink:0; background:#FFFFFF; border-right:1px solid #E4E9E2; display:flex; flex-direction:column; padding:26px 18px 22px; gap:6px;">
+    <div style="display:flex; align-items:center; gap:11px; padding:0 8px 22px;">
+      <div style="width:38px; height:38px; border-radius:11px; background:#1B4332; color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:19px;">M</div>
+      <span style="font-family:'Space Grotesk'; font-weight:700; font-size:20px; letter-spacing:-.02em;">MyFlip</span>
+    </div>
+    <div style="font-size:11px; font-weight:700; letter-spacing:.09em; color:#9BA89F; padding:4px 12px 8px;">PILOTAGE</div>
+    <a href="Dashboard.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a href="Stock.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      Stock
+    </a>
+    <a href="Mise en vente.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      Mise en vente
+    </a>
+    <a href="À comptabiliser.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M9 13h6"/><path d="M9 17h3"/></svg>
+      À comptabiliser
+    </a>
+    <a href="Calendrier.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendrier
+    </a>
+    <a href="#" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; background:#1B4332; color:#fff; text-decoration:none; font-weight:600; font-size:14.5px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Commandes
+    </a>
+    <a href="Statistiques.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      Statistiques
+    </a>
+    <a href="Paramètres.dc.html" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Paramètres
+    </a>
+    <div style="margin-top:auto; padding-top:14px; border-top:1px solid #EDF0EA;">
+      <a href="#" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:12px; color:#52635A; text-decoration:none; font-weight:500; font-size:14.5px;" style-hover="background:#F1F4EF; color:#1B4332;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        Déconnexion
+      </a>
+    </div>
+  </aside>
+
+  <main style="flex:1; overflow-y:auto; padding:30px 38px 56px;">
+
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:22px;">
+      <div>
+        <h1 style="margin:0; font-family:'Space Grotesk'; font-weight:700; font-size:30px; letter-spacing:-.025em;">Commandes</h1>
+        <p style="margin:7px 0 0; color:#71807A; font-size:14.5px; font-weight:500;">Tes achats en lot, par fournisseur.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:11px;">
+        <button style="display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #E4E9E2; border-radius:12px; padding:10px 15px; font-size:13.5px; font-weight:600; color:#3C4D44; font-family:inherit; cursor:pointer; transition:border-color .2s;" style-hover="border-color:#CBD8CE;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M8 13h2M8 17h2M14 13h2M14 17h2"/></svg>
+          Importer un Excel
+        </button>
+        <button onClick="{{ openModal }}" style="display:inline-flex; align-items:center; gap:8px; background:#1B4332; border:none; border-radius:12px; padding:11px 17px; font-size:13.5px; font-weight:700; color:#fff; font-family:inherit; cursor:pointer; box-shadow:0 10px 22px -12px rgba(20,53,40,.8); transition:background .2s, transform .15s;" style-hover="background:#143528; transform:translateY(-1px);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Nouvelle commande
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:20px; animation:fadeUp .45s both;">
+      <div style="border-radius:20px; background:radial-gradient(120% 130% at 88% 8%, #2D6A4F 0%, #1B4332 55%, #143528 100%); color:#fff; padding:24px 26px; box-shadow:0 18px 40px -24px rgba(20,53,40,.7);">
+        <div style="font-size:12px; font-weight:700; letter-spacing:.07em; color:#9FD4B5;">TOTAL INVESTI</div>
+        <div style="font-family:'Space Grotesk'; font-weight:700; font-size:42px; letter-spacing:-.025em; margin-top:8px; font-variant-numeric:tabular-nums;">{{ kInvest }}</div>
+        <div style="font-size:13px; color:#BBD3C5; font-weight:500; margin-top:6px;">{{ kSub }}</div>
+      </div>
+      <div style="border-radius:20px; background:#fff; border:1px solid #E4E9E2; padding:24px 26px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#EAF3ED; color:#1B4332; display:flex; align-items:center; justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+          <div><div style="font-family:'Space Grotesk'; font-weight:700; font-size:34px; letter-spacing:-.02em; font-variant-numeric:tabular-nums;">{{ kNb }}</div><div style="font-size:12.5px; color:#8A998F; font-weight:600;">Commandes passées</div></div>
+        </div>
+      </div>
+      <div style="border-radius:20px; background:#fff; border:1px solid #E4E9E2; padding:24px 26px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:44px; height:44px; border-radius:12px; background:#EAF3ED; color:#1B4332; display:flex; align-items:center; justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div><div style="font-family:'Space Grotesk'; font-weight:700; font-size:34px; letter-spacing:-.02em; font-variant-numeric:tabular-nums;">{{ kUnit }}</div><div style="font-size:12.5px; color:#8A998F; font-weight:600;">Prix unitaire moyen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div style="border-radius:22px; background:#fff; border:1px solid #E4E9E2; padding:24px 26px 18px; margin-bottom:20px; animation:fadeUp .45s both; animation-delay:.06s;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px;">
+        <div>
+          <h2 style="margin:0; font-family:'Space Grotesk'; font-weight:700; font-size:18px;">Investissements dans le temps</h2>
+          <p style="margin:5px 0 0; font-size:13px; color:#8A998F; font-weight:500;">Montant investi par mois</p>
+        </div>
+        <span style="font-size:12.5px; font-weight:600; color:#71807A; background:#F2F5F0; padding:7px 13px; border-radius:20px;">6 mois</span>
+      </div>
+      <svg viewBox="0 0 600 216" width="100%" style="display:block; height:auto; margin-top:14px; overflow:visible;" font-family="'Space Grotesk', sans-serif">
+        <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B4332" stop-opacity="0.16"/><stop offset="1" stop-color="#1B4332" stop-opacity="0"/></linearGradient></defs>
+        <line x1="50" y1="52" x2="570" y2="52" stroke="#EEF2EC" stroke-width="1"/>
+        <line x1="50" y1="115" x2="570" y2="115" stroke="#EEF2EC" stroke-width="1"/>
+        <line x1="50" y1="178" x2="570" y2="178" stroke="#E4E9E2" stroke-width="1"/>
+        <line x1="50" y1="85.3" x2="570" y2="85.3" stroke="#B7892F" stroke-width="1.5" stroke-dasharray="6 5"/>
+        <text x="52" y="80" font-size="11.5" font-weight="600" fill="#B7892F" text-anchor="start">Moy. 1 456,72 €</text>
+        <path d="M50,52 154,99.1 258,115.6 362,74.9 466,88.3 570,81.9 L570,178 L50,178 Z" fill="url(#areaFill)"/>
+        <polyline points="50,52 154,99.1 258,115.6 362,74.9 466,88.3 570,81.9" fill="none" stroke="#1B4332" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="640" style="animation:drawLine 1.4s ease both;"/>
+        <text x="50" y="39" font-size="11.5" font-weight="700" fill="#1B4332" text-anchor="start">1 980,00 €</text>
+        <text x="154" y="91" font-size="11.5" font-weight="600" fill="#5B6A62" text-anchor="middle">1 240,30 €</text>
+        <text x="258" y="107" font-size="11.5" font-weight="600" fill="#5B6A62" text-anchor="middle">980,00 €</text>
+        <text x="362" y="66" font-size="11.5" font-weight="600" fill="#5B6A62" text-anchor="middle">1 620,00 €</text>
+        <text x="466" y="80" font-size="11.5" font-weight="600" fill="#5B6A62" text-anchor="middle">1 410,00 €</text>
+        <text x="570" y="73" font-size="11.5" font-weight="700" fill="#1B4332" text-anchor="end">1 510,00 €</text>
+        <circle cx="50" cy="52" r="5" fill="#1B4332"/>
+        <circle cx="154" cy="99.1" r="4.5" fill="#fff" stroke="#1B4332" stroke-width="3"/>
+        <circle cx="258" cy="115.6" r="4.5" fill="#fff" stroke="#1B4332" stroke-width="3"/>
+        <circle cx="362" cy="74.9" r="4.5" fill="#fff" stroke="#1B4332" stroke-width="3"/>
+        <circle cx="466" cy="88.3" r="4.5" fill="#fff" stroke="#1B4332" stroke-width="3"/>
+        <circle cx="570" cy="81.9" r="4.5" fill="#fff" stroke="#1B4332" stroke-width="3"/>
+        <text x="50" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Janv.</text>
+        <text x="154" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Févr.</text>
+        <text x="258" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Mars</text>
+        <text x="362" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Avr.</text>
+        <text x="466" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Mai</text>
+        <text x="570" y="202" font-size="12" font-weight="600" fill="#8A998F" text-anchor="middle">Juin</text>
+      </svg>
+      <div style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid #EEF1EC; font-size:13px; color:#71807A; font-weight:500;">
+        <span>Total&nbsp;: <strong style="color:#1B2A22; font-weight:700;">8 740,30 €</strong></span>
+        <span style="color:#C2CDC5;">·</span>
+        <span>Moy./mois&nbsp;: <strong style="color:#1B2A22; font-weight:700;">1 456,72 €</strong></span>
+      </div>
+    </div>
+
+    <!-- FOURNISSEURS -->
+    <div style="animation:fadeUp .45s both; animation-delay:.12s; margin-bottom:26px;">
+      <h2 style="margin:2px 2px 16px; font-family:'Space Grotesk'; font-weight:700; font-size:19px;">Par fournisseur</h2>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:18px;">
+        <sc-for list="{{ suppliers }}" as="s" hint-placeholder-count="4">
+          <div style="border-radius:20px; background:#fff; border:1px solid #E4E9E2; padding:22px 24px; cursor:pointer; transition:border-color .2s, box-shadow .2s, transform .2s, background .2s;" style-hover="border-color:#CBD8CE; box-shadow:0 16px 32px -22px rgba(20,53,40,.55); transform:translateY(-3px); background:#FCFDFB;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:44px; height:44px; border-radius:12px; background:#1B4332; color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:15px;">{{ s.initials }}</div>
+                <div>
+                  <div style="font-weight:700; font-size:15.5px; letter-spacing:-.01em;">{{ s.name }}</div>
+                  <div style="font-size:12.5px; color:#94A29A; font-weight:500; margin-top:1px;">{{ s.meta }}</div>
+                </div>
+              </div>
+              <span style="font-size:12px; font-weight:700; color:#2D6A4F; background:#EAF3ED; padding:5px 10px; border-radius:18px;">{{ s.count }}</span>
+            </div>
+            <div style="display:flex; gap:26px; margin-top:20px; padding-top:18px; border-top:1px solid #EEF1EC;">
+              <div><div style="font-size:11.5px; color:#8A998F; font-weight:600;">Coût total</div><div style="font-family:'Space Grotesk'; font-weight:700; font-size:20px; letter-spacing:-.02em; margin-top:3px;">{{ s.total }}</div></div>
+              <div><div style="font-size:11.5px; color:#8A998F; font-weight:600;">Articles</div><div style="font-family:'Space Grotesk'; font-weight:700; font-size:20px; letter-spacing:-.02em; margin-top:3px;">{{ s.items }}</div></div>
+              <div><div style="font-size:11.5px; color:#8A998F; font-weight:600;">Prix unit.</div><div style="font-family:'Space Grotesk'; font-weight:700; font-size:20px; letter-spacing:-.02em; margin-top:3px;">{{ s.unit }}</div></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- DÉTAIL DES COMMANDES -->
+    <div style="animation:fadeUp .45s both; animation-delay:.18s;">
+      <h2 style="margin:2px 2px 14px; font-family:'Space Grotesk'; font-weight:700; font-size:19px;">Détail des commandes</h2>
+
+      <div style="display:grid; grid-template-columns:minmax(150px,1.6fr) 110px 80px 120px 110px 150px 168px; gap:14px; align-items:center; padding:0 22px 11px; font-size:11px; font-weight:700; letter-spacing:.06em; color:#9BA89F; text-transform:uppercase;">
+        <div>Fournisseur</div>
+        <div>Date</div>
+        <div style="text-align:right;">Nb art.</div>
+        <div style="text-align:right;">Coût total</div>
+        <div style="text-align:right;">Prix unit.</div>
+        <div style="text-align:center;">Rentabilité</div>
+        <div></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:11px;">
+        <sc-for list="{{ commandes }}" as="c" hint-placeholder-count="5">
+          <div style="border-radius:16px; background:#fff; border:1px solid #E4E9E2; transition:border-color .2s, box-shadow .25s, transform .25s; animation:rowIn .5s both; animation-delay:{{ c.delay }}; position:relative;" style-hover="border-color:#CBD8CE; box-shadow:0 16px 34px -22px rgba(20,53,40,.5); transform:translateY(-2px);">
+
+            <div onClick="{{ c.onToggle }}" style="display:grid; grid-template-columns:minmax(150px,1.6fr) 110px 80px 120px 110px 150px 168px; gap:14px; align-items:center; padding:15px 22px; cursor:pointer; border-radius:16px; transition:background .2s;" style-hover="background:#F5F9F3;">
+              <div style="min-width:0;">
+                <div style="font-weight:700; font-size:14.5px; color:#16261D; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.fournisseur }}</div>
+                <sc-if value="{{ c.hasCoef }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-top:2px; font-size:12px; font-weight:500; color:#94A29A;">{{ c.coefObjLabel }}</div>
+                </sc-if>
+              </div>
+              <div style="font-size:13.5px; color:#71807A; font-weight:500;">{{ c.dateStr }}</div>
+              <div style="font-size:13.5px; color:#71807A; text-align:right; font-variant-numeric:tabular-nums;">{{ c.nbArticles }}</div>
+              <div style="font-size:13.5px; color:#16261D; text-align:right; font-weight:600; font-variant-numeric:tabular-nums;">{{ c.coutStr }}</div>
+              <div style="font-size:13.5px; color:#2D6A4F; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">{{ c.prixUnitStr }}</div>
+
+              <div style="display:flex; justify-content:center;">
+                <span style="display:inline-flex; align-items:center; gap:7px; padding:6px 12px 6px 11px; border-radius:20px; font-size:12px; font-weight:700; background:{{ c.badgeBg }}; color:{{ c.badgeColor }}; animation:{{ c.badgeAnim }};">
+                  <span style="width:8px; height:8px; border-radius:50%; background:{{ c.badgeColor }}; animation:{{ c.dotAnim }};"></span>
+                  {{ c.badgeLabel }}
+                </span>
+              </div>
+
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px; position:relative;">
+                <button onClick="{{ c.onToggleBtn }}" style="display:inline-flex; align-items:center; gap:6px; background:#F1F5EF; border:1px solid #E0E8DD; border-radius:10px; padding:7px 12px; font-size:12.5px; font-weight:700; color:#1B4332; font-family:inherit; cursor:pointer; white-space:nowrap; transition:background .2s, border-color .2s;" style-hover="background:#E4F0E3; border-color:#BFD4BD;">
+                  {{ c.ctaLabel }}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate({{ c.chevronDeg }}deg); transition:transform .35s;"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <button onClick="{{ c.onMenu }}" aria-label="Actions" style="width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:8px; color:#8A998F; font-size:17px; font-weight:700; line-height:1; cursor:pointer; transition:background .2s;" style-hover="background:#EEF2EC; color:#3C4D44;">⋯</button>
+
+                <sc-if value="{{ c.menuOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute; top:38px; right:0; z-index:50; width:184px; background:#fff; border:1px solid #E4E9E2; border-radius:14px; padding:6px; box-shadow:0 18px 38px -18px rgba(20,53,40,.45); animation:modalIn .16s ease both;">
+                    <button onClick="{{ c.onArticles }}" style="display:block; width:100%; text-align:left; padding:9px 12px; border:none; background:transparent; border-radius:9px; font-size:13.5px; font-weight:600; color:#3C4D44; font-family:inherit; cursor:pointer; transition:background .15s;" style-hover="background:#F1F4EF;">Voir les articles</button>
+                    <button onClick="{{ c.onDelete }}" style="display:block; width:100%; text-align:left; padding:9px 12px; border:none; background:transparent; border-radius:9px; font-size:13.5px; font-weight:600; color:#C2603F; font-family:inherit; cursor:pointer; transition:background .15s;" style-hover="background:#FBEEE7;">Supprimer</button>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+
+            <!-- PANEL slide-down -->
+            <div style="display:grid; grid-template-rows:{{ c.panelRows }}; transition:grid-template-rows .4s cubic-bezier(.4,0,.2,1);">
+              <div style="overflow:hidden; min-height:0;">
+                <div style="opacity:{{ c.panelOpacity }}; transition:opacity .3s ease .06s; padding:2px 22px 22px;">
+
+                  <!-- Rentabilité -->
+                  <div style="border-radius:14px; border:1px solid #E4E9E2; background:#FAFCF9; padding:16px 18px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                      <h3 style="margin:0; font-size:14px; font-weight:700; color:#16261D;">Rentabilité</h3>
+                      <span style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; background:{{ c.badgeBg }}; color:{{ c.badgeColor }};"><span style="width:7px; height:7px; border-radius:50%; background:{{ c.badgeColor }};"></span>{{ c.badgeLabel }}</span>
+                    </div>
+                    <div style="height:11px; width:100%; border-radius:8px; background:#EAEFE8; overflow:hidden;">
+                      <div style="height:100%; border-radius:8px; width:{{ c.rentaWidth }}%; background:{{ c.badgeColor }}; transition:width .8s cubic-bezier(.34,1.2,.5,1);"></div>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px 26px; margin-top:12px; font-size:13.5px; color:#71807A;">
+                      <span>Investi&nbsp;: <strong style="color:#16261D;">{{ c.investStr }}</strong></span>
+                      <span>Récupéré&nbsp;: <strong style="color:#16261D;">{{ c.recupStr }}</strong></span>
+                      <span>Reste&nbsp;: <strong style="color:{{ c.badgeColor }};">{{ c.resteStr }}</strong></span>
+                    </div>
+                    <p style="margin:10px 0 0; font-size:12px; color:#94A29A;">{{ c.seuilText }}</p>
+                  </div>
+
+                  <!-- Tableau par catégorie -->
+                  <div style="overflow-x:auto;">
+                    <div style="min-width:760px;">
+                      <div style="display:grid; grid-template-columns:1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr; gap:8px; padding:0 8px 8px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#9BA89F;">
+                        <div>Catégorie</div>
+                        <div style="text-align:right;">Total</div>
+                        <div style="text-align:right;">En stock</div>
+                        <div style="text-align:right;">En vente</div>
+                        <div style="text-align:right;">Vendus</div>
+                        <div style="text-align:right;">CA (€)</div>
+                        <div style="text-align:right;">Marge nette</div>
+                        <div style="text-align:right;">Coef moyen</div>
+                        <div style="text-align:right;">% vendu</div>
+                      </div>
+                      <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="2">
+                        <div style="display:grid; grid-template-columns:1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr; gap:8px; padding:10px 8px; border-top:1px solid #EEF1EC; font-size:13.5px; font-variant-numeric:tabular-nums;">
+                          <div style="font-weight:600; color:#16261D;">{{ r.categorie }}</div>
+                          <div style="text-align:right; color:#71807A;">{{ r.total }}</div>
+                          <div style="text-align:right; color:#71807A;">{{ r.enStock }}</div>
+                          <div style="text-align:right; color:#71807A;">{{ r.enVente }}</div>
+                          <div style="text-align:right; color:#71807A;">{{ r.vendus }}</div>
+                          <div style="text-align:right; font-weight:600; color:#16261D;">{{ r.caStr }}</div>
+                          <div style="text-align:right; font-weight:600; color:#2D6A4F;">{{ r.margeStr }}</div>
+                          <div style="text-align:right; font-weight:700; color:{{ r.coefColor }};">{{ r.coefStr }}</div>
+                          <div style="text-align:right; font-weight:700; color:{{ r.pctColor }};">{{ r.pctStr }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL Nouvelle commande -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed; inset:0; z-index:100; background:rgba(16,30,22,.42); backdrop-filter:blur(3px); display:flex; align-items:flex-start; justify-content:center; padding:48px 20px; overflow-y:auto; animation:overlayIn .2s ease both;">
+      <div onClick="{{ stop }}" style="width:100%; max-width:540px; background:#fff; border-radius:22px; box-shadow:0 40px 80px -30px rgba(16,30,22,.6); padding:26px 28px 24px; animation:modalIn .26s cubic-bezier(.34,1.1,.5,1) both;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px;">
+          <h2 style="margin:0; font-family:'Space Grotesk'; font-weight:700; font-size:21px; letter-spacing:-.02em;">Nouvelle commande</h2>
+          <button onClick="{{ closeModal }}" aria-label="Fermer" style="width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; background:#F2F5F0; border:none; border-radius:10px; color:#71807A; cursor:pointer; transition:background .2s;" style-hover="background:#E7ECE4;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Fournisseur</label>
+            <input value="{{ form.fournisseur }}" onInput="{{ onFournisseur }}" placeholder="Grossiste Lyon" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:13px;">
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Date</label>
+              <input type="date" value="{{ form.date }}" onInput="{{ onDate }}" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Grade</label>
+              <input value="{{ form.grade }}" onInput="{{ onGrade }}" placeholder="(optionnel)" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:13px;">
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Coût total (€)</label>
+              <input type="number" step="any" min="0" value="{{ form.coutTotal }}" onInput="{{ onCout }}" placeholder="1510" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Nombre d'articles</label>
+              <input type="number" min="1" step="1" value="{{ form.nbArticles }}" onInput="{{ onNb }}" placeholder="98" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid #E4E9E2; background:#F7F9F6; border-radius:10px; padding:11px 14px; font-size:13.5px;">
+            <span style="color:#71807A; font-weight:500;">Prix unitaire calculé</span>
+            <span style="font-family:'Space Grotesk'; font-weight:700; color:#1B4332; font-size:15px;">{{ modalPrixUnit }}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:13px;">
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Marque</label>
+              <select value="{{ form.marque }}" onChange="{{ onMarque }}" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none; cursor:pointer;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+                <option>Polo Ralph Lauren</option>
+                <option>Lacoste</option>
+                <option>Tommy Hilfiger</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Catégorie</label>
+              <input value="{{ form.categorie }}" onInput="{{ onCategorie }}" placeholder="Polo" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+            </div>
+          </div>
+          <div>
+            <label style="display:block; margin-bottom:6px; font-size:12.5px; font-weight:600; color:#71807A;">Objectif coef (×)</label>
+            <input type="number" step="0.1" min="0" value="{{ form.coefObjectif }}" onInput="{{ onCoef }}" placeholder="2.5" style="width:100%; border:1px solid #E0E6DD; background:#fff; border-radius:10px; padding:10px 13px; font-size:14px; color:#16261D; font-family:inherit; outline:none;" style-focus="border-color:#1B4332; box-shadow:0 0 0 3px rgba(27,67,50,.12);">
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+            <button onClick="{{ closeModal }}" style="border:1px solid #E0E6DD; background:#fff; border-radius:11px; padding:10px 18px; font-size:13.5px; font-weight:600; color:#71807A; font-family:inherit; cursor:pointer; transition:background .2s;" style-hover="background:#F4F6F2;">Annuler</button>
+            <button onClick="{{ submitModal }}" style="border:none; background:#1B4332; border-radius:11px; padding:10px 20px; font-size:13.5px; font-weight:700; color:#fff; font-family:inherit; cursor:pointer; box-shadow:0 10px 22px -12px rgba(20,53,40,.8); transition:background .2s;" style-hover="background:#143528;">Créer la commande</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      expandedId: null,
+      menuId: null,
+      modalOpen: false,
+      kInvest: 0,
+      kNb: 0,
+      kUnit: 0,
+      commandes: this.seedData(),
+      form: this.blankForm(),
+    };
+  }
+
+  blankForm() {
+    return {
+      fournisseur: "",
+      date: "2026-06-29",
+      grade: "",
+      coutTotal: "",
+      nbArticles: "",
+      marque: "Polo Ralph Lauren",
+      categorie: "Polo",
+      coefObjectif: "2.5",
+    };
+  }
+
+  seedData() {
+    return [
+      { id: "c1", fournisseur: "Grossiste Lyon", date: "2026-06-15", coutTotal: 1510, coefObjectif: 2.5, rows: [
+        { categorie: "Polo Ralph Lauren", total: 46, enStock: 8, enVente: 12, vendus: 26, ca: 1690, margeNette: 980, coefMoyen: 2.7, pctVendu: 0.565 },
+        { categorie: "Lacoste", total: 34, enStock: 5, enVente: 9, vendus: 20, ca: 1120, margeNette: 640, coefMoyen: 2.6, pctVendu: 0.588 },
+        { categorie: "Tommy Hilfiger", total: 18, enStock: 4, enVente: 6, vendus: 8, ca: 360, margeNette: 180, coefMoyen: 2.2, pctVendu: 0.444 },
+      ]},
+      { id: "c2", fournisseur: "Destockage Paris", date: "2026-06-02", coutTotal: 1410, coefObjectif: 2.5, rows: [
+        { categorie: "Polo Ralph Lauren", total: 40, enStock: 14, enVente: 16, vendus: 10, ca: 540, margeNette: 280, coefMoyen: 2.3, pctVendu: 0.25 },
+        { categorie: "Lacoste", total: 30, enStock: 10, enVente: 12, vendus: 8, ca: 430, margeNette: 220, coefMoyen: 2.4, pctVendu: 0.267 },
+      ]},
+      { id: "c3", fournisseur: "Friperie Marseille", date: "2026-05-21", coutTotal: 980, coefObjectif: 2.2, rows: [
+        { categorie: "Polo Ralph Lauren", total: 36, enStock: 22, enVente: 10, vendus: 4, ca: 210, margeNette: 90, coefMoyen: 2.0, pctVendu: 0.111 },
+        { categorie: "Lacoste", total: 22, enStock: 14, enVente: 6, vendus: 2, ca: 110, margeNette: 40, coefMoyen: 1.9, pctVendu: 0.091 },
+      ]},
+      { id: "c4", fournisseur: "Grossiste Lyon", date: "2026-05-08", coutTotal: 1620, coefObjectif: 2.5, rows: [
+        { categorie: "Polo Ralph Lauren", total: 50, enStock: 6, enVente: 10, vendus: 34, ca: 2240, margeNette: 1320, coefMoyen: 2.8, pctVendu: 0.68 },
+        { categorie: "Lacoste", total: 32, enStock: 4, enVente: 8, vendus: 20, ca: 1180, margeNette: 700, coefMoyen: 2.7, pctVendu: 0.625 },
+      ]},
+      { id: "c5", fournisseur: "Vinted Pro", date: "2026-04-24", coutTotal: 1240, coefObjectif: 2.8, rows: [
+        { categorie: "Polo Ralph Lauren", total: 30, enStock: 18, enVente: 8, vendus: 4, ca: 260, margeNette: 110, coefMoyen: 2.1, pctVendu: 0.133 },
+        { categorie: "Tommy Hilfiger", total: 18, enStock: 12, enVente: 4, vendus: 2, ca: 120, margeNette: 50, coefMoyen: 2.0, pctVendu: 0.111 },
+      ]},
+      { id: "c6", fournisseur: "Destockage Paris", date: "2026-04-10", coutTotal: 1980, coefObjectif: 2.6, rows: [
+        { categorie: "Polo Ralph Lauren", total: 60, enStock: 10, enVente: 14, vendus: 36, ca: 2460, margeNette: 1480, coefMoyen: 2.9, pctVendu: 0.60 },
+        { categorie: "Lacoste", total: 36, enStock: 8, enVente: 10, vendus: 18, ca: 1090, margeNette: 650, coefMoyen: 2.7, pctVendu: 0.50 },
+        { categorie: "Tommy Hilfiger", total: 20, enStock: 6, enVente: 6, vendus: 8, ca: 480, margeNette: 270, coefMoyen: 2.4, pctVendu: 0.40 },
+      ]},
+    ];
+  }
+
+  componentDidMount() {
+    this.animateKpis();
+  }
+
+  /* --- formatters (logique métier) --- */
+  euros(n) {
+    if (n == null || isNaN(n)) return "—";
+    return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "\u00A0€";
+  }
+  coefFmt(c) {
+    return "×" + c.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  }
+  initials(name) {
+    const w = name.trim().split(/\s+/);
+    if (w.length >= 2) return (w[0][0] + w[1][0]).toUpperCase();
+    return name.trim().slice(0, 2).toUpperCase();
+  }
+  nbArticles(c) { return c.rows.reduce((s, r) => s + r.total, 0); }
+  prixUnitaire(c) { const n = this.nbArticles(c); return n > 0 ? c.coutTotal / n : 0; }
+  montantRecupere(c) { return c.rows.reduce((s, r) => s + r.ca, 0); }
+
+  statut(c) {
+    const recup = this.montantRecupere(c);
+    const inv = c.coutTotal;
+    if (recup >= inv) return { key: "rentable", label: "Rentabilisée", color: "#2D6A4F", bg: "#E4F3EA" };
+    if (recup < inv * 0.5) return { key: "encours", label: "En cours", color: "#C2603F", bg: "#FBEEE7" };
+    return { key: "proche", label: "Seuil proche", color: "#B5872E", bg: "#FBF3E2" };
+  }
+  pctColor(p) { if (p < 0.3) return "#C2603F"; if (p <= 0.6) return "#B5872E"; return "#2D6A4F"; }
+
+  computeKpis() {
+    const cs = this.state.commandes;
+    const invest = cs.reduce((s, c) => s + c.coutTotal, 0);
+    const arts = cs.reduce((s, c) => s + this.nbArticles(c), 0);
+    return { invest, nb: cs.length, unit: arts > 0 ? invest / arts : 0 };
+  }
+
+  animateKpis() {
+    const target = this.computeKpis();
+    const start = { invest: this.state.kInvest, nb: this.state.kNb, unit: this.state.kUnit };
+    const t0 = performance.now();
+    const dur = 950;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = ease(p);
+      this.setState({
+        kInvest: start.invest + (target.invest - start.invest) * e,
+        kNb: start.nb + (target.nb - start.nb) * e,
+        kUnit: start.unit + (target.unit - start.unit) * e,
+      });
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  toggleDetail(id) {
+    this.setState({ expandedId: this.state.expandedId === id ? null : id, menuId: null });
+  }
+  toggleMenu(id) {
+    this.setState({ menuId: this.state.menuId === id ? null : id });
+  }
+  deleteCmd(c) {
+    if (!confirm("Supprimer la commande « " + c.fournisseur + " » et ses articles ?")) return;
+    const rest = this.state.commandes.filter((x) => x.id !== c.id);
+    this.setState({
+      commandes: rest,
+      menuId: null,
+      expandedId: this.state.expandedId === c.id ? null : this.state.expandedId,
+    }, () => this.animateKpis());
+  }
+
+  /* --- modal --- */
+  setField(k, v) { this.setState({ form: Object.assign({}, this.state.form, { [k]: v }) }); }
+  modalPrixUnitVal() {
+    const cout = Number(this.state.form.coutTotal);
+    const nb = Number(this.state.form.nbArticles);
+    if (Number.isFinite(cout) && Number.isInteger(nb) && nb > 0) return cout / nb;
+    return null;
+  }
+  submitModal() {
+    const f = this.state.form;
+    const cout = Number(f.coutTotal);
+    const nb = Number(f.nbArticles);
+    if (!f.fournisseur.trim() || !Number.isFinite(cout) || cout <= 0 || !Number.isInteger(nb) || nb <= 0) {
+      alert("Renseigne au moins le fournisseur, un coût total et un nombre d'articles valides.");
+      return;
+    }
+    const coefObj = Number(f.coefObjectif);
+    const nc = {
+      id: "c" + Date.now(),
+      fournisseur: f.fournisseur.trim(),
+      date: f.date,
+      coutTotal: cout,
+      coefObjectif: Number.isFinite(coefObj) && coefObj > 0 ? coefObj : null,
+      rows: [{ categorie: f.categorie.trim() || "Polo", total: nb, enStock: nb, enVente: 0, vendus: 0, ca: 0, margeNette: 0, coefMoyen: 0, pctVendu: 0 }],
+    };
+    this.setState({ commandes: [nc, ...this.state.commandes], modalOpen: false, form: this.blankForm() }, () => this.animateKpis());
+  }
+
+  renderVals() {
+    const euros = (n) => this.euros(n);
+    const expandedId = this.state.expandedId;
+    const menuId = this.state.menuId;
+
+    const commandes = this.state.commandes.map((c, i) => {
+      const st = this.statut(c);
+      const inv = c.coutTotal;
+      const recup = this.montantRecupere(c);
+      const reste = Math.max(0, inv - recup);
+      const ratio = inv > 0 ? recup / inv : 0;
+      const totalVendus = c.rows.reduce((s, r) => s + r.vendus, 0);
+      const panier = totalVendus > 0 ? recup / totalVendus : 0;
+      const seuilArt = panier > 0 ? Math.ceil(reste / panier) : null;
+      const seuilText = recup >= inv
+        ? "✓ Investissement entièrement récupéré."
+        : (seuilArt != null
+            ? "Seuil de rentabilité : vendre " + seuilArt + " article" + (seuilArt > 1 ? "s" : "") + " de plus au panier moyen de " + euros(panier) + "."
+            : "Aucune vente : panier moyen indisponible pour estimer le seuil.");
+      const expanded = expandedId === c.id;
+      const co = c.coefObjectif;
+
+      return {
+        id: c.id,
+        fournisseur: c.fournisseur,
+        hasCoef: co != null,
+        coefObjLabel: co != null ? "Objectif : ×" + co : "",
+        dateStr: new Date(c.date).toLocaleDateString("fr-FR"),
+        nbArticles: this.nbArticles(c),
+        coutStr: euros(c.coutTotal),
+        prixUnitStr: euros(this.prixUnitaire(c)),
+        delay: (i * 65) + "ms",
+        badgeLabel: st.label,
+        badgeColor: st.color,
+        badgeBg: st.bg,
+        badgeAnim: st.key === "encours" ? "pulseBadge 1.9s ease-in-out infinite" : "none",
+        dotAnim: st.key === "encours" ? "pulseDot 1.5s ease-in-out infinite" : "none",
+        ctaLabel: expanded ? "Masquer" : "Voir le détail",
+        chevronDeg: expanded ? 180 : 0,
+        panelRows: expanded ? "1fr" : "0fr",
+        panelOpacity: expanded ? 1 : 0,
+        menuOpen: menuId === c.id,
+        rentaWidth: Math.min(100, Math.round(ratio * 100)),
+        investStr: euros(inv),
+        recupStr: euros(recup),
+        resteStr: euros(reste),
+        seuilText,
+        onToggle: () => this.toggleDetail(c.id),
+        onToggleBtn: (e) => { e.stopPropagation(); this.toggleDetail(c.id); },
+        onMenu: (e) => { e.stopPropagation(); this.toggleMenu(c.id); },
+        onArticles: (e) => { e.stopPropagation(); this.setState({ menuId: null }); alert("Voir les articles de « " + c.fournisseur + " » (redirige vers Stock)."); },
+        onDelete: (e) => { e.stopPropagation(); this.deleteCmd(c); },
+        rows: c.rows.map((r) => ({
+          categorie: r.categorie,
+          total: r.total,
+          enStock: r.enStock,
+          enVente: r.enVente,
+          vendus: r.vendus,
+          caStr: euros(r.ca),
+          margeStr: euros(r.margeNette),
+          coefStr: r.coefMoyen > 0 ? this.coefFmt(r.coefMoyen) : "—",
+          coefColor: (c.coefObjectif == null || r.coefMoyen === 0) ? "#16261D" : (r.coefMoyen < c.coefObjectif ? "#C2603F" : "#2D6A4F"),
+          pctStr: Math.round(r.pctVendu * 100) + "%",
+          pctColor: this.pctColor(r.pctVendu),
+        })),
+      };
+    });
+
+    // Agrégation par fournisseur
+    const map = new Map();
+    for (const c of this.state.commandes) {
+      const cur = map.get(c.fournisseur) || { total: 0, articles: 0, count: 0, last: 0 };
+      cur.total += c.coutTotal;
+      cur.articles += this.nbArticles(c);
+      cur.count += 1;
+      cur.last = Math.max(cur.last, new Date(c.date).getTime());
+      map.set(c.fournisseur, cur);
+    }
+    const suppliers = Array.from(map.entries())
+      .map(([name, v]) => ({
+        initials: this.initials(name),
+        name,
+        meta: "Dernier achat · " + new Date(v.last).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }),
+        count: v.count + " cmd",
+        total: euros(v.total),
+        items: String(v.articles),
+        unit: euros(v.articles > 0 ? v.total / v.articles : 0),
+      }))
+      .sort((a, b) => 0);
+
+    const nb = this.state.commandes.length;
+    const f = this.state.form;
+    const pu = this.modalPrixUnitVal();
+
+    return {
+      kInvest: euros(this.state.kInvest),
+      kNb: Math.round(this.state.kNb),
+      kUnit: euros(this.state.kUnit),
+      kSub: nb + " commande" + (nb > 1 ? "s" : "") + " · 6 derniers mois",
+      suppliers,
+      commandes,
+      modalOpen: this.state.modalOpen,
+      form: f,
+      modalPrixUnit: pu != null ? euros(pu) : "—",
+      openModal: () => this.setState({ modalOpen: true }),
+      closeModal: () => this.setState({ modalOpen: false }),
+      stop: (e) => e.stopPropagation(),
+      submitModal: () => this.submitModal(),
+      onFournisseur: (e) => this.setField("fournisseur", e.target.value),
+      onDate: (e) => this.setField("date", e.target.value),
+      onGrade: (e) => this.setField("grade", e.target.value),
+      onCout: (e) => this.setField("coutTotal", e.target.value),
+      onNb: (e) => this.setField("nbArticles", e.target.value),
+      onMarque: (e) => this.setField("marque", e.target.value),
+      onCategorie: (e) => this.setField("categorie", e.target.value),
+      onCoef: (e) => this.setField("coefObjectif", e.target.value),
+    };
+  }
+}
+</script>
+</body>
+</html>
