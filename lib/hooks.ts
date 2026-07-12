@@ -357,6 +357,7 @@ export type GenerateInput = {
   taille: string | null;
   etat: string | null;
   matiere: string | null;
+  details: string | null; // infos supplémentaires libres
   images: string[]; // dataURL base64
   promptId?: string; // prompt choisi manuellement (sinon sélection auto)
 };

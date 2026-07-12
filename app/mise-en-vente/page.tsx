@@ -12,6 +12,7 @@ import {
   Sparkles,
   Upload,
   X,
+  ZoomIn,
 } from "lucide-react";
 import {
   useGenerateListing,
@@ -86,6 +87,43 @@ const CATEGORIES_LIST = [
   "Bermuda",
 ];
 
+// En base, `marque` et `categorie` portent le même libellé de lot ("Polo Ralph
+// Lauren"), qui mélange la marque et le type d'article. Pour l'annonce, on le
+// redécoupe. Clés = les 17 libellés réellement présents en base.
+// Marque vide = lot multimarque : on laisse l'utilisateur (ou l'IA) trancher.
+const MARQUE_LISTING_MAP: Record<string, { marque: string; categorie: string }> = {
+  "Polo Ralph Lauren": { marque: "Ralph Lauren", categorie: "Polo" },
+  "Polo Tommy Hilfiger": { marque: "Tommy Hilfiger", categorie: "Polo" },
+  "Pull Lacoste": { marque: "Lacoste", categorie: "Pull" },
+  "Half Zip Ralph Lauren": { marque: "Ralph Lauren", categorie: "Pull" },
+  "Half Zip Tommy Hilfinger": { marque: "Tommy Hilfiger", categorie: "Pull" }, // typo en base
+  "Torsadé Ralph Lauren": { marque: "Ralph Lauren", categorie: "Pull" },
+  "Short de bain Ralph Lauren": { marque: "Ralph Lauren", categorie: "Short de bain" },
+  "Short Adidas": { marque: "Adidas", categorie: "Short" },
+  "Chemise Dickies": { marque: "Dickies", categorie: "Chemise" },
+  "Mix Helly Hansen": { marque: "Helly Hansen", categorie: "" },
+  "Mix TNF/PAT/COL": { marque: "", categorie: "" },
+  "Mix short de sport de marque": { marque: "", categorie: "Short" },
+  "Crazy Coupe-vent": { marque: "", categorie: "Coupe-vent" },
+  "Crazy Polaires": { marque: "", categorie: "Polaire" },
+  "Pull COOGI style": { marque: "", categorie: "Pull" },
+  "Pull Ethnic": { marque: "", categorie: "Pull" },
+  "Pulls islandais": { marque: "", categorie: "Pull" },
+};
+
+/**
+ * Valeurs « annonce » d'un article, dérivées du libellé de lot.
+ * Purement dérivé pour l'affichage et le pré-remplissage : la base, le DTO et
+ * les filtres du Stock continuent d'utiliser le libellé de lot d'origine.
+ */
+function listingLabels(a: ArticleDTO): { marque: string; categorie: string } {
+  const mapped = MARQUE_LISTING_MAP[a.marque];
+  return {
+    marque: mapped?.marque ?? a.marque,
+    categorie: mapped?.categorie ?? a.categorie,
+  };
+}
+
 const MEV_STORAGE_KEY = "mev_state";
 
 type PersistedState = {
@@ -94,6 +132,7 @@ type PersistedState = {
   etat: string;
   matiere: string;
   matiere2: string;
+  details: string;
   marqueQcm: string;
   categorieQcm: string;
   titre: string;
@@ -161,6 +200,7 @@ export default function MiseEnVentePage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
+  const [zoomedId, setZoomedId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // --- QCM ---
@@ -170,6 +210,7 @@ export default function MiseEnVentePage() {
   const [etat, setEtat] = useState("");
   const [matiere, setMatiere] = useState("");
   const [matiere2, setMatiere2] = useState("");
+  const [details, setDetails] = useState("");
 
   // --- Génération ---
   const [result, setResult] = useState<GenerateResult | null>(null);
@@ -190,12 +231,24 @@ export default function MiseEnVentePage() {
     [prompts, article, marqueQcm, categorieQcm],
   );
 
+  // Pré-remplissage depuis la fiche article ; l'utilisateur reste libre de corriger.
   useEffect(() => {
     if (article) {
-      setMarqueQcm("");
-      setCategorieQcm("");
+      const { marque, categorie } = listingLabels(article);
+      setMarqueQcm(marque);
+      setCategorieQcm(categorie);
     }
   }, [article]);
+
+  // Zoom photo : fermeture au clavier.
+  useEffect(() => {
+    if (!zoomedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomedId]);
 
   useEffect(() => {
     setSelectedPromptId(detectedPrompt?.id ?? null);
@@ -225,6 +278,7 @@ export default function MiseEnVentePage() {
         if (s.etat) setEtat(s.etat);
         if (s.matiere) setMatiere(s.matiere);
         if (s.matiere2) setMatiere2(s.matiere2);
+        if (s.details) setDetails(s.details);
         if (s.marqueQcm) setMarqueQcm(s.marqueQcm);
         if (s.categorieQcm) setCategorieQcm(s.categorieQcm);
         if (s.titre) setTitre(s.titre);
@@ -255,6 +309,7 @@ export default function MiseEnVentePage() {
       etat,
       matiere,
       matiere2,
+      details,
       marqueQcm,
       categorieQcm,
       titre,
@@ -274,6 +329,7 @@ export default function MiseEnVentePage() {
     etat,
     matiere,
     matiere2,
+    details,
     marqueQcm,
     categorieQcm,
     titre,
@@ -424,6 +480,7 @@ export default function MiseEnVentePage() {
         taille: taille || null,
         etat: etat || null,
         matiere: [matiere, matiere2].filter(Boolean).join(" / ") || null,
+        details: details.trim() || null,
         images,
         promptId: selectedPromptId ?? undefined,
       });
@@ -492,9 +549,11 @@ export default function MiseEnVentePage() {
     setEtat("");
     setMatiere("");
     setMatiere2("");
+    setDetails("");
     setSelectedPromptId(null);
     setSaved(false);
     setGenIndex(0);
+    setZoomedId(null);
     try {
       sessionStorage.removeItem(MEV_STORAGE_KEY);
     } catch {
@@ -502,6 +561,9 @@ export default function MiseEnVentePage() {
     }
     setStep(1);
   }
+
+  const zoomedIdx = zoomedId ? photos.findIndex((p) => p.id === zoomedId) : -1;
+  const zoomedPhoto = zoomedIdx >= 0 ? photos[zoomedIdx] : null;
 
   const canStep2 = !!article && photos.length > 0;
   const canGenerate = selected.size >= MIN_SELECT && !!taille && !!etat;
@@ -576,10 +638,22 @@ export default function MiseEnVentePage() {
                   <span className="font-grotesk text-[17px] font-bold">{article.sku}</span>
                   <StatutBadge statut={article.statut} />
                   <span className="text-[13.5px] font-medium text-[#71807A]">
-                    Marque : <b className="text-[#3C4D44]">{article.marque}</b>
+                    Marque :{" "}
+                    <b className="text-[#3C4D44]">
+                      {listingLabels(article).marque || "à préciser"}
+                    </b>
                   </span>
                   <span className="text-[13.5px] font-medium text-[#71807A]">
-                    Catégorie : <b className="text-[#3C4D44]">{article.categorie}</b>
+                    Catégorie :{" "}
+                    <b className="text-[#3C4D44]">
+                      {listingLabels(article).categorie || "à préciser"}
+                    </b>
+                  </span>
+                  <span
+                    title="Libellé du lot en base (utilisé par le Stock)"
+                    className="rounded-full bg-[#F2F5F0] px-2.5 py-1 text-[12px] font-semibold text-[#8A998F]"
+                  >
+                    Lot : {article.marque}
                   </span>
                 </div>
               )}
@@ -713,28 +787,41 @@ export default function MiseEnVentePage() {
                   {photos.map((p, i) => {
                     const sel = selected.has(p.id);
                     return (
-                      <button
+                      <div
                         key={p.id}
-                        onClick={() => toggleSelect(p.id)}
                         className={`relative aspect-square overflow-hidden rounded-[12px] border-2 transition-colors ${
                           sel ? "border-[#1B4332]" : "border-transparent"
                         }`}
                       >
-                        <span className="absolute left-1.5 top-1.5 z-10 flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[11px] font-bold text-white">
+                        <button
+                          onClick={() => toggleSelect(p.id)}
+                          aria-pressed={sel}
+                          aria-label={`Sélectionner la photo ${i + 1}`}
+                          className="block h-full w-full"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={p.url}
+                            alt={fileName(i)}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                        <span className="pointer-events-none absolute left-1.5 top-1.5 z-10 flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[11px] font-bold text-white">
                           {i + 1}
                         </span>
                         {sel && (
-                          <span className="absolute right-1.5 top-1.5 z-10 flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#1B4332] text-white">
+                          <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#1B4332] text-white">
                             <Check className="h-3 w-3" strokeWidth={3} />
                           </span>
                         )}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={p.url}
-                          alt={fileName(i)}
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
+                        <button
+                          onClick={() => setZoomedId(p.id)}
+                          aria-label={`Agrandir la photo ${i + 1}`}
+                          className="absolute bottom-1.5 right-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[#3C4D44] shadow-sm transition-colors hover:bg-white hover:text-[#1B4332]"
+                        >
+                          <ZoomIn className="h-4 w-4" strokeWidth={2} />
+                        </button>
+                      </div>
                     );
                   })}
                   <button
@@ -846,6 +933,16 @@ export default function MiseEnVentePage() {
                       list="matieres"
                       placeholder="Ex : Élasthanne"
                       className={`${inputCls} mt-1.5`}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelCls}>Infos supplémentaires</label>
+                    <textarea
+                      value={details}
+                      onChange={(e) => setDetails(e.target.value)}
+                      rows={3}
+                      placeholder="Ex : derniere collection qr photo 4"
+                      className={`${inputCls} mt-1.5 resize-y leading-[1.6]`}
                     />
                   </div>
                 </div>
@@ -1157,6 +1254,48 @@ export default function MiseEnVentePage() {
           </div>
         )}
       </div>
+
+      {/* Zoom photo (étape 2) : l'image est réaffichée depuis sa source pleine
+          résolution dans un overlay centré — pas de scale() CSS, donc pas de flou. */}
+      {zoomedPhoto && (
+        <div
+          onClick={() => setZoomedId(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Photo ${zoomedIdx + 1}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#16261D]/60 p-4 backdrop-blur-[2px]"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-[min(90vw,520px)] rounded-[18px] bg-white p-2.5 shadow-[0_30px_70px_-25px_rgba(11,24,17,.6)]"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={zoomedPhoto.url}
+              alt={fileName(zoomedIdx)}
+              className="max-h-[70vh] w-full rounded-[12px] object-contain"
+            />
+            <div className="flex items-center justify-between px-1.5 pb-0.5 pt-2">
+              <span className="text-[12.5px] font-semibold text-[#71807A]">
+                {fileName(zoomedIdx)}
+              </span>
+              <button
+                onClick={() => setZoomedId(null)}
+                className="rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
+              >
+                Fermer
+              </button>
+            </div>
+            <button
+              onClick={() => setZoomedId(null)}
+              aria-label="Fermer"
+              className="absolute -right-2.5 -top-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-[#16261D] text-white shadow-lg transition-colors hover:bg-[#0E1A13]"
+            >
+              <X className="h-4 w-4" strokeWidth={2.4} />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

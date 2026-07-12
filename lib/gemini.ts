@@ -126,9 +126,12 @@ export async function generateListing(
     );
     throw new Error("Réponse Gemini non-JSON.");
   }
+  // Gemini échappe parfois les sauts de ligne une seconde fois ("\\n" littéral
+  // dans la chaîne parsée) → on les restaure en vrais retours à la ligne.
+  const unescape = (v: unknown) => String(v ?? "").trim().replace(/\\n/g, "\n");
   return {
-    titre: String(parsed.titre ?? "").trim(),
-    description: String(parsed.description ?? "").trim(),
-    motsCles: String(parsed.motsCles ?? "").trim(),
+    titre: unescape(parsed.titre),
+    description: unescape(parsed.description),
+    motsCles: unescape(parsed.motsCles),
   };
 }

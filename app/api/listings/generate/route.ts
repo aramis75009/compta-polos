@@ -14,6 +14,7 @@ type Body = {
   taille?: string | null;
   etat?: string | null;
   matiere?: string | null;
+  details?: string | null; // infos libres saisies par l'utilisateur
   images?: string[]; // dataURL ("data:image/jpeg;base64,…") ou base64 brut
   promptId?: string; // prompt choisi manuellement côté client
 };
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       etat: body.etat,
       matiere: body.matiere,
       sku: body.sku,
+      details: body.details,
     });
 
     const result = await generateListing(compiled, images.map(parseImage));

@@ -60,10 +60,12 @@ export type PromptVars = {
   etat?: string | null;
   matiere?: string | null;
   sku?: string | null;
+  details?: string | null;
 };
 
-/** Remplace les placeholders {marque} {categorie} {taille} {etat} {matiere} {sku}. */
+/** Remplace les placeholders {marque} {categorie} {taille} {etat} {matiere} {sku} {details}. */
 export function compilePrompt(contenu: string, vars: PromptVars): string {
+  const details = (vars.details ?? "").trim();
   const map: Record<string, string> = {
     marque: vars.marque ?? "",
     categorie: vars.categorie ?? "",
@@ -71,8 +73,16 @@ export function compilePrompt(contenu: string, vars: PromptVars): string {
     etat: vars.etat ?? "",
     matiere: vars.matiere ?? "",
     sku: vars.sku ?? "",
+    details,
   };
-  return contenu.replace(/\{(marque|categorie|taille|etat|matiere|sku)\}/g, (_, k) =>
-    map[k] ?? "",
+  const compiled = contenu.replace(
+    /\{(marque|categorie|taille|etat|matiere|sku|details)\}/g,
+    (_, k) => map[k] ?? "",
   );
+  // Les prompts déjà enregistrés en base ne contiennent pas {details} : sans ce
+  // repli, les infos supplémentaires saisies seraient purement ignorées.
+  if (details && !contenu.includes("{details}")) {
+    return `${compiled}\n\nInfos supplémentaires : ${details}`;
+  }
+  return compiled;
 }
