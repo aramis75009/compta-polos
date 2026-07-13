@@ -196,31 +196,6 @@ export function useCommandeStats(id: string | null) {
   });
 }
 
-export type ImportResult = {
-  commandeId: string;
-  nbImportes: number;
-  nbDoublons: number;
-  nbErreurs: number;
-  categories: string[];
-};
-
-export function useImportCommande() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    // FormData → pas de header Content-Type (le navigateur gère le boundary).
-    mutationFn: async (form: FormData) => {
-      const res = await fetch("/api/commandes/import", {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Erreur d'import.");
-      return data as ImportResult;
-    },
-    onSuccess: invalidate,
-  });
-}
-
 export function useDeleteCommande() {
   const invalidate = useInvalidateAll();
   return useMutation({

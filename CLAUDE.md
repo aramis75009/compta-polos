@@ -54,6 +54,10 @@ Les credentials sont stockés en base de données (table `User` Prisma/Neon), pa
 Prisma ORM + Neon PostgreSQL. Schéma dans `prisma/schema.prisma`.
 Modèle `User` : `id`, `email`, `password` (bcrypt), `resetToken`, `resetTokenExp`, `createdAt`.
 
+⚠️ **Marque / catégorie des articles.** En base, `Article.marque` et `Article.categorie` contiennent le même **libellé de lot** (« Polo Ralph Lauren »), qui mélange marque et type d'article. C'est cette valeur qui pilote les filtres du Stock.
+`app/mise-en-vente/page.tsx` la redécoupe pour l'annonce (« Ralph Lauren » + « Polo ») via `MARQUE_LISTING_MAP` / `listingLabels()`. Conversion **d'affichage uniquement** : ne jamais réécrire ces valeurs en base — cela casserait les filtres du Stock.
+Les lots multimarques (`Mix TNF/PAT/COL`, `Crazy Polaires`…) mappent volontairement sur une marque vide : c'est à l'utilisateur ou à l'IA de trancher.
+
 ### Emails transactionnels
 `lib/emails.ts` expose `sendWelcomeEmail()` et `sendResetEmail()`.
 SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans `.env.local`.
@@ -100,8 +104,9 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `components/AppShell.tsx` — enveloppe l'app. Exclut la sidebar pour `/login`, `/reset-password`, et `/legal/*`.
 - `components/Loader.tsx` — animation TRACE (logo M monoline qui se dessine, keyframes `atlas-draw` + `atlas-dots` dans `globals.css`). Props : `label` (string) et `size` ("sm" | "md"). Remplace tous les spinners et skeleton loaders.
 - `components/WelcomeModal.tsx` — modal premier lancement, affiché une fois via `localStorage.myflip_welcomed`.
-- `components/Skeleton.tsx` — `SkeletonBlock` et `SkeletonCard` (conservés mais plus utilisés dans les pages — préférer `<Loader>`).
 - `components/ChatBot.tsx` — assistant IA flottant.
+
+Pour tout état de chargement : utiliser `<Loader>`. Il n'y a plus de composant skeleton.
 
 ---
 
@@ -115,7 +120,7 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `myflip-icon.svg` — icône seule sur fond `#1B4332`
 
 ### Design system
-`DESIGN.md` — tokens Forest Precision (couleurs, typographie). Source de vérité pour la palette.
+`docs/design-system.md` — tokens Forest Precision (couleurs, typographie). Source de vérité pour la palette.
 Couleurs principales : `#1B4332` (vert forêt), `#A8D5B5` (mint), `#16261D` (ink), `#EEF1EC` (surface).
 
 ---
