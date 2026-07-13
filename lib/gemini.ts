@@ -67,6 +67,11 @@ export async function generateListing(
     ],
     config: {
       responseMimeType: "application/json",
+      // gemini-2.5-flash active le « thinking » par défaut, ce qui ajoute
+      // plusieurs secondes avant le premier token. La rédaction d'annonce est
+      // une tâche structurée à schéma fixe : le raisonnement étendu n'apporte
+      // rien ici et coûte cher en latence. thinkingBudget: 0 le désactive.
+      thinkingConfig: { thinkingBudget: 0 },
       responseSchema: {
         type: Type.OBJECT,
         properties: {

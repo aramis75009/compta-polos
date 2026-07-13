@@ -275,7 +275,6 @@ export default function MiseEnVentePage() {
   const [motsCles, setMotsCles] = useState("");
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [genIndex, setGenIndex] = useState(0);
-  const [genDone, setGenDone] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<"titre" | "annonce" | null>(null);
 
@@ -314,20 +313,16 @@ export default function MiseEnVentePage() {
     setSelectedPromptId(detectedPrompt?.id ?? null);
   }, [detectedPrompt]);
 
-  // Checklist de génération (étape 3).
-  // On avance jusqu'à l'AVANT-dernier message seulement : le dernier
-  // (« Finalisation… ») n'est coché qu'à la vraie réponse de Gemini (`genDone`).
-  // Sans ça, la liste se terminait avant l'appel (impression de blocage) ou
-  // l'étape 4 surgissait alors que la liste en était encore au premier item.
-  // L'intervalle s'arrête aussi en cas d'erreur, sinon il continuait de tourner
-  // sous l'écran d'erreur.
+  // Checklist animée pendant la génération (étape 3) — placeholder UX :
+  // la vraie fin d'appel Gemini déclenche le passage à l'étape 4.
   useEffect(() => {
-    if (step !== 3 || genDone || generate.isError) return;
+    if (step !== 3) return;
+    setGenIndex(0);
     const t = setInterval(() => {
-      setGenIndex((g) => Math.min(g + 1, GEN_MSGS.length - 2));
-    }, 900);
+      setGenIndex((g) => Math.min(g + 1, GEN_MSGS.length - 1));
+    }, 600);
     return () => clearInterval(t);
-  }, [step, genDone, generate.isError]);
+  }, [step]);
 
   // Persistance entre refreshs (sessionStorage). Photos + article non restaurables
   // → seules l'étape 1 et l'étape 4 (export, si du texte a été généré) survivent.
@@ -539,8 +534,6 @@ export default function MiseEnVentePage() {
     const chosen = selected
       .map((id) => photos.find((p) => p.id === id))
       .filter((p): p is Photo => !!p);
-    setGenIndex(0);
-    setGenDone(false);
     setStep(3);
     try {
       const images = await Promise.all(
@@ -565,11 +558,6 @@ export default function MiseEnVentePage() {
       setDescription(res.description);
       setMotsCles(res.motsCles);
       setSaved(false);
-      // La réponse est là : on coche toute la liste, on laisse voir l'état
-      // terminé un court instant, puis on bascule. Évite la coupure sèche.
-      setGenIndex(GEN_MSGS.length - 1);
-      setGenDone(true);
-      await new Promise((r) => setTimeout(r, 650));
       setStep(4);
     } catch {
       /* erreur affichée via generate.isError sur l'étape 3 */
@@ -649,7 +637,6 @@ export default function MiseEnVentePage() {
     setShowPromptPicker(false);
     setSaved(false);
     setGenIndex(0);
-    setGenDone(false);
     setZoomedId(null);
     try {
       sessionStorage.removeItem(MEV_STORAGE_KEY);
@@ -664,12 +651,6 @@ export default function MiseEnVentePage() {
 
   const canStep2 = !!article && photos.length > 0;
   const canGenerate = selected.length >= MIN_SELECT && !!taille && !!etat;
-
-  const tags = motsCles
-    .split(/[\s,]+/)
-    .map((t) => t.replace(/^#/, ""))
-    .filter(Boolean)
-    .slice(0, 8);
 
   // Chips : la valeur pré-remplie doit toujours être proposée, même hors liste.
   const marqueChips = useMemo(() => {
@@ -1238,46 +1219,26 @@ export default function MiseEnVentePage() {
             ) : (
               <div className={`${cardCls} px-6 py-14 text-center`}>
                 <div className="relative mx-auto mb-[26px] h-[84px] w-[84px]">
-                  <div
-                    className="absolute inset-0 rounded-full border-[5px]"
-                    style={{ borderColor: genDone ? "#CDE7D6" : "#EAF0EB" }}
-                  />
-                  {/* L'anneau ne tourne plus une fois la réponse arrivée. */}
-                  {!genDone && (
-                    <div
-                      className="absolute inset-0 rounded-full border-[5px] border-transparent"
-                      style={{
-                        borderTopColor: "#1B4332",
-                        borderRightColor: "#2D6A4F",
-                        animation: "spin .9s linear infinite",
-                      }}
-                    />
-                  )}
+                  <div className="absolute inset-0 rounded-full border-[5px] border-[#EAF0EB]" />
+                  {/* `animate-spin` (Tailwind) plutôt qu'une animation inline :
+                      le keyframe est garanti présent dans le bundle. */}
+                  <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-transparent border-r-[#2D6A4F] border-t-[#1B4332]" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span
-                      className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-[#1B4332] text-[#9FD4B5]"
-                      style={genDone ? undefined : { animation: "pulseRing 2s infinite" }}
-                    >
-                      {genDone ? (
-                        <Check className="h-[22px] w-[22px]" strokeWidth={2.8} />
-                      ) : (
-                        <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
-                      )}
+                    <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-[#1B4332] text-[#9FD4B5]">
+                      <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
                     </span>
                   </div>
                 </div>
                 <h2 className="font-grotesk text-[22px] font-bold tracking-[-0.02em]">
-                  {genDone ? "Annonce prête" : "Génération en cours…"}
+                  Génération en cours…
                 </h2>
                 <p className="mt-2.5 text-[13.5px] font-medium text-[#94A29A]">
-                  {genDone
-                    ? "Ouverture de l’export…"
-                    : "MyFlip rédige ton annonce avec Gemini Flash"}
+                  MyFlip rédige ton annonce avec Gemini Flash
                 </p>
                 <div className="mx-auto mt-7 flex max-w-[420px] flex-col gap-3">
                   {GEN_MSGS.map((msg, i) => {
-                    const done = genDone || i < genIndex;
-                    const active = !genDone && i === genIndex;
+                    const done = i < genIndex;
+                    const active = i === genIndex;
                     return (
                       <div
                         key={i}
@@ -1354,66 +1315,29 @@ export default function MiseEnVentePage() {
             </div>
 
             <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[1fr_340px]">
-              {/* Annonce éditable */}
+              {/* Annonce en lecture seule : deux blocs prêts à coller. */}
               <div className={`${cardCls} p-5 md:p-6`}>
-                <div className="flex items-center justify-between gap-2.5">
-                  <label className={labelCls}>Titre</label>
-                  <button
-                    onClick={() => copier("titre")}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
-                  >
-                    {copied === "titre" ? (
-                      <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" strokeWidth={2} />
-                    )}
-                    {copied === "titre" ? "Copié" : "Copier"}
-                  </button>
-                </div>
-                <input
-                  value={titre}
-                  onChange={(e) => {
-                    setTitre(e.target.value);
-                    setSaved(false);
-                  }}
-                  className={`${inputCls} mt-2 font-grotesk text-[16px] font-bold`}
-                />
-
-                <label className={`${labelCls} mt-[18px] block`}>Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => {
-                    setDescription(e.target.value);
-                    setSaved(false);
-                  }}
-                  rows={9}
-                  className={`${inputCls} mt-2 resize-y bg-[#F9FBF8] leading-[1.65]`}
-                />
-
-                <label className={`${labelCls} mt-[18px] block`}>Mots-clés</label>
-                <textarea
-                  value={motsCles}
-                  onChange={(e) => {
-                    setMotsCles(e.target.value);
-                    setSaved(false);
-                  }}
-                  rows={2}
-                  className={`${inputCls} mt-2 resize-y`}
-                />
-                {tags.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full bg-[#F2F5F0] px-3 py-1.5 text-[12px] font-semibold text-[#71807A]"
-                      >
-                        #{t}
-                      </span>
-                    ))}
+                <div className="rounded-[16px] border border-[#E4E9E2] bg-[#F9FBF8] p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2.5">
+                    <span className={labelCls}>Titre</span>
+                    <button
+                      onClick={() => copier("titre")}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
+                    >
+                      {copied === "titre" ? (
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" strokeWidth={2} />
+                      )}
+                      {copied === "titre" ? "Copié" : "Copier"}
+                    </button>
                   </div>
-                )}
+                  <p className="font-grotesk text-[16px] font-bold text-[#16261D]">
+                    {titre}
+                  </p>
+                </div>
 
-                {/* Bloc prêt à coller : rien d'autre que le contenu copié. */}
+                {/* Contenu strictement identique à ce que copie le bouton. */}
                 <div className="mt-4 rounded-[16px] border border-[#E4E9E2] bg-[#F9FBF8] p-4">
                   <div className="mb-2 flex items-center justify-between gap-2.5">
                     <span className={labelCls}>Description + Mots-clés</span>
