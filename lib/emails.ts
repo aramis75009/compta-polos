@@ -1,11 +1,28 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Client instancié paresseusement (même pattern que lib/gemini.ts).
+// Au niveau module, `new Resend()` s'exécuterait pendant `next build` — Next
+// charge les routes pour collecter leurs métadonnées — et ferait échouer le
+// build sur tout déploiement où RESEND_API_KEY n'est pas définie.
+// Un build ne doit jamais dépendre d'un secret d'exécution.
+let resend: Resend | null = null;
+function getResend(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error(
+      "[resend] RESEND_API_KEY introuvable — vérifier .env.local / variables Vercel.",
+    );
+    throw new Error("RESEND_API_KEY manquante.");
+  }
+  if (!resend) resend = new Resend(apiKey);
+  return resend;
+}
+
 const FROM = "onboarding@resend.dev";
 const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 export async function sendWelcomeEmail(email: string, name: string) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: email,
     subject: "Bienvenue sur MyFlip 👋",
@@ -33,7 +50,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
 
 export async function sendResetEmail(email: string, token: string) {
   const url = `${BASE_URL}/reset-password?token=${token}`;
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: email,
     subject: "Réinitialisation de ton mot de passe MyFlip",
