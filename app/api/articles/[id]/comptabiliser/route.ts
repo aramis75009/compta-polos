@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deriveVente, STATUT_VENDU } from "@/lib/calc";
 import { toDTO } from "@/lib/serialize";
-import { removeComptabiliserLabel } from "@/lib/trello";
+import { addLabelToCard, removeComptabiliserLabel } from "@/lib/trello";
 
 export const dynamic = "force-dynamic";
 
@@ -57,18 +57,36 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       include: { commande: true },
     });
 
-    // --- Trello (best-effort : ne bloque pas la validation comptable) ---
+    // --- Trello (best-effort : ne bloque jamais la validation comptable) ---
+    // On retire « À comptabiliser » et on pose « Comptabilisé ».
+    // La carte n'est PAS archivée : elle reste visible avec ses autres étiquettes.
     let trello: string | null = null;
     if (existing.trelloCardId) {
       try {
-        // On retire uniquement l'étiquette « À comptabiliser ».
-        // La carte n'est PAS archivée : elle reste visible dans Trello
-        // avec ses autres étiquettes.
         await removeComptabiliserLabel(existing.trelloCardId);
         trello = "Étiquette retirée.";
       } catch (e) {
-        console.error("Trello (comptabiliser)", e);
+        console.error("[trello] retrait « À comptabiliser »", e);
         trello = "Article validé, mais la synchro Trello a échoué.";
+      }
+
+      // Pose de l'étiquette verte, indépendante du retrait : si le retrait a
+      // échoué, on tente quand même l'ajout (et inversement).
+      const comptabiliseId = process.env.TRELLO_COMPTABILISE_LABEL_ID;
+      if (comptabiliseId) {
+        try {
+          await addLabelToCard(existing.trelloCardId, comptabiliseId);
+          if (trello === "Étiquette retirée.") {
+            trello = "Étiquettes Trello mises à jour.";
+          }
+        } catch (e) {
+          console.error("[trello] ajout « Comptabilisé »", e);
+          trello = "Article validé, mais la synchro Trello a échoué.";
+        }
+      } else {
+        console.warn(
+          "[trello] TRELLO_COMPTABILISE_LABEL_ID absent : étiquette « Comptabilisé » non posée.",
+        );
       }
     }
 

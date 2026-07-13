@@ -23,6 +23,31 @@ export async function getCardLabels(cardId: string): Promise<TrelloLabel[]> {
   return (await res.json()) as TrelloLabel[];
 }
 
+/** Nom d'une carte (repli quand le payload du webhook ne le contient pas). */
+export async function getCardName(cardId: string): Promise<string> {
+  const res = await fetch(`${BASE}/cards/${cardId}?fields=name&${creds()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Trello getCardName ${res.status}`);
+  const card = (await res.json()) as { name?: string };
+  return card.name ?? "";
+}
+
+/** Ajoute une étiquette à une carte. */
+export async function addLabelToCard(
+  cardId: string,
+  labelId: string,
+): Promise<void> {
+  const res = await fetch(
+    `${BASE}/cards/${cardId}/idLabels?value=${labelId}&${creds()}`,
+    { method: "POST" },
+  );
+  // 200 si ajoutée ; on tolère 400 (étiquette déjà présente sur la carte).
+  if (!res.ok && res.status !== 400) {
+    throw new Error(`Trello addLabelToCard ${res.status}`);
+  }
+}
+
 /** Retire l'étiquette « À comptabiliser » (TRELLO_LABEL_ID) d'une carte. */
 export async function removeComptabiliserLabel(cardId: string): Promise<void> {
   const labelId = process.env.TRELLO_LABEL_ID;

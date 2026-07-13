@@ -125,6 +125,25 @@ Couleurs principales : `#1B4332` (vert forêt), `#A8D5B5` (mint), `#16261D` (ink
 
 ---
 
+## 🔗 Intégration Trello
+
+Deux sens de synchronisation, à ne pas confondre :
+
+**Trello → MyFlip** (`app/api/webhooks/trello/route.ts`)
+L'étiquette violette « À comptabiliser » (`TRELLO_LABEL_ID`) sur une carte fait passer les articles correspondants au statut « À comptabiliser ». Le nom de la carte peut contenir plusieurs SKUs (`"SDM11 SDM36 ADI36"`). Le webhook ne crée jamais d'article : un SKU inconnu est loggé et ignoré.
+
+⚠️ **Piège.** Trello n'émet `addLabelToCard` que si l'étiquette est posée **après coup**. Une carte qui *arrive* déjà étiquetée (création avec étiquette cochée, duplication, déplacement depuis un autre board) ne déclenche aucun événement d'étiquette. Le webhook écoute donc aussi `createCard`, `copyCard`, `moveCardToBoard`, `updateCard` et `convertToCardFromCheckItem`, et interroge l'API pour lire les étiquettes réelles de la carte (cf. `CARD_ACTIONS`). Ne pas restreindre ce filtrage sans comprendre ce piège.
+
+**MyFlip → Trello** (`app/api/articles/[id]/comptabiliser/route.ts`)
+À la validation comptable : retrait de « À comptabiliser » puis pose de « Comptabilisé » (`TRELLO_COMPTABILISE_LABEL_ID`). Les deux appels sont **best-effort** et indépendants : un échec Trello ne doit jamais bloquer la validation comptable. La carte n'est pas archivée.
+
+Le transporteur d'un article est déduit du nom de l'**autre** étiquette de la carte (Mondial Relay, Colissimo, UPS…) — d'où l'exclusion explicite des deux étiquettes de statut lors de cette détection.
+
+Les IDs d'étiquettes se listent avec :
+`GET https://api.trello.com/1/boards/{TRELLO_BOARD_ID}/labels?key={KEY}&token={TOKEN}`
+
+---
+
 ## 🔧 Scripts
 
 - `scripts/init-user.mjs` — crée l'utilisateur en base + envoie l'email de bienvenue. One-shot, gitignored.
@@ -144,7 +163,8 @@ GEMINI_API_KEY
 TRELLO_API_KEY
 TRELLO_TOKEN
 TRELLO_BOARD_ID
-TRELLO_LABEL_ID
+TRELLO_LABEL_ID               # étiquette « À comptabiliser » (violette)
+TRELLO_COMPTABILISE_LABEL_ID  # étiquette « Comptabilisé » (verte)
 RESEND_API_KEY
 NEXT_PUBLIC_USER_NAME   # prénom affiché dans le dashboard
 DATABASE_URL            # Neon PostgreSQL (dans .env, géré par Vercel/Prisma)
