@@ -127,6 +127,19 @@ body {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+/* Wizard « Mise en vente » : entrée d'étape, badge de sélection, carte de zoom. */
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes zoomCardIn {
+  from { opacity: 0; transform: scale(.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(16px) scale(.96); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
