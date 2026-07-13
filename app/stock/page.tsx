@@ -594,6 +594,17 @@ function StockInner() {
     commande: commande || undefined,
   });
 
+  // Compteurs des chips de statut : calculés SANS le filtre de statut. Sinon la
+  // liste ne contient que le statut actif et tous les autres compteurs tombent
+  // à 0. Les autres filtres restent appliqués : le compteur annonce donc bien ce
+  // que donnerait le clic. Sans statut actif, la clé de cache est identique à
+  // celle de la requête principale → pas d'appel réseau supplémentaire.
+  const { data: articlesTousStatuts = [] } = useArticles({
+    marque: marque || undefined,
+    q: q || undefined,
+    commande: commande || undefined,
+  });
+
   const update = useUpdateArticle();
   const del = useDeleteArticle();
   const bulk = useBulkUpdateStatus();
@@ -1046,7 +1057,10 @@ function StockInner() {
       <div className="mb-4 hidden flex-wrap gap-2 md:flex">
         {[{ label: "Tous", value: "" }, ...STATUTS.map((s) => ({ label: s, value: s }))].map((chip) => {
           const active = statut === chip.value;
-          const cnt = chip.value === "" ? articles.length : articles.filter((a) => a.statut === chip.value).length;
+          const cnt =
+            chip.value === ""
+              ? articlesTousStatuts.length
+              : articlesTousStatuts.filter((a) => a.statut === chip.value).length;
           return (
             <button
               key={chip.value}
