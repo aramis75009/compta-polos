@@ -160,6 +160,154 @@ function useIsDesktop() {
   return isDesktop;
 }
 
+/**
+ * Sélection à la souris par glissement dans le tableau (desktop).
+ *
+ * Piloté par `elementFromPoint` + l'attribut `data-index` de chaque ligne, et
+ * NON par des `mouseenter` de ligne : la liste est virtualisée (seules ~20
+ * lignes montées), donc on remplit la plage [ancre..courant] par INDICE, ce qui
+ * couvre aussi les lignes intermédiaires non rendues. Auto-scroll près des bords
+ * pour parcourir une longue liste sans lâcher.
+ *
+ * Renvoie le handler `onPointerDown` à poser sur le conteneur du tableau ; il ne
+ * s'active que sur une pression souris démarrée dans une cellule `data-select-cell`.
+ */
+function useDragSelect(
+  sortedRef: React.MutableRefObject<ArticleDTO[]>,
+  selectedRef: React.MutableRefObject<Set<string>>,
+  setSelected: React.Dispatch<React.SetStateAction<Set<string>>>,
+) {
+  const drag = useRef<{
+    anchor: number;
+    mode: "add" | "remove";
+    base: Set<string>;
+    moved: boolean;
+    x: number;
+    y: number;
+  } | null>(null);
+  const raf = useRef<number | null>(null);
+
+  const fns = useRef({
+    indexAt(x: number, y: number): number | null {
+      const el = document.elementFromPoint(x, y);
+      const tr = el?.closest?.("tr[data-index]") as HTMLElement | null;
+      if (!tr) return null;
+      const i = Number(tr.getAttribute("data-index"));
+      return Number.isFinite(i) ? i : null;
+    },
+    apply(current: number) {
+      const d = drag.current;
+      if (!d) return;
+      const sorted = sortedRef.current;
+      const from = Math.min(d.anchor, current);
+      const to = Math.max(d.anchor, current);
+      const next = new Set(d.base);
+      for (let k = from; k <= to; k++) {
+        const id = sorted[k]?.id;
+        if (!id) continue;
+        if (d.mode === "add") next.add(id);
+        else next.delete(id);
+      }
+      setSelected(next);
+    },
+    tick() {
+      const d = drag.current;
+      if (!d) {
+        raf.current = null;
+        return;
+      }
+      const margin = 80;
+      const maxStep = 24;
+      const h = window.innerHeight;
+      let dy = 0;
+      if (d.y < margin) dy = -Math.ceil(((margin - d.y) / margin) * maxStep);
+      else if (d.y > h - margin)
+        dy = Math.ceil(((d.y - (h - margin)) / margin) * maxStep);
+      if (dy !== 0) {
+        window.scrollBy(0, dy);
+        const i = fns.current.indexAt(d.x, d.y);
+        if (i != null) {
+          if (i !== d.anchor) d.moved = true;
+          fns.current.apply(i);
+        }
+      }
+      raf.current = requestAnimationFrame(fns.current.tick);
+    },
+    onMove(e: PointerEvent) {
+      const d = drag.current;
+      if (!d) return;
+      d.x = e.clientX;
+      d.y = e.clientY;
+      const i = fns.current.indexAt(e.clientX, e.clientY);
+      if (i != null) {
+        if (i !== d.anchor) d.moved = true;
+        fns.current.apply(i);
+      }
+      if (raf.current == null) raf.current = requestAnimationFrame(fns.current.tick);
+    },
+    onUp() {
+      const d = drag.current;
+      if (raf.current != null) {
+        cancelAnimationFrame(raf.current);
+        raf.current = null;
+      }
+      window.removeEventListener("pointermove", fns.current.onMove);
+      window.removeEventListener("pointerup", fns.current.onUp);
+      document.body.style.userSelect = "";
+      // Un vrai glissement génère un click final : on l'avale pour ne pas ouvrir
+      // un détail ni entrer en édition sur la cellule relâchée.
+      if (d?.moved) {
+        const swallow = (ev: MouseEvent) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+        };
+        window.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(
+          () => window.removeEventListener("click", swallow, { capture: true }),
+          0,
+        );
+      }
+      drag.current = null;
+    },
+  });
+
+  useEffect(() => {
+    const f = fns.current;
+    return () => {
+      window.removeEventListener("pointermove", f.onMove);
+      window.removeEventListener("pointerup", f.onUp);
+      if (raf.current != null) cancelAnimationFrame(raf.current);
+      document.body.style.userSelect = "";
+    };
+  }, []);
+
+  return useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const cell = (e.target as HTMLElement).closest("[data-select-cell]");
+    if (!cell) return;
+    const tr = cell.closest("tr[data-index]") as HTMLElement | null;
+    if (!tr) return;
+    const anchor = Number(tr.getAttribute("data-index"));
+    if (!Number.isFinite(anchor)) return;
+    e.preventDefault(); // supprime le toggle natif + la sélection de texte
+    const base = new Set(selectedRef.current);
+    const id = sortedRef.current[anchor]?.id;
+    drag.current = {
+      anchor,
+      mode: id && base.has(id) ? "remove" : "add",
+      base,
+      moved: false,
+      x: e.clientX,
+      y: e.clientY,
+    };
+    document.body.style.userSelect = "none";
+    fns.current.apply(anchor);
+    window.addEventListener("pointermove", fns.current.onMove);
+    window.addEventListener("pointerup", fns.current.onUp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 type RowCallbacks = {
   onToggleSelect: (id: string) => void;
   onPatch: (id: string, patch: ArticlePatch) => void;
@@ -353,11 +501,14 @@ const ArticleRow = memo(
           isSelected ? "bg-[#EAF3ED]" : ""
         }`}
       >
-        <td className="px-3 py-3">
+        {/* data-select-cell : point d'ancrage du glissement (cf. useDragSelect).
+            La case est pointer-events-none → la délégation gère clic ET glissement,
+            sans double-toggle ; onChange reste pour l'accessibilité clavier. */}
+        <td data-select-cell className="cursor-pointer select-none px-3 py-3">
           <input
             type="checkbox"
             aria-label={`Sélectionner ${a.sku}`}
-            className="h-4 w-4 cursor-pointer accent-[#1B4332]"
+            className="pointer-events-none h-4 w-4 accent-[#1B4332]"
             checked={isSelected}
             onChange={() => onToggleSelect(a.id)}
           />
@@ -709,6 +860,14 @@ function StockInner() {
     });
     return copy;
   }, [articles, sortKey, sortDir]);
+
+  // Sélection par glissement (souris, tableau desktop). Refs tenues à jour pour
+  // que les handlers globaux lisent toujours l'état courant sans se recréer.
+  const sortedRef = useRef(sorted);
+  sortedRef.current = sorted;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const onSelectPointerDown = useDragSelect(sortedRef, selectedRef, setSelected);
 
   // --- Virtualisation : ne monte que les lignes/cartes visibles (+ overscan).
   // Une seule liste rendue à la fois selon le breakpoint (cf. useIsDesktop).
@@ -1129,6 +1288,7 @@ function StockInner() {
       {isDesktop && (
       <div
         ref={desktopWrapRef}
+        onPointerDown={onSelectPointerDown}
         className="hidden overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white md:block"
       >
         <table
@@ -1137,7 +1297,10 @@ function StockInner() {
         >
           <thead>
             <tr className="border-b border-[#E4E9E2] bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
-              <th className="w-10 px-[22px] py-[15px]">
+              <th
+                className="w-10 px-[22px] py-[15px]"
+                title="Astuce : glisse le long de cette colonne pour sélectionner plusieurs lignes"
+              >
                 <input
                   type="checkbox"
                   aria-label="Tout sélectionner"
