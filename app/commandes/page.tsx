@@ -18,6 +18,46 @@ function initials(name: string): string {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+// En dessous de ce nombre de ventes, la projection est signalée comme peu fiable.
+const PROJECTION_MIN_VENTES = 10;
+
+/** Date ISO → « 12 nov. ». Renvoie « — » si absente. */
+function dateFr(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Tuile de la carte Projection. */
+function Metric({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <div style={{ borderRadius: 11, background: "#F7F9F6", padding: "10px 12px" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#9BA89F" }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: color ?? "#16261D" }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ marginTop: 1, fontSize: 11.5, color: "#94A29A" }}>{sub}</div>
+      )}
+    </div>
+  );
+}
+
 function getRenta(recovered: number, invested: number) {
   if (recovered >= invested)
     return { label: "Rentabilisée", color: "#2D6A4F", bg: "#E4F3EA", key: "rentable" as const };
@@ -171,14 +211,19 @@ function CommandeDetailPanel({
     );
   }
 
-  const montantRecupere = stats.rows.reduce((s, r) => s + r.ca, 0);
-  const totalVendus = stats.rows.reduce((s, r) => s + r.vendus, 0);
-  const panierMoyen = totalVendus > 0 ? montantRecupere / totalVendus : 0;
-  const resteARecuperer = Math.max(0, coutTotal - montantRecupere);
+  const r = stats.resume;
+  const montantRecupere = r.montantRecupere;
+  const resteARecuperer = r.resteARecuperer;
   const ratio = coutTotal > 0 ? montantRecupere / coutTotal : 0;
   const width = Math.min(100, Math.round(ratio * 100));
   const statut = getRenta(montantRecupere, coutTotal);
-  const seuilArticles = panierMoyen > 0 ? Math.ceil(resteARecuperer / panierMoyen) : null;
+  const rembourse = montantRecupere >= coutTotal;
+
+  // L'objectif est-il tenable au rythme de prix actuel ?
+  const objectifTenu =
+    r.coefObjectif != null && r.coefProjete != null
+      ? r.coefProjete >= r.coefObjectif
+      : null;
 
   return (
     <div>
@@ -198,15 +243,138 @@ function CommandeDetailPanel({
           <span>Investi&nbsp;: <strong style={{ color: "#16261D" }}>{euros(coutTotal)}</strong></span>
           <span>Récupéré&nbsp;: <strong style={{ color: "#16261D" }}>{euros(montantRecupere)}</strong></span>
           <span>Reste&nbsp;: <strong style={{ color: statut.color }}>{euros(resteARecuperer)}</strong></span>
+          <span>
+            Vendus&nbsp;: <strong style={{ color: "#16261D" }}>{r.vendus}/{r.totalArticles}</strong>
+            {r.perdus > 0 && (
+              <span style={{ color: "#C2603F" }}> · {r.perdus} perdu{r.perdus > 1 ? "s" : ""}</span>
+            )}
+          </span>
         </div>
         <p style={{ margin: "10px 0 0", fontSize: 12, color: "#94A29A" }}>
-          {montantRecupere >= coutTotal
-            ? "✓ Investissement entièrement récupéré."
-            : seuilArticles != null
-              ? `Seuil de rentabilité : vendre ${seuilArticles} article${seuilArticles > 1 ? "s" : ""} de plus au panier moyen de ${euros(panierMoyen)}.`
+          {rembourse
+            ? `✓ Investissement récupéré${r.joursPointMort != null ? ` le ${dateFr(r.datePointMort)}, au ${r.joursPointMort}ᵉ jour` : ""}. Marge nette encaissée : ${euros(r.margeNetteRealisee)}.`
+            : r.seuilArticles != null && r.panierMoyen != null
+              ? `Seuil de rentabilité : vendre ${r.seuilArticles} article${r.seuilArticles > 1 ? "s" : ""} de plus au panier moyen de ${euros(r.panierMoyen)}.`
               : "Aucune vente : panier moyen indisponible pour estimer le seuil."}
         </p>
       </div>
+
+      {/* Projection : où ce lot atterrit */}
+      {r.panierMoyen != null && (
+        <div style={{ borderRadius: 14, border: "1px solid #E4E9E2", background: "#fff", padding: "16px 18px", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "#16261D" }}>
+            Projection
+          </h3>
+
+          {/* Toute la projection extrapole le panier moyen. Sur une poignée de
+              ventes, elle ne vaut rien : le dire plutôt que d'afficher un
+              coefficient rassurant calculé sur 7 articles. */}
+          {r.vendus < PROJECTION_MIN_VENTES && (
+            <p style={{ margin: "0 0 12px", padding: "8px 11px", borderRadius: 9, background: "#FBF3E2", color: "#B5872E", fontSize: 12, fontWeight: 600 }}>
+              Projection calculée sur {r.vendus} vente{r.vendus > 1 ? "s" : ""} seulement
+              {r.totalArticles > 0 && ` (${Math.round((r.vendus / r.totalArticles) * 100)} % du lot)`}
+              {" "}— indicative, à confirmer avec plus de ventes.
+            </p>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+            <Metric
+              label="Coef actuel"
+              value={r.coefActuel != null ? `${r.coefActuel.toFixed(2)}×` : "—"}
+              sub={`panier ${euros(r.panierMoyen)}`}
+            />
+            <Metric
+              label="Coef projeté"
+              value={r.coefProjete != null ? `${r.coefProjete.toFixed(2)}×` : "—"}
+              sub={
+                r.coefObjectif != null
+                  ? `objectif ${r.coefObjectif.toFixed(2)}×`
+                  : "sans objectif"
+              }
+              color={
+                objectifTenu == null ? undefined : objectifTenu ? "#2D6A4F" : "#C2603F"
+              }
+            />
+            <Metric
+              label="CA projeté"
+              value={r.caProjete != null ? euros(r.caProjete) : "—"}
+              sub={
+                r.margeProjetee != null
+                  ? `marge nette ≈ ${euros(r.margeProjetee)}`
+                  : undefined
+              }
+            />
+            <Metric
+              label="Rythme"
+              value={r.rythmeHebdo != null ? `${r.rythmeHebdo.toFixed(1)}/sem.` : "—"}
+              sub={r.rythmeRecent ? "4 dernières semaines" : "depuis la 1re vente"}
+            />
+          </div>
+
+          <ul
+            style={{
+              margin: "14px 0 0",
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: 7,
+              fontSize: 12.5,
+              color: "#5A6B61",
+            }}
+          >
+            {/* La ligne qui change une décision : faut-il remonter les prix ? */}
+            {r.prixMoyenRequis != null && r.coefObjectif != null && r.restants > 0 && (
+              <li>
+                {objectifTenu
+                  ? `✓ Objectif ${r.coefObjectif.toFixed(2)}× tenable : les ${r.restants} restants peuvent partir dès ${euros(r.prixMoyenRequis)} en moyenne.`
+                  : `⚠ Pour tenir l'objectif ${r.coefObjectif.toFixed(2)}×, les ${r.restants} restants doivent partir à ${euros(r.prixMoyenRequis)} en moyenne — soit ${euros(r.prixMoyenRequis - r.panierMoyen)} de plus que le panier actuel.`}
+              </li>
+            )}
+            {r.dateEcoulement != null && r.restants > 0 && (
+              <li>
+                À ce rythme, les {r.restants} articles restants s’écoulent vers le{" "}
+                <strong style={{ color: "#16261D" }}>{dateFr(r.dateEcoulement)}</strong>{" "}
+                (≈ {r.joursEcoulement} j).
+              </li>
+            )}
+            {r.delaiMoyenVente != null && (
+              <li>
+                Commande passée il y a {r.ageJours} j · délai moyen entre l’achat et la
+                vente : {Math.round(r.delaiMoyenVente)} j.
+              </li>
+            )}
+            {r.dormants > 0 && (
+              <li style={{ color: "#B5872E" }}>
+                {r.dormants} article{r.dormants > 1 ? "s" : ""} jamais mis en vente
+                (photos non prêtes)
+                {r.caDormant != null ? ` — ≈ ${euros(r.caDormant)} de CA immobilisé` : ""}.
+              </li>
+            )}
+            {r.meilleureCategorie && r.pireCategorie && (
+              <li>
+                Meilleure catégorie : <strong>{r.meilleureCategorie.categorie}</strong> (
+                {r.meilleureCategorie.coefMoyen.toFixed(2)}×) · à la traîne :{" "}
+                <strong>{r.pireCategorie.categorie}</strong> (
+                {r.pireCategorie.coefMoyen.toFixed(2)}×).
+              </li>
+            )}
+          </ul>
+
+          {r.canaux.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px", marginTop: 12, paddingTop: 12, borderTop: "1px solid #EEF1EC", fontSize: 12.5, color: "#71807A" }}>
+              {r.canaux.map((c) => (
+                <span key={c.canal}>
+                  {c.canal} :{" "}
+                  <strong style={{ color: "#16261D" }}>{Math.round(c.pctCa * 100)}%</strong>{" "}
+                  du CA (panier {euros(c.panierMoyen)}, {c.vendus} vente
+                  {c.vendus > 1 ? "s" : ""})
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Category table (grid, no <table>) */}
       <div style={{ overflowX: "auto" }}>

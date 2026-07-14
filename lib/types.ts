@@ -62,8 +62,62 @@ export type CommandeStatsRow = {
   pctVendu: number; // 0..1
 };
 
+export type CanalRow = {
+  canal: string;
+  vendus: number;
+  ca: number;
+  panierMoyen: number;
+  pctCa: number; // 0..1
+};
+
+/**
+ * Synthèse d'une commande : où en est la rentabilité, et où elle atterrit.
+ * Tout est calculé côté serveur à partir des articles du lot.
+ * Les champs nullables valent null quand la donnée est indisponible
+ * (aucune vente, pas d'objectif de coef…) — jamais 0, qui serait un mensonge.
+ */
+export type CommandeResume = {
+  // — Où on en est —
+  coutTotal: number;
+  totalArticles: number;
+  vendus: number;
+  restants: number; // ni vendus, ni perdus
+  perdus: number;
+  montantRecupere: number;
+  resteARecuperer: number;
+  margeNetteRealisee: number;
+  panierMoyen: number | null;
+  coefActuel: number | null; // CA encaissé / coût total
+  coefObjectif: number | null;
+  seuilArticles: number | null; // articles à vendre pour rembourser le lot
+
+  // — Projection —
+  caProjete: number | null; // si les restants partent au panier moyen
+  margeProjetee: number | null;
+  coefProjete: number | null;
+  prixMoyenRequis: number | null; // prix moyen à tenir sur les restants pour l'objectif
+  rythmeHebdo: number | null; // ventes par semaine
+  rythmeRecent: boolean; // true = calculé sur les 28 derniers jours
+  joursEcoulement: number | null; // jours estimés pour écouler les restants
+  dateEcoulement: string | null; // ISO
+
+  // — Temps —
+  ageJours: number;
+  datePointMort: string | null; // ISO — date de franchissement du seuil
+  joursPointMort: number | null; // depuis la date de commande
+  delaiMoyenVente: number | null; // jours entre l'achat du lot et la vente
+
+  // — Canaux & angles morts —
+  canaux: CanalRow[];
+  dormants: number; // en stock, photos pas prêtes
+  caDormant: number | null;
+  meilleureCategorie: { categorie: string; coefMoyen: number } | null;
+  pireCategorie: { categorie: string; coefMoyen: number } | null;
+};
+
 export type CommandeStatsDTO = {
   rows: CommandeStatsRow[];
+  resume: CommandeResume;
 };
 
 export type BrandRow = {
