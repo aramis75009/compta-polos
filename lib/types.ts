@@ -220,6 +220,21 @@ export type CanalCA = {
   ca: number;
 };
 
+// Notifications : rappels d'actions à mener, calculés côté serveur.
+export type NotificationItem = {
+  key: string; // identifiant stable (ex. "a-comptabiliser")
+  severity: "action" | "info"; // action = à faire ; info = à surveiller
+  title: string;
+  message: string;
+  count: number;
+  href: string; // vue filtrée correspondante
+};
+
+export type NotificationsDTO = {
+  items: NotificationItem[];
+  total: number; // somme des compteurs
+};
+
 export type StatsDTO = {
   vitesse: {
     parJour7: number; // moyenne articles vendus / jour sur 7 jours

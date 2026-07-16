@@ -7,10 +7,10 @@ type CanalPill = { bg: string; text: string; dot: string };
 const CANAL_PILL: Record<string, CanalPill> = {
   Vinted: { bg: "#E2F7F8", text: "#0892A0", dot: "#0BBBC4" },
   "Vinted Go": { bg: "#E6EEFB", text: "#1D4ED8", dot: "#0047AB" },
-  "Vestiaire Collective": { bg: "#ECEEF0", text: "#2B3942", dot: "#16261D" },
+  "Vestiaire Collective": { bg: "#ECEEF0", text: "#2B3942", dot: "var(--ink)" },
   Leboncoin: { bg: "#FFEDE5", text: "#C2410C", dot: "#FF6B35" },
-  "En main propre": { bg: "#EEF1ED", text: "#52635A", dot: "#6B7280" },
-  Autre: { bg: "#EEF1ED", text: "#52635A", dot: "#94A29A" },
+  "En main propre": { bg: "var(--tint)", text: "#52635A", dot: "#6B7280" },
+  Autre: { bg: "var(--tint)", text: "#52635A", dot: "var(--faint-2)" },
 };
 
 function canalPill(canal: string): CanalPill {
@@ -18,7 +18,7 @@ function canalPill(canal: string): CanalPill {
 }
 
 export default function CanalBadge({ canal }: { canal: string | null }) {
-  if (!canal) return <span className="text-[#A6B2A9]">—</span>;
+  if (!canal) return <span className="text-[var(--faint-2)]">—</span>;
   const c = canalPill(canal);
   return (
     <span

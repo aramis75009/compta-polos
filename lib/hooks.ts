@@ -12,6 +12,7 @@ import type {
   CommandeDTO,
   CommandeStatsDTO,
   DashboardDTO,
+  NotificationsDTO,
   PromptTemplateDTO,
   StatsDTO,
 } from "./types";
@@ -50,7 +51,20 @@ function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ["calendar"] });
     qc.invalidateQueries({ queryKey: ["commandes"] });
     qc.invalidateQueries({ queryKey: ["stats"] });
+    qc.invalidateQueries({ queryKey: ["notifications"] });
   };
+}
+
+// ---------- Notifications ----------
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => jsonFetch<NotificationsDTO>("/api/notifications"),
+    // Rappels : une donnée un peu fraîche suffit, on rafraîchit à l'ouverture.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
 }
 
 // ---------- Articles ----------

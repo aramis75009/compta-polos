@@ -2,11 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Thème (clair / sombre) ──────────────────────────────────────────────
+   Palette « Forest Precision » en variables CSS. Le thème sombre est activé
+   par data-theme="dark" sur <html> (posé sans flash par un script inline dans
+   layout.tsx, puis piloté par le bouton de bascule). Les couleurs de marque
+   (#1B4332, #2D6A4F…) et d'accent (#C2603F, #B5872E) restent littérales dans
+   le code : elles fonctionnent sur les deux fonds. Seuls les NEUTRES passent
+   par ces variables. */
+:root {
+  --bg: #eef1ec;
+  --surface: #ffffff;
+  --surface-2: #f7f9f6; /* cartes légèrement teintées, lignes zébrées */
+  --tint: #f5f8f3; /* survols, pastilles neutres */
+  --border: #e4e9e2;
+  --border-strong: #cbd8ce;
+  --disabled: #c3d0c8;
+  --ink: #16261d; /* texte principal */
+  --ink2: #3c4d44; /* texte secondaire */
+  --muted: #71807a;
+  --faint: #8a998f; /* labels, texte tertiaire */
+  --faint-2: #94a29a; /* placeholders, icônes discrètes */
+  --nav: #52635a; /* items de nav inactifs */
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1712;
+  --surface: #16241c;
+  --surface-2: #1a2b21;
+  --tint: #1e2e25;
+  --border: #2a3a31;
+  --border-strong: #35473c;
+  --disabled: #2a3a31;
+  --ink: #eaf2ec;
+  --ink2: #c2d2c8;
+  --muted: #93a69b;
+  --faint: #758a7e;
+  --faint-2: #6b7f73;
+  --nav: #a2b4aa;
+  color-scheme: dark;
+}
+
 html,
 body {
-  background-color: #ffffff;
-  color: #1a1c1c;
+  background-color: var(--bg);
+  color: var(--ink);
   color-scheme: light;
+}
+:root[data-theme="dark"] body {
+  color-scheme: dark;
 }
 
 * {

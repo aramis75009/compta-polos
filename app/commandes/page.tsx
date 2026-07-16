@@ -44,15 +44,15 @@ function Metric({
   color?: string;
 }) {
   return (
-    <div style={{ borderRadius: 11, background: "#F7F9F6", padding: "10px 12px" }}>
+    <div style={{ borderRadius: 11, background: "var(--tint)", padding: "10px 12px" }}>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#9BA89F" }}>
         {label}
       </div>
-      <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: color ?? "#16261D" }}>
+      <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: color ?? "var(--ink)" }}>
         {value}
       </div>
       {sub && (
-        <div style={{ marginTop: 1, fontSize: 11.5, color: "#94A29A" }}>{sub}</div>
+        <div style={{ marginTop: 1, fontSize: 11.5, color: "var(--faint-2)" }}>{sub}</div>
       )}
     </div>
   );
@@ -86,17 +86,17 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
   const area = `M${xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")} L${xs[n - 1].toFixed(1)},178 L${xs[0].toFixed(1)},178 Z`;
 
   return (
-    <div style={{ borderRadius: 22, background: "#fff", border: "1px solid #E4E9E2", padding: "24px 26px 18px" }}>
+    <div style={{ borderRadius: 22, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px 18px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
-          <h2 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 18, color: "#16261D" }}>
+          <h2 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 18, color: "var(--ink)" }}>
             Investissements dans le temps
           </h2>
-          <p style={{ margin: "5px 0 0", fontSize: 13, color: "#8A998F", fontWeight: 500 }}>
+          <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--faint)", fontWeight: 500 }}>
             Montant investi par mois
           </p>
         </div>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#71807A", background: "#F2F5F0", padding: "7px 13px", borderRadius: 20 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--muted)", background: "var(--tint)", padding: "7px 13px", borderRadius: 20 }}>
           {n} mois
         </span>
       </div>
@@ -114,7 +114,7 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
         </defs>
         <line x1="50" y1="52" x2="570" y2="52" stroke="#EEF2EC" strokeWidth="1" />
         <line x1="50" y1="115" x2="570" y2="115" stroke="#EEF2EC" strokeWidth="1" />
-        <line x1="50" y1="178" x2="570" y2="178" stroke="#E4E9E2" strokeWidth="1" />
+        <line x1="50" y1="178" x2="570" y2="178" stroke="var(--border)" strokeWidth="1" />
         <path d={area} fill="url(#areaFill)" />
         <polyline
           points={line}
@@ -156,7 +156,7 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
             <rect
               x={Math.max(50, Math.min(xs[hovered] - 36, 534)).toFixed(1)}
               y={(ys[hovered] - 36).toFixed(1)}
-              width="72" height="24" rx="8" fill="#16261D"
+              width="72" height="24" rx="8" fill="var(--ink)"
             />
             <text
               x={Math.max(86, Math.min(xs[hovered], 570)).toFixed(1)}
@@ -168,12 +168,12 @@ function InvestChart({ months }: { months: { label: string; value: number }[] })
           </g>
         )}
         {xs.map((x, i) => (
-          <text key={i} x={x.toFixed(1)} y="202" textAnchor="middle" fill="#8A998F" fontSize="12" fontWeight="600">
+          <text key={i} x={x.toFixed(1)} y="202" textAnchor="middle" fill="var(--faint)" fontSize="12" fontWeight="600">
             {capitalize(months[i].label)}
           </text>
         ))}
       </svg>
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #EEF1EC", fontSize: 13, fontWeight: 500, color: "#71807A" }}>
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--bg)", fontSize: 13, fontWeight: 500, color: "var(--muted)" }}>
         {"Total : "}
         <strong style={{ color: "#1B2A22", fontWeight: 700 }}>{euros(total)}</strong>
         <span style={{ color: "#C2CDC5", margin: "0 8px" }}>·</span>
@@ -205,7 +205,7 @@ function CommandeDetailPanel({
   }
   if (!stats || stats.rows.length === 0) {
     return (
-      <p style={{ margin: 0, padding: "16px 0", fontSize: 14, color: "#94A29A" }}>
+      <p style={{ margin: 0, padding: "16px 0", fontSize: 14, color: "var(--faint-2)" }}>
         Aucun article dans cette commande.
       </p>
     );
@@ -228,9 +228,9 @@ function CommandeDetailPanel({
   return (
     <div>
       {/* Rentabilité card */}
-      <div style={{ borderRadius: 14, border: "1px solid #E4E9E2", background: "#FAFCF9", padding: "16px 18px", marginBottom: 16 }}>
+      <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "var(--tint)", padding: "16px 18px", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#16261D" }}>Rentabilité</h3>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>Rentabilité</h3>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: statut.bg, color: statut.color }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: statut.color, display: "inline-block" }} />
             {statut.label}
@@ -239,18 +239,18 @@ function CommandeDetailPanel({
         <div style={{ height: 11, width: "100%", borderRadius: 8, background: "#EAEFE8", overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 8, width: `${width}%`, background: statut.color, transition: "width .8s cubic-bezier(.34,1.2,.5,1)" }} />
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 26px", marginTop: 12, fontSize: 13.5, color: "#71807A" }}>
-          <span>Investi&nbsp;: <strong style={{ color: "#16261D" }}>{euros(coutTotal)}</strong></span>
-          <span>Récupéré&nbsp;: <strong style={{ color: "#16261D" }}>{euros(montantRecupere)}</strong></span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 26px", marginTop: 12, fontSize: 13.5, color: "var(--muted)" }}>
+          <span>Investi&nbsp;: <strong style={{ color: "var(--ink)" }}>{euros(coutTotal)}</strong></span>
+          <span>Récupéré&nbsp;: <strong style={{ color: "var(--ink)" }}>{euros(montantRecupere)}</strong></span>
           <span>Reste&nbsp;: <strong style={{ color: statut.color }}>{euros(resteARecuperer)}</strong></span>
           <span>
-            Vendus&nbsp;: <strong style={{ color: "#16261D" }}>{r.vendus}/{r.totalArticles}</strong>
+            Vendus&nbsp;: <strong style={{ color: "var(--ink)" }}>{r.vendus}/{r.totalArticles}</strong>
             {r.perdus > 0 && (
               <span style={{ color: "#C2603F" }}> · {r.perdus} perdu{r.perdus > 1 ? "s" : ""}</span>
             )}
           </span>
         </div>
-        <p style={{ margin: "10px 0 0", fontSize: 12, color: "#94A29A" }}>
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--faint-2)" }}>
           {rembourse
             ? `✓ Investissement récupéré${r.joursPointMort != null ? ` le ${dateFr(r.datePointMort)}, au ${r.joursPointMort}ᵉ jour` : ""}. Marge nette encaissée : ${euros(r.margeNetteRealisee)}.`
             : r.seuilArticles != null && r.panierMoyen != null
@@ -261,8 +261,8 @@ function CommandeDetailPanel({
 
       {/* Projection : où ce lot atterrit */}
       {r.panierMoyen != null && (
-        <div style={{ borderRadius: 14, border: "1px solid #E4E9E2", background: "#fff", padding: "16px 18px", marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "#16261D" }}>
+        <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "#fff", padding: "16px 18px", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
             Projection
           </h3>
 
@@ -334,7 +334,7 @@ function CommandeDetailPanel({
             {r.dateEcoulement != null && r.restants > 0 && (
               <li>
                 À ce rythme, les {r.restants} articles restants s’écoulent vers le{" "}
-                <strong style={{ color: "#16261D" }}>{dateFr(r.dateEcoulement)}</strong>{" "}
+                <strong style={{ color: "var(--ink)" }}>{dateFr(r.dateEcoulement)}</strong>{" "}
                 (≈ {r.joursEcoulement} j).
               </li>
             )}
@@ -362,11 +362,11 @@ function CommandeDetailPanel({
           </ul>
 
           {r.canaux.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px", marginTop: 12, paddingTop: 12, borderTop: "1px solid #EEF1EC", fontSize: 12.5, color: "#71807A" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px", marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--bg)", fontSize: 12.5, color: "var(--muted)" }}>
               {r.canaux.map((c) => (
                 <span key={c.canal}>
                   {c.canal} :{" "}
-                  <strong style={{ color: "#16261D" }}>{Math.round(c.pctCa * 100)}%</strong>{" "}
+                  <strong style={{ color: "var(--ink)" }}>{Math.round(c.pctCa * 100)}%</strong>{" "}
                   du CA (panier {euros(c.panierMoyen)}, {c.vendus} vente
                   {c.vendus > 1 ? "s" : ""})
                 </span>
@@ -393,18 +393,18 @@ function CommandeDetailPanel({
           {stats.rows.map((r) => {
             const cc =
               coefObjectif == null || r.coefMoyen === 0
-                ? "#16261D"
+                ? "var(--ink)"
                 : r.coefMoyen < coefObjectif
                   ? "#C2603F"
                   : "#2D6A4F";
             return (
-              <div key={r.categorie} style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "10px 8px", borderTop: "1px solid #EEF1EC", fontSize: 13.5, fontVariantNumeric: "tabular-nums" as const }}>
-                <div style={{ fontWeight: 600, color: "#16261D" }}>{r.categorie}</div>
-                <div style={{ textAlign: "right", color: "#71807A" }}>{r.total}</div>
-                <div style={{ textAlign: "right", color: "#71807A" }}>{r.enStock}</div>
-                <div style={{ textAlign: "right", color: "#71807A" }}>{r.enVente}</div>
-                <div style={{ textAlign: "right", color: "#71807A" }}>{r.vendus}</div>
-                <div style={{ textAlign: "right", fontWeight: 600, color: "#16261D" }}>{euros(r.ca)}</div>
+              <div key={r.categorie} style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "10px 8px", borderTop: "1px solid var(--bg)", fontSize: 13.5, fontVariantNumeric: "tabular-nums" as const }}>
+                <div style={{ fontWeight: 600, color: "var(--ink)" }}>{r.categorie}</div>
+                <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.total}</div>
+                <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.enStock}</div>
+                <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.enVente}</div>
+                <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.vendus}</div>
+                <div style={{ textAlign: "right", fontWeight: 600, color: "var(--ink)" }}>{euros(r.ca)}</div>
                 <div style={{ textAlign: "right", fontWeight: 600, color: "#2D6A4F" }}>{euros(r.margeNette)}</div>
                 <div style={{ textAlign: "right", fontWeight: 700, color: cc }}>{r.coefMoyen > 0 ? coef(r.coefMoyen) : "—"}</div>
                 <div style={{ textAlign: "right", fontWeight: 700, color: pctColor(r.pctVendu) }}>{Math.round(r.pctVendu * 100)}%</div>
@@ -458,7 +458,7 @@ function CommandeRow({
       style={{
         borderRadius: 16,
         background: "#fff",
-        border: `1px solid ${cardHovered ? "#CBD8CE" : "#E4E9E2"}`,
+        border: `1px solid ${cardHovered ? "var(--border-strong)" : "var(--border)"}`,
         boxShadow: cardHovered ? "0 16px 34px -22px rgba(20,53,40,.5)" : "none",
         transform: cardHovered ? "translateY(-2px)" : "translateY(0)",
         position: "relative",
@@ -485,25 +485,25 @@ function CommandeRow({
       >
         {/* Fournisseur */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: "#16261D", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {c.fournisseur}
           </div>
           {c.coefObjectif != null && (
-            <div style={{ marginTop: 2, fontSize: 12, fontWeight: 500, color: "#94A29A" }}>
+            <div style={{ marginTop: 2, fontSize: 12, fontWeight: 500, color: "var(--faint-2)" }}>
               Objectif&nbsp;: ×{c.coefObjectif}
             </div>
           )}
         </div>
 
-        <div style={{ fontSize: 13.5, color: "#71807A", fontWeight: 500 }}>
+        <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 500 }}>
           {new Date(c.date).toLocaleDateString("fr-FR")}
         </div>
 
-        <div style={{ fontSize: 13.5, color: "#71807A", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ fontSize: 13.5, color: "var(--muted)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
           {c.nbArticles}
         </div>
 
-        <div style={{ fontSize: 13.5, color: "#16261D", textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ fontSize: 13.5, color: "var(--ink)", textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {euros(c.coutTotal)}
         </div>
 
@@ -546,15 +546,15 @@ function CommandeRow({
                 <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setMenuOpen(false)} />
                 <div style={{
                   position: "absolute", top: 38, right: 0, zIndex: 50,
-                  width: 184, background: "#fff", border: "1px solid #E4E9E2",
+                  width: 184, background: "#fff", border: "1px solid var(--border)",
                   borderRadius: 14, padding: 6,
                   boxShadow: "0 18px 38px -18px rgba(20,53,40,.45)",
                   animation: "modalIn .16s ease both",
                 }}>
                   <MenuBtn
                     label="Voir les articles"
-                    color="#3C4D44"
-                    hoverBg="#F1F4EF"
+                    color="var(--ink2)"
+                    hoverBg="var(--tint)"
                     onClick={() => { router.push(`/stock?commande=${c.id}`); setMenuOpen(false); }}
                   />
                   <MenuBtn
@@ -580,14 +580,14 @@ function CommandeRow({
             {initials(c.fournisseur)}
           </div>
           <div className="min-w-0">
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#16261D" }} className="truncate">{c.fournisseur}</div>
-            <div style={{ fontSize: 12.5, color: "#8A998F", marginTop: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)" }} className="truncate">{c.fournisseur}</div>
+            <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 1 }}>
               {new Date(c.date).toLocaleDateString("fr-FR")} · {c.nbArticles} art.
             </div>
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15.5, color: "#16261D", fontFamily: "var(--font-grotesk)" }}>{euros(c.coutTotal)}</div>
+          <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--ink)", fontFamily: "var(--font-grotesk)" }}>{euros(c.coutTotal)}</div>
           {statut && <div style={{ fontSize: 11.5, fontWeight: 700, color: statut.color }}>{statut.label}</div>}
         </div>
       </div>
@@ -643,7 +643,7 @@ function DotsBtn({ onClick }: { onClick: () => void }) {
       style={{
         width: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center",
         background: h ? "#EEF2EC" : "transparent", border: "none", borderRadius: 8,
-        color: h ? "#3C4D44" : "#8A998F", fontSize: 17, fontWeight: 700, lineHeight: 1, cursor: "pointer",
+        color: h ? "var(--ink2)" : "var(--faint)", fontSize: 17, fontWeight: 700, lineHeight: 1, cursor: "pointer",
         transition: "background .2s, color .2s",
       }}
     >
@@ -723,7 +723,7 @@ export default function CommandesPage() {
   }, [commandes]);
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[56px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[56px]">
 
       {/* Header */}
       <header
@@ -734,14 +734,14 @@ export default function CommandesPage() {
           <h1 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 30, letterSpacing: "-.025em" }}>
             Commandes
           </h1>
-          <p style={{ margin: "7px 0 0", color: "#71807A", fontSize: 14.5, fontWeight: 500 }}>
+          <p style={{ margin: "7px 0 0", color: "var(--muted)", fontSize: 14.5, fontWeight: 500 }}>
             Tes achats en lot, par fournisseur.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-[11px]">
           <button
             onClick={() => toast.info("Import Excel — bientôt disponible.")}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-[15px] py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-[15px] py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
           >
             <FileSpreadsheet className="h-4 w-4" strokeWidth={2} />
             Importer un Excel
@@ -777,26 +777,26 @@ export default function CommandesPage() {
           </div>
         </div>
 
-        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid #E4E9E2", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "#EAF3ED", color: "#1B4332", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{kpis.nbCommandes}</div>
-              <div style={{ fontSize: 12.5, color: "#8A998F", fontWeight: 600 }}>Commandes passées</div>
+              <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600 }}>Commandes passées</div>
             </div>
           </div>
         </div>
 
-        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid #E4E9E2", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "#EAF3ED", color: "#1B4332", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{euros(kpis.prixUnitMoyen)}</div>
-              <div style={{ fontSize: 12.5, color: "#8A998F", fontWeight: 600 }}>Prix unitaire moyen</div>
+              <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600 }}>Prix unitaire moyen</div>
             </div>
           </div>
         </div>
@@ -810,7 +810,7 @@ export default function CommandesPage() {
       {/* Suppliers */}
       {suppliers.length > 0 && (
         <div className="mb-6" style={{ animation: "fadeUp .45s .12s both" }}>
-          <h2 style={{ margin: "2px 2px 16px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
+          <h2 style={{ margin: "2px 2px 16px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "var(--ink)" }}>
             Par fournisseur
           </h2>
           <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
@@ -823,7 +823,7 @@ export default function CommandesPage() {
 
       {/* Commandes list */}
       <div style={{ animation: "fadeUp .45s .18s both" }}>
-        <h2 style={{ margin: "2px 2px 14px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "#16261D" }}>
+        <h2 style={{ margin: "2px 2px 14px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "var(--ink)" }}>
           Détail des commandes
         </h2>
 
@@ -858,7 +858,7 @@ export default function CommandesPage() {
             </p>
           )}
           {!isLoading && !isError && commandes.length === 0 && (
-            <p className="py-10 text-center text-[14px] text-[#8A998F]">
+            <p className="py-10 text-center text-[14px] text-[var(--faint)]">
               Aucune commande. Crée ta première commande !
             </p>
           )}
@@ -896,7 +896,7 @@ function SupplierCard({
       style={{
         borderRadius: 20,
         background: h ? "#FCFDFB" : "#fff",
-        border: `1px solid ${h ? "#CBD8CE" : "#E4E9E2"}`,
+        border: `1px solid ${h ? "var(--border-strong)" : "var(--border)"}`,
         padding: "22px 24px",
         textAlign: "left",
         cursor: "pointer",
@@ -912,8 +912,8 @@ function SupplierCard({
             {initials(s.name)}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15.5, letterSpacing: "-.01em", color: "#16261D" }}>{s.name}</div>
-            <div style={{ fontSize: 12.5, color: "#94A29A", fontWeight: 500, marginTop: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15.5, letterSpacing: "-.01em", color: "var(--ink)" }}>{s.name}</div>
+            <div style={{ fontSize: 12.5, color: "var(--faint-2)", fontWeight: 500, marginTop: 1 }}>
               Dernier achat · {new Date(s.last).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
             </div>
           </div>
@@ -922,17 +922,17 @@ function SupplierCard({
           {s.count} cmd
         </span>
       </div>
-      <div style={{ display: "flex", gap: 26, marginTop: 20, paddingTop: 18, borderTop: "1px solid #EEF1EC" }}>
+      <div style={{ display: "flex", gap: 26, marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--bg)" }}>
         <div>
-          <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Coût total</div>
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Coût total</div>
           <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.total)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Articles</div>
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Articles</div>
           <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{s.articles}</div>
         </div>
         <div>
-          <div style={{ fontSize: 11.5, color: "#8A998F", fontWeight: 600 }}>Prix unit.</div>
+          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Prix unit.</div>
           <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.unit)}</div>
         </div>
       </div>

@@ -14,7 +14,7 @@ import Modal from "@/components/Modal";
 import Loader from "@/components/Loader";
 
 const inputCls =
-  "w-full rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[14px] text-[#16261D] outline-none transition-colors focus:border-[#CBD8CE]";
+  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[var(--border-strong)]";
 
 const TOUTES = "Toutes";
 
@@ -125,13 +125,13 @@ export default function PromptsPage() {
   const pending = create.isPending || update.isPending;
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Prompts
           </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
             Tes modèles de génération d&apos;annonces.
           </p>
         </div>
@@ -146,39 +146,39 @@ export default function PromptsPage() {
 
       {/* Compte */}
       <div className="mb-[26px] grid grid-cols-1 gap-[18px] md:grid-cols-[1.4fr_1fr_1fr]">
-        <div className="flex items-center gap-3.5 rounded-[18px] border border-[#E4E9E2] bg-white px-[22px] py-5">
+        <div className="flex items-center gap-3.5 rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[18px] font-bold text-[#CFE6D8]">
             A
           </div>
           <div>
-            <div className="text-[15.5px] font-bold text-[#16261D]">Aramis</div>
-            <div className="text-[13px] font-medium text-[#8A998F]">
+            <div className="text-[15.5px] font-bold text-[var(--ink)]">Aramis</div>
+            <div className="text-[13px] font-medium text-[var(--faint)]">
               aramis.begnene@gmail.com
             </div>
           </div>
         </div>
-        <div className="rounded-[18px] border border-[#E4E9E2] bg-white px-[22px] py-5">
-          <div className="text-[12px] font-semibold text-[#8A998F]">Modèle IA</div>
+        <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
+          <div className="text-[12px] font-semibold text-[var(--faint)]">Modèle IA</div>
           <div className="mt-1 font-grotesk text-[24px] font-bold tracking-[-0.02em]">
             Gemini Flash
           </div>
         </div>
-        <div className="rounded-[18px] border border-[#E4E9E2] bg-white px-[22px] py-5">
-          <div className="text-[12px] font-semibold text-[#8A998F]">Modèles</div>
+        <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
+          <div className="text-[12px] font-semibold text-[var(--faint)]">Modèles</div>
           <div className="mt-1 font-grotesk text-[24px] font-bold tracking-[-0.02em]">
             {prompts.length} prompt{prompts.length > 1 ? "s" : ""}
           </div>
         </div>
       </div>
 
-      <h2 className="mx-0.5 mb-4 font-grotesk text-[19px] font-bold text-[#16261D]">
+      <h2 className="mx-0.5 mb-4 font-grotesk text-[19px] font-bold text-[var(--ink)]">
         Modèles de prompts
       </h2>
 
       {isLoading ? (
         <Loader />
       ) :prompts.length === 0 ? (
-        <p className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-12 text-center text-[#8A998F]">
+        <p className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-12 text-center text-[var(--faint)]">
           Aucun prompt.
         </p>
       ) : (
@@ -188,7 +188,7 @@ export default function PromptsPage() {
             return (
               <div
                 key={p.id}
-                className="flex flex-col gap-3.5 rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 transition-all hover:border-[#CBD8CE] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
+                className="flex flex-col gap-3.5 rounded-[20px] border border-[var(--border)] bg-surface px-6 py-5 transition-all hover:border-[var(--border-strong)] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
               >
                 <div className="flex items-center justify-between gap-2.5">
                   <div className="flex flex-wrap items-center gap-2.5">
@@ -198,7 +198,7 @@ export default function PromptsPage() {
                     >
                       {p.marque ?? "Toutes marques"}
                     </span>
-                    <span className="text-[12px] font-semibold text-[#94A29A]">
+                    <span className="text-[12px] font-semibold text-[var(--faint-2)]">
                       {p.categorie ?? "Toutes catégories"}
                     </span>
                   </div>
@@ -210,21 +210,21 @@ export default function PromptsPage() {
                   )}
                 </div>
 
-                <div className="text-[15.5px] font-bold tracking-[-0.01em] text-[#16261D]">
+                <div className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
                   {p.nom}
                 </div>
-                <p className="line-clamp-3 text-[13.5px] font-medium leading-[1.55] text-[#71807A]">
+                <p className="line-clamp-3 text-[13.5px] font-medium leading-[1.55] text-[var(--muted)]">
                   {p.contenu}
                 </p>
 
-                <div className="mt-auto flex items-center justify-between border-t border-[#EEF1EC] pt-3.5">
-                  <span className="text-[12px] font-semibold text-[#94A29A]">
+                <div className="mt-auto flex items-center justify-between border-t border-[var(--bg)] pt-3.5">
+                  <span className="text-[12px] font-semibold text-[var(--faint-2)]">
                     Modifié le {new Date(p.updatedAt).toLocaleDateString("fr-FR")}
                   </span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => openEdit(p)}
-                      className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#F2F5F0] px-3 py-2 text-[12.5px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#E7EDE5]"
+                      className="inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--tint)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[#E7EDE5]"
                     >
                       <SquarePen className="h-3.5 w-3.5" strokeWidth={2} />
                       Modifier
@@ -235,7 +235,7 @@ export default function PromptsPage() {
                           del.mutate(p.id);
                       }}
                       aria-label="Supprimer"
-                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[#F2F5F0] text-[#94A29A] transition-colors hover:bg-[#FBEEE7] hover:text-[#B5613B]"
+                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[var(--tint)] text-[var(--faint-2)] transition-colors hover:bg-[#FBEEE7] hover:text-[#B5613B]"
                     >
                       <Trash2 className="h-[15px] w-[15px]" strokeWidth={2} />
                     </button>
@@ -254,7 +254,7 @@ export default function PromptsPage() {
       >
         <div className="max-h-[70vh] space-y-4 overflow-y-auto">
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-[#71807A]">
+            <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
               Nom
             </label>
             <input
@@ -267,7 +267,7 @@ export default function PromptsPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#71807A]">
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
                 Marque
               </label>
               <input
@@ -284,7 +284,7 @@ export default function PromptsPage() {
               </datalist>
             </div>
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[#71807A]">
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
                 Catégorie
               </label>
               <input
@@ -303,10 +303,10 @@ export default function PromptsPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-[#71807A]">
+            <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
               Contenu du prompt
             </label>
-            <p className="mb-2 rounded-lg bg-[#F7F9F6] px-3 py-2 text-[12px] text-[#71807A]">
+            <p className="mb-2 rounded-lg bg-[var(--tint)] px-3 py-2 text-[12px] text-[var(--muted)]">
               Placeholders disponibles : <code>{"{marque}"}</code>,{" "}
               <code>{"{categorie}"}</code>, <code>{"{taille}"}</code>,{" "}
               <code>{"{etat}"}</code>, <code>{"{matiere}"}</code>,{" "}
@@ -322,7 +322,7 @@ export default function PromptsPage() {
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2.5 text-[14px] text-[#16261D]">
+          <label className="flex cursor-pointer items-center gap-2.5 text-[14px] text-[var(--ink)]">
             <input
               type="checkbox"
               checked={form.estDefaut}
@@ -338,7 +338,7 @@ export default function PromptsPage() {
             <button
               onClick={() => setOpen(false)}
               disabled={pending}
-              className="rounded-full border border-[#E4E9E2] bg-white px-4 py-2 text-[13px] font-semibold text-[#71807A] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+              className="rounded-full border border-[var(--border)] bg-surface px-4 py-2 text-[13px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
             >
               Annuler
             </button>

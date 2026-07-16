@@ -9,18 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Surfaces (thème clair "Forest Precision")
-        surface: "#ffffff", // fond principal du contenu
-        "surface-soft": "#f9f9f9", // sidebar, zones inactives
-        "surface-container": "#f3f3f3",
-        "surface-container-high": "#eeeeee",
+        // Neutres → variables CSS (thème clair/sombre, cf. globals.css).
+        bg: "var(--bg)",
+        surface: "var(--surface)", // fond principal du contenu
+        "surface-soft": "var(--surface-2)", // sidebar, cartes teintées
+        "surface-container": "var(--tint)",
+        "surface-container-high": "var(--tint)",
+        tint: "var(--tint)",
         // Texte
-        ink: "#1a1c1c", // on-surface
-        "ink-muted": "#404942", // on-surface-variant
-        "ink-faint": "#717972", // outline / texte tertiaire
+        ink: "var(--ink)", // on-surface
+        "ink-muted": "var(--ink2)", // on-surface-variant
+        "ink-faint": "var(--faint)", // outline / texte tertiaire
+        muted: "var(--muted)",
+        faint: "var(--faint)",
+        nav: "var(--nav)",
         // Bordures
-        line: "#eaeaea",
-        "line-strong": "#c0c9c0",
+        line: "var(--border)",
+        "line-strong": "var(--border-strong)",
         // Vert forêt (couleur de marque)
         primary: "#1a5336",
         "primary-dark": "#003b22",

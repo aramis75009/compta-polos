@@ -1,12 +1,12 @@
 export default function CguPage() {
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-6 py-10">
+    <main className="min-h-screen bg-[var(--bg)] px-6 py-10">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 font-grotesk text-[26px] font-bold text-[#16261D]">
+        <h1 className="mb-6 font-grotesk text-[26px] font-bold text-[var(--ink)]">
           Conditions générales d&apos;utilisation
         </h1>
-        <div className="rounded-[22px] border border-[#E4E9E2] bg-white p-8">
-          <ul className="space-y-3 text-[14px] leading-relaxed text-[#71807A]">
+        <div className="rounded-[22px] border border-[var(--border)] bg-surface p-8">
+          <ul className="space-y-3 text-[14px] leading-relaxed text-[var(--muted)]">
             <li>
               MyFlip est un outil personnel de pilotage de revente de vêtements.
             </li>

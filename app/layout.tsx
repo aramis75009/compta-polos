@@ -53,10 +53,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${jakarta.variable} ${grotesk.variable} ${jakarta.className} min-h-screen bg-surface text-ink antialiased`}
+        className={`${jakarta.variable} ${grotesk.variable} ${jakarta.className} min-h-screen bg-bg text-ink antialiased`}
       >
+        {/* Applique le thème avant le premier paint pour éviter tout flash clair
+            au chargement en mode sombre. Miroir de ThemeToggle (clé identique). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('myflip-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}`,
+          }}
+        />
         <Providers>
           <AppShell>{children}</AppShell>
           <Toaster position="bottom-right" />

@@ -19,7 +19,7 @@ export default function Loader({ label = "Chargement", size = "md" }: LoaderProp
           display: "inline-flex",
           padding: pad,
           borderRadius: radius,
-          background: "radial-gradient(120% 120% at 50% 0%, #214f3b 0%, #16261D 100%)",
+          background: "radial-gradient(120% 120% at 50% 0%, #214f3b 0%, var(--ink) 100%)",
         }}
       >
         <svg width={svgSize} height={svgSize} viewBox="0 0 96 96" fill="none">
@@ -56,7 +56,7 @@ export default function Loader({ label = "Chargement", size = "md" }: LoaderProp
           fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 600,
           fontSize,
-          color: "#16261D",
+          color: "var(--ink)",
           letterSpacing: "-0.01em",
         }}
       >

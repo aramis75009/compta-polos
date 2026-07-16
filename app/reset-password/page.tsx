@@ -43,18 +43,18 @@ function ResetForm() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-[#E4E9E2] bg-[#F7F9F6] px-4 py-3 text-[14px] text-[#16261D] outline-none transition-colors placeholder:text-[#A6B2A9] focus:border-[#1B4332] focus:bg-white";
+    "w-full rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3 text-[14px] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--faint-2)] focus:border-[#1B4332] focus:bg-surface";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#EEF1EC] px-4">
-      <div className="w-full max-w-sm rounded-[22px] border border-[#E4E9E2] bg-white p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-4">
+      <div className="w-full max-w-sm rounded-[22px] border border-[var(--border)] bg-surface p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#1B4332] font-bold text-white text-lg">
             M
           </span>
           <div>
-            <p className="font-bold text-[#16261D]">MyFlip</p>
-            <p className="text-[13px] text-[#71807A]">Nouveau mot de passe</p>
+            <p className="font-bold text-[var(--ink)]">MyFlip</p>
+            <p className="text-[13px] text-[var(--muted)]">Nouveau mot de passe</p>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ function ResetForm() {
               </p>
             )}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12.5px] font-semibold text-[#71807A]">
+              <label className="text-[12.5px] font-semibold text-[var(--muted)]">
                 Nouveau mot de passe
               </label>
               <input
@@ -84,7 +84,7 @@ function ResetForm() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12.5px] font-semibold text-[#71807A]">
+              <label className="text-[12.5px] font-semibold text-[var(--muted)]">
                 Confirmer
               </label>
               <input

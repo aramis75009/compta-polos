@@ -22,7 +22,7 @@ const frNum = (n: number, d = 1) =>
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       {children}
     </main>
   );
@@ -62,12 +62,12 @@ export default function StatistiquesPage() {
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Statistiques
           </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
             Analyse de la performance de ta revente.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44]">
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)]">
             <Calendar className="h-4 w-4" strokeWidth={2} />
             Tout l’historique
             <ChevronDown className="h-[15px] w-[15px] opacity-55" strokeWidth={2} />
@@ -178,7 +178,7 @@ export default function StatistiquesPage() {
             </div>
             <div className="h-[9px] overflow-hidden rounded-md bg-white/[0.22]">
               <div
-                className="h-full rounded-md bg-white"
+                className="h-full rounded-md bg-surface"
                 style={{ width: `${Math.round(pctEcoule * 100)}%` }}
               />
             </div>
@@ -198,43 +198,43 @@ export default function StatistiquesPage() {
       {/* Marques les plus rentables */}
       <section className="mt-5">
         {/* Cartes mobile (< md) */}
-        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[#16261D] md:hidden">
+        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[var(--ink)] md:hidden">
           Marques les plus rentables
         </h2>
         <div className="space-y-3 md:hidden">
           {data.marquesRentables.map((b) => (
-            <div key={b.marque} className="rounded-[18px] border border-[#E4E9E2] bg-white p-4">
+            <div key={b.marque} className="rounded-[18px] border border-[var(--border)] bg-surface p-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-grotesk font-bold text-[#16261D]">{b.marque}</span>
+                <span className="truncate font-grotesk font-bold text-[var(--ink)]">{b.marque}</span>
                 <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(b.margeNette)}</span>
               </div>
               <dl className="mt-3 space-y-1.5 text-[14px]">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[#94A29A]">Coef moyen</dt>
-                  <dd className="text-[#71807A]">{coef(b.coefMoyen)}</dd>
+                  <dt className="text-[var(--faint-2)]">Coef moyen</dt>
+                  <dd className="text-[var(--muted)]">{coef(b.coefMoyen)}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[#94A29A]">Vendus</dt>
-                  <dd className="text-[#16261D]">{b.vendus}</dd>
+                  <dt className="text-[var(--faint-2)]">Vendus</dt>
+                  <dd className="text-[var(--ink)]">{b.vendus}</dd>
                 </div>
               </dl>
             </div>
           ))}
           {data.marquesRentables.length === 0 && (
-            <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-8 text-center text-[#8A998F]">
+            <p className="rounded-[18px] border border-[var(--border)] bg-surface px-4 py-8 text-center text-[var(--faint)]">
               Aucune vente pour le moment.
             </p>
           )}
         </div>
         {/* Tableau (≥ md) */}
-        <div className="hidden overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white md:block">
-        <h2 className="border-b border-[#E4E9E2] px-6 py-4 font-grotesk text-[18px] font-bold text-[#16261D]">
+        <div className="hidden overflow-hidden rounded-[20px] border border-[var(--border)] bg-surface md:block">
+        <h2 className="border-b border-[var(--border)] px-6 py-4 font-grotesk text-[18px] font-bold text-[var(--ink)]">
           Marques les plus rentables
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] border-collapse text-[14px]">
             <thead>
-              <tr className="bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+              <tr className="bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
                 <th className="px-6 py-3">Marque</th>
                 <th className="px-3 py-3 text-right">Marge nette totale</th>
                 <th className="px-3 py-3 text-right">Coef moyen</th>
@@ -243,20 +243,20 @@ export default function StatistiquesPage() {
             </thead>
             <tbody>
               {data.marquesRentables.map((b) => (
-                <tr key={b.marque} className="border-t border-[#EEF1EC]">
-                  <td className="px-6 py-3 font-semibold text-[#16261D]">{b.marque}</td>
+                <tr key={b.marque} className="border-t border-[var(--bg)]">
+                  <td className="px-6 py-3 font-semibold text-[var(--ink)]">{b.marque}</td>
                   <td className="px-3 py-3 text-right font-semibold text-[#2D6A4F]">
                     {euros(b.margeNette)}
                   </td>
-                  <td className="px-3 py-3 text-right text-[#71807A]">
+                  <td className="px-3 py-3 text-right text-[var(--muted)]">
                     {coef(b.coefMoyen)}
                   </td>
-                  <td className="px-6 py-3 text-right text-[#71807A]">{b.vendus}</td>
+                  <td className="px-6 py-3 text-right text-[var(--muted)]">{b.vendus}</td>
                 </tr>
               ))}
               {data.marquesRentables.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-[#8A998F]">
+                  <td colSpan={4} className="px-6 py-8 text-center text-[var(--faint)]">
                     Aucune vente pour le moment.
                   </td>
                 </tr>
@@ -270,43 +270,43 @@ export default function StatistiquesPage() {
       {/* Top 5 articles */}
       <section className="mt-5">
         {/* Cartes mobile (< md) */}
-        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[#16261D] md:hidden">
+        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[var(--ink)] md:hidden">
           Top 5 articles (prix de vente)
         </h2>
         <div className="space-y-3 md:hidden">
           {data.topArticles.map((a) => (
-            <div key={a.sku} className="rounded-[18px] border border-[#E4E9E2] bg-white p-4">
+            <div key={a.sku} className="rounded-[18px] border border-[var(--border)] bg-surface p-4">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-grotesk font-bold text-[#16261D]">{a.sku}</span>
+                <span className="truncate font-grotesk font-bold text-[var(--ink)]">{a.sku}</span>
                 <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(a.margeNette)}</span>
               </div>
               <dl className="mt-3 space-y-1.5 text-[14px]">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[#94A29A]">Marque</dt>
-                  <dd className="text-[#71807A]">{a.marque}</dd>
+                  <dt className="text-[var(--faint-2)]">Marque</dt>
+                  <dd className="text-[var(--muted)]">{a.marque}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <dt className="text-[#94A29A]">Prix vente</dt>
-                  <dd className="text-[#16261D]">{euros(a.prixVente)}</dd>
+                  <dt className="text-[var(--faint-2)]">Prix vente</dt>
+                  <dd className="text-[var(--ink)]">{euros(a.prixVente)}</dd>
                 </div>
               </dl>
             </div>
           ))}
           {data.topArticles.length === 0 && (
-            <p className="rounded-[18px] border border-[#E4E9E2] bg-white px-4 py-8 text-center text-[#8A998F]">
+            <p className="rounded-[18px] border border-[var(--border)] bg-surface px-4 py-8 text-center text-[var(--faint)]">
               Aucune vente pour le moment.
             </p>
           )}
         </div>
         {/* Tableau (≥ md) */}
-        <div className="hidden overflow-hidden rounded-[20px] border border-[#E4E9E2] bg-white md:block">
-        <h2 className="border-b border-[#E4E9E2] px-6 py-4 font-grotesk text-[18px] font-bold text-[#16261D]">
+        <div className="hidden overflow-hidden rounded-[20px] border border-[var(--border)] bg-surface md:block">
+        <h2 className="border-b border-[var(--border)] px-6 py-4 font-grotesk text-[18px] font-bold text-[var(--ink)]">
           Top 5 articles (prix de vente)
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] border-collapse text-[14px]">
             <thead>
-              <tr className="bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+              <tr className="bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
                 <th className="px-6 py-3">SKU</th>
                 <th className="px-3 py-3">Marque</th>
                 <th className="px-3 py-3 text-right">Prix vente</th>
@@ -315,12 +315,12 @@ export default function StatistiquesPage() {
             </thead>
             <tbody>
               {data.topArticles.map((a) => (
-                <tr key={a.sku} className="border-t border-[#EEF1EC]">
-                  <td className="px-6 py-3 font-grotesk font-bold text-[#16261D]">
+                <tr key={a.sku} className="border-t border-[var(--bg)]">
+                  <td className="px-6 py-3 font-grotesk font-bold text-[var(--ink)]">
                     {a.sku}
                   </td>
-                  <td className="px-3 py-3 text-[#71807A]">{a.marque}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-[#16261D]">
+                  <td className="px-3 py-3 text-[var(--muted)]">{a.marque}</td>
+                  <td className="px-3 py-3 text-right font-semibold text-[var(--ink)]">
                     {euros(a.prixVente)}
                   </td>
                   <td className="px-6 py-3 text-right font-semibold text-[#2D6A4F]">
@@ -330,7 +330,7 @@ export default function StatistiquesPage() {
               ))}
               {data.topArticles.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-[#8A998F]">
+                  <td colSpan={4} className="px-6 py-8 text-center text-[var(--faint)]">
                     Aucune vente pour le moment.
                   </td>
                 </tr>
@@ -356,16 +356,16 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
   const champion = days[bestIdx];
 
   return (
-    <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
+    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="font-grotesk text-[18px] font-bold text-[#16261D]">
+          <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
             Meilleur jour de la semaine
           </h2>
-          <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
+          <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
             Nombre de ventes par jour
           </p>
-          <p className="mt-0.5 text-[12px] text-[#94A29A]">
+          <p className="mt-0.5 text-[12px] text-[var(--faint-2)]">
             {"Basé sur tout l'historique"}
           </p>
         </div>
@@ -377,7 +377,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
       </div>
       {allZero ? (
         <div className="flex h-[200px] items-center justify-center">
-          <p className="text-[13.5px] font-medium text-[#94A29A]">
+          <p className="text-[13.5px] font-medium text-[var(--faint-2)]">
             Aucune vente enregistrée pour le moment.
           </p>
         </div>
@@ -398,7 +398,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
                 <div className="relative flex w-full items-end justify-center">
                   {isHover && (
                     <div
-                      className="absolute bottom-[calc(100%+4px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[#16261D] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
+                      className="absolute bottom-[calc(100%+4px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[var(--ink)] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
                       style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
                     >
                       {d.vendus} vente{d.vendus > 1 ? "s" : ""}
@@ -413,7 +413,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
                     }}
                   />
                 </div>
-                <span className="mt-2.5 text-[12px] font-semibold text-[#8A998F]">
+                <span className="mt-2.5 text-[12px] font-semibold text-[var(--faint)]">
                   {d.jour.slice(0, 3)}
                 </span>
               </div>
@@ -445,11 +445,11 @@ function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
   });
 
   return (
-    <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
-      <h2 className="font-grotesk text-[18px] font-bold text-[#16261D]">
+    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
+      <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
         Répartition des statuts
       </h2>
-      <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
+      <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
         {total.toLocaleString("fr-FR")} articles au total
       </p>
       <div className="mt-2 flex items-center gap-6">
@@ -474,7 +474,7 @@ function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
             <span className="font-grotesk text-[26px] font-bold tracking-[-0.02em]">
               {total.toLocaleString("fr-FR")}
             </span>
-            <span className="text-[11px] font-semibold text-[#94A29A]">articles</span>
+            <span className="text-[11px] font-semibold text-[var(--faint-2)]">articles</span>
           </div>
         </div>
         <div className="flex flex-1 flex-col gap-3.5">
@@ -484,11 +484,11 @@ function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
                 className="h-[11px] w-[11px] flex-shrink-0 rounded-[3px]"
                 style={{ background: s.color }}
               />
-              <span className="flex-1 text-[13.5px] font-semibold text-[#3C4D44]">
+              <span className="flex-1 text-[13.5px] font-semibold text-[var(--ink2)]">
                 {s.statut}
               </span>
               <span className="font-grotesk text-[14px] font-bold">{s.count}</span>
-              <span className="w-[34px] text-right text-[12px] font-semibold text-[#94A29A]">
+              <span className="w-[34px] text-right text-[12px] font-semibold text-[var(--faint-2)]">
                 {s.pct} %
               </span>
             </div>
@@ -510,27 +510,27 @@ function canalStyle(name: string): { square: string; bar: string } {
   if (name === "Vinted" || name === "Vinted Go")
     return { square: "#0BBBC4", bar: "linear-gradient(90deg,#0BBBC4,#089AA2)" };
   if (name.startsWith("Vestiaire"))
-    return { square: "#16261D", bar: "linear-gradient(90deg,#3C4D44,#16261D)" };
+    return { square: "var(--ink)", bar: "linear-gradient(90deg,var(--ink2),var(--ink))" };
   return { square: "#2D6A4F", bar: "linear-gradient(90deg,#2D6A4F,#1B4332)" };
 }
 
 function CanalCard({ data }: { data: CanalCA[] }) {
   const total = data.reduce((s, c) => s + c.ca, 0);
   return (
-    <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
+    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
       <div className="mb-5 flex items-start justify-between">
         <div>
-          <h2 className="font-grotesk text-[18px] font-bold text-[#16261D]">
+          <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
             CA par canal
           </h2>
-          <p className="mt-1 text-[13px] font-medium text-[#8A998F]">
+          <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
             Répartition des ventes par plateforme
           </p>
         </div>
         <span className="font-grotesk text-[18px] font-bold">{euros(total)}</span>
       </div>
       {data.length === 0 ? (
-        <p className="text-[14px] text-[#94A29A]">Aucune vente pour le moment.</p>
+        <p className="text-[14px] text-[var(--faint-2)]">Aucune vente pour le moment.</p>
       ) : (
         <div className="flex flex-col gap-[22px]">
           {data.map((c) => {
@@ -539,7 +539,7 @@ function CanalCard({ data }: { data: CanalCA[] }) {
             return (
               <div key={c.canal}>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2.5 text-[14px] font-bold text-[#16261D]">
+                  <span className="inline-flex items-center gap-2.5 text-[14px] font-bold text-[var(--ink)]">
                     <span
                       className="flex h-[26px] w-[26px] items-center justify-center rounded-lg text-[13px] font-extrabold text-white"
                       style={{ background: st.square }}
@@ -548,8 +548,8 @@ function CanalCard({ data }: { data: CanalCA[] }) {
                     </span>
                     {c.canal}
                   </span>
-                  <span className="text-[13.5px] font-semibold text-[#71807A]">
-                    <b className="font-grotesk text-[#16261D]">{euros(c.ca)}</b> · {pct} %
+                  <span className="text-[13.5px] font-semibold text-[var(--muted)]">
+                    <b className="font-grotesk text-[var(--ink)]">{euros(c.ca)}</b> · {pct} %
                   </span>
                 </div>
                 <div className="h-[14px] overflow-hidden rounded-lg bg-[#EEF2EC]">

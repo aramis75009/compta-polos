@@ -109,10 +109,10 @@ export default function DashboardPage() {
       {/* TOPBAR */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[#16261D] md:text-[30px]">
+          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[var(--ink)] md:text-[30px]">
             Bonjour {name} 👋
           </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
             {todayLabel()}
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
             )}
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="relative z-20 flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+              className="relative z-20 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
             >
               <Calendar className="h-4 w-4" strokeWidth={2} />
               {periodeLabel}
@@ -137,7 +137,7 @@ export default function DashboardPage() {
               />
             </button>
             {showDropdown && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-[210px] overflow-hidden rounded-[14px] border border-[#E4E9E2] bg-white py-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,.15)]">
+              <div className="absolute right-0 top-full z-20 mt-1 w-[210px] overflow-hidden rounded-[14px] border border-[var(--border)] bg-surface py-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,.15)]">
                 {PERIODES.map((p) => (
                   <button
                     key={p.key}
@@ -145,8 +145,8 @@ export default function DashboardPage() {
                       setPeriode(p.key);
                       setShowDropdown(false);
                     }}
-                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold transition-colors hover:bg-[#F7F9F6] ${
-                      periode === p.key ? "text-[#1B4332]" : "text-[#3C4D44]"
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold transition-colors hover:bg-[var(--tint)] ${
+                      periode === p.key ? "text-[#1B4332]" : "text-[var(--ink2)]"
                     }`}
                   >
                     {p.label}
@@ -193,7 +193,7 @@ export default function DashboardPage() {
 // Conteneur principal : fond app + padding du handoff.
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       {children}
     </main>
   );
@@ -369,13 +369,13 @@ function MargeCard({
   const pct = signedPct(delta.pct);
   const positive = delta.pct == null || delta.pct >= 0;
   return (
-    <div className="flex flex-col justify-between rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
+    <div className="flex flex-col justify-between rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6 transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[#8A998F]">
+          <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[var(--faint)]">
             Marge nette
           </div>
-          <div className="mt-2.5 font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[#16261D] md:text-[40px]">
+          <div className="mt-2.5 font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[var(--ink)] md:text-[40px]">
             {euros(total)}
           </div>
         </div>
@@ -398,7 +398,7 @@ function MargeCard({
             {pct}
           </span>
         )}
-        <span className="text-[12.5px] font-medium text-[#94A29A]">
+        <span className="text-[12.5px] font-medium text-[var(--faint-2)]">
           marge moyenne {pctInt(moyenne)}
         </span>
       </div>
@@ -412,19 +412,19 @@ function MargeCard({
 
 function StockCard({ enStock, total }: { enStock: number; total: number }) {
   return (
-    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
+    <div className="flex items-center gap-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="flex h-[50px] w-[50px] flex-shrink-0 items-center justify-center rounded-[14px] bg-[#EAF3ED] text-[#1B4332]">
         <Package className="h-6 w-6" strokeWidth={2} />
       </div>
       <div className="flex-1">
-        <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[#8A998F]">
+        <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[var(--faint)]">
           Articles en stock
         </div>
         <div className="mt-1.5 flex items-baseline gap-2.5">
-          <span className="font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[#16261D]">
+          <span className="font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[var(--ink)]">
             {enStock}
           </span>
-          <span className="text-[13px] font-semibold text-[#94A29A]">
+          <span className="text-[13px] font-semibold text-[var(--faint-2)]">
             / {total.toLocaleString("fr-FR")} au total
           </span>
         </div>
@@ -442,7 +442,7 @@ function TauxVenteCard({ pct, vendus }: { pct: number; vendus: number }) {
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(1, Math.max(0, pct)));
   return (
-    <div className="flex items-center gap-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
+    <div className="flex items-center gap-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-[22px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
       <div className="relative h-[58px] w-[58px] flex-shrink-0">
         <svg width="58" height="58" viewBox="0 0 58 58" style={{ transform: "rotate(-90deg)" }}>
           <circle cx="29" cy="29" r={r} fill="none" stroke="#EAF0EB" strokeWidth="7" />
@@ -463,14 +463,14 @@ function TauxVenteCard({ pct, vendus }: { pct: number; vendus: number }) {
         </span>
       </div>
       <div className="flex-1">
-        <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[#8A998F]">
+        <div className="text-[12.5px] font-bold uppercase tracking-[0.04em] text-[var(--faint)]">
           Taux de vente
         </div>
         <div className="mt-1.5 flex items-baseline gap-2.5">
-          <span className="font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[#16261D]">
+          <span className="font-grotesk text-[36px] font-bold tracking-[-0.02em] text-[var(--ink)]">
             {pctInt(pct)}
           </span>
-          <span className="text-[13px] font-semibold text-[#94A29A]">
+          <span className="text-[13px] font-semibold text-[var(--faint-2)]">
             {vendus.toLocaleString("fr-FR")} vendus
           </span>
         </div>
@@ -494,24 +494,24 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
   const avgBottom = max > 0 ? 26 + (avg / max) * 222 : 0;
 
   return (
-    <div className="mb-5 rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6 transition-[box-shadow,border-color] duration-300 hover:border-[#CBD8CE] hover:shadow-[0_24px_50px_-32px_rgba(20,53,40,.45)] md:px-7">
+    <div className="mb-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6 transition-[box-shadow,border-color] duration-300 hover:border-[var(--border-strong)] hover:shadow-[0_24px_50px_-32px_rgba(20,53,40,.45)] md:px-7">
       <div className="mb-2 flex items-start justify-between">
         <div>
-          <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[#16261D]">
+          <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
             CA par semaine
           </h2>
           <div className="mt-2 flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#8A998F]">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--faint)]">
               <span className="h-[9px] w-[9px] rounded-[3px] bg-[#1B4332]" />
               Meilleure semaine
             </span>
-            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#8A998F]">
+            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--faint)]">
               <span className="w-3.5 border-t-2 border-dashed border-[#B59A4F]" />
               Moyenne
             </span>
           </div>
         </div>
-        <span className="rounded-full bg-[#F2F5F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#71807A]">
+        <span className="rounded-full bg-[var(--tint)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--muted)]">
           8 dernières semaines
         </span>
       </div>
@@ -523,7 +523,7 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-dashed border-[#EAEEE7]" />
-          <div className="border-t border-[#E4E9E2]" />
+          <div className="border-t border-[var(--border)]" />
         </div>
         {/* ligne moyenne */}
         {avg > 0 && (
@@ -532,7 +532,7 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
             style={{ bottom: avgBottom }}
           >
             <div className="border-t-2 border-dashed border-[#D9C58A]" />
-            <span className="absolute right-0 -top-[9px] bg-white px-1 text-[10.5px] font-bold text-[#B59A4F]">
+            <span className="absolute right-0 -top-[9px] bg-surface px-1 text-[10.5px] font-bold text-[#B59A4F]">
               moy. {Math.round(avg).toLocaleString("fr-FR")} €
             </span>
           </div>
@@ -563,7 +563,7 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
                 <div className="relative flex w-full flex-1 items-end justify-center">
                   {isHover && (
                     <div
-                      className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[11px] bg-[#16261D] px-3 py-2 text-white"
+                      className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[11px] bg-[var(--ink)] px-3 py-2 text-white"
                       style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
                     >
                       <div className="font-grotesk text-[14.5px] font-bold">
@@ -579,7 +579,7 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
                     style={{ height, background: fill, borderRadius: "9px 9px 5px 5px", boxShadow }}
                   />
                 </div>
-                <span className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[#16261D]" : "text-[#8A998F]"}`}>
+                <span className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[var(--ink)]" : "text-[var(--faint)]"}`}>
                   {d.semaine}
                 </span>
               </div>
@@ -600,19 +600,19 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
   return (
     <div>
       <div className="mx-0.5 mb-4 flex items-center justify-between">
-        <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[#16261D]">
+        <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
           Par marque
         </h2>
         <Link
           href="/stock"
-          className="text-[13px] font-semibold text-[#71807A] transition-colors hover:text-[#1B4332]"
+          className="text-[13px] font-semibold text-[var(--muted)] transition-colors hover:text-[#1B4332]"
         >
           Voir le détail →
         </Link>
       </div>
 
       {brands.length === 0 ? (
-        <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-12 text-center text-[#8A998F]">
+        <div className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-12 text-center text-[var(--faint)]">
           Aucune donnée.
         </div>
       ) : (
@@ -623,7 +623,7 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
               onClick={() =>
                 router.push(`/stock?marque=${encodeURIComponent(b.marque)}`)
               }
-              className="group rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-[#CBD8CE] hover:shadow-[0_22px_40px_-26px_rgba(20,53,40,.55)]"
+              className="group rounded-[20px] border border-[var(--border)] bg-surface px-6 py-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_22px_40px_-26px_rgba(20,53,40,.55)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -631,10 +631,10 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
                     {initials(b.marque)}
                   </div>
                   <div>
-                    <div className="text-[15.5px] font-bold tracking-[-0.01em] text-[#16261D]">
+                    <div className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
                       {b.marque}
                     </div>
-                    <div className="mt-px text-[12.5px] font-medium text-[#94A29A]">
+                    <div className="mt-px text-[12.5px] font-medium text-[var(--faint-2)]">
                       {b.enStock} en stock · {b.vendus} vendus
                     </div>
                   </div>
@@ -649,15 +649,15 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
               </div>
 
               <div className="mb-1 mt-4 flex items-baseline gap-3">
-                <span className="font-grotesk text-[28px] font-bold tracking-[-0.02em] text-[#16261D]">
+                <span className="font-grotesk text-[28px] font-bold tracking-[-0.02em] text-[var(--ink)]">
                   {euros(b.ca)}
                 </span>
-                <span className="text-[13px] font-semibold text-[#94A29A]">
+                <span className="text-[13px] font-semibold text-[var(--faint-2)]">
                   {euros(b.margeNette)} de marge
                 </span>
               </div>
 
-              <div className="mb-1.5 mt-3.5 flex items-center justify-between text-[12px] font-semibold text-[#8A998F]">
+              <div className="mb-1.5 mt-3.5 flex items-center justify-between text-[12px] font-semibold text-[var(--faint)]">
                 <span>Taux de vente</span>
                 <span className="font-bold text-[#1B4332]">{pctInt(b.pctVendu)}</span>
               </div>

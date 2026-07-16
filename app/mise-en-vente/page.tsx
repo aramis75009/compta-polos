@@ -47,7 +47,7 @@ type Photo = {
 };
 
 const inputCls =
-  "w-full rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[14px] text-[#16261D] outline-none transition-colors focus:border-[#1B4332]";
+  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[#1B4332]";
 
 const STEPS = ["Photos", "Détails", "Génération", "Export"] as const;
 
@@ -156,9 +156,9 @@ type PersistedState = {
   step: number;
 };
 
-const labelCls = "text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]";
+const labelCls = "text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]";
 const cardCls =
-  "rounded-[20px] border border-[#E4E9E2] bg-white shadow-[0_18px_40px_-30px_rgba(20,53,40,.28)]";
+  "rounded-[20px] border border-[var(--border)] bg-surface shadow-[0_18px_40px_-30px_rgba(20,53,40,.28)]";
 
 /** Chip de sélection (marque, catégorie, taille, état, matière). 44px = touch target. */
 function Chip({
@@ -178,7 +178,7 @@ function Chip({
       className={`inline-flex min-h-[44px] items-center justify-center rounded-xl border-[1.5px] px-4 text-[13.5px] font-semibold transition-all ${
         active
           ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_8px_18px_-11px_rgba(20,53,40,.85)]"
-          : "border-[#E4E9E2] bg-white text-[#3C4D44] hover:border-[#CBD8CE]"
+          : "border-[var(--border)] bg-surface text-[var(--ink2)] hover:border-[var(--border-strong)]"
       }`}
     >
       {value}
@@ -208,7 +208,7 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
                     ? "bg-[#1B4332] text-white"
                     : active
                       ? "bg-[#1B4332] text-white shadow-[0_0_0_5px_#E1ECE4]"
-                      : "border-2 border-[#E4E9E2] bg-white text-[#A6B2A9]"
+                      : "border-2 border-[var(--border)] bg-surface text-[var(--faint-2)]"
                 }`}
               >
                 {done ? <Check className="h-[18px] w-[18px]" strokeWidth={2.6} /> : n}
@@ -217,7 +217,7 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
                 className={`text-[12px] md:text-[13px] ${
                   done || active
                     ? "font-bold text-[#1B4332]"
-                    : "font-semibold text-[#A6B2A9]"
+                    : "font-semibold text-[var(--faint-2)]"
                 }`}
               >
                 {label}
@@ -226,7 +226,7 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
             {n < STEPS.length && (
               <div
                 className={`mx-1.5 mt-[18px] h-[3px] flex-1 rounded-full transition-colors ${
-                  n < step ? "bg-[#1B4332]" : "bg-[#E4E9E2]"
+                  n < step ? "bg-[#1B4332]" : "bg-[var(--border)]"
                 }`}
               />
             )}
@@ -276,6 +276,7 @@ export default function MiseEnVentePage() {
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
   const [genIndex, setGenIndex] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [savedStatut, setSavedStatut] = useState<string | null>(null);
   const [copied, setCopied] = useState<"titre" | "annonce" | null>(null);
 
   const { data: prompts = [] } = usePrompts();
@@ -564,7 +565,9 @@ export default function MiseEnVentePage() {
     }
   }
 
-  function enregistrer() {
+  // Enregistre l'annonce, en fixant au passage le statut de l'article (Brouillon
+  // ou En vente) : évite d'aller le changer à la main dans le Stock ensuite.
+  function enregistrer(nouveauStatut?: string) {
     if (!article) return;
     updateArticle.mutate(
       {
@@ -573,9 +576,15 @@ export default function MiseEnVentePage() {
           titreAnnonce: titre,
           descriptionAnnonce: description,
           motsClesAnnonce: motsCles,
+          ...(nouveauStatut ? { statut: nouveauStatut } : {}),
         },
       },
-      { onSuccess: () => setSaved(true) },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          if (nouveauStatut) setSavedStatut(nouveauStatut);
+        },
+      },
     );
   }
 
@@ -636,6 +645,7 @@ export default function MiseEnVentePage() {
     setSelectedPromptId(null);
     setShowPromptPicker(false);
     setSaved(false);
+    setSavedStatut(null);
     setGenIndex(0);
     setZoomedId(null);
     try {
@@ -705,15 +715,11 @@ export default function MiseEnVentePage() {
     hint = "Rédaction en cours";
     hintOk = true;
   } else {
-    primaryLabel = saved ? "Enregistré" : "Enregistrer l’annonce";
-    primaryIcon = saved ? (
-      <Check className="h-[17px] w-[17px]" strokeWidth={2.6} />
-    ) : (
-      <Check className="h-[17px] w-[17px]" strokeWidth={2.3} />
-    );
-    primaryEnabled = !!article && !saved && !updateArticle.isPending;
-    primaryAction = enregistrer;
-    hint = saved ? "Annonce enregistrée" : "Relis, ajuste, puis enregistre";
+    // Étape 4 : le bouton est remplacé par le choix Brouillon / Mettre en vente
+    // (cf. barre d'action). Ici on ne pilote plus que l'indice.
+    hint = saved
+      ? "Annonce enregistrée"
+      : "Relis, ajuste, puis choisis le statut à droite";
     hintOk = true;
   }
 
@@ -732,25 +738,25 @@ export default function MiseEnVentePage() {
   }, [step, canGenerate, selected, taille, etat, matiere, matiere2, details, article]);
 
   const btnGhost =
-    "inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-4 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]";
+    "inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-4 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]";
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-4 py-6 pb-40 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-32">
+    <main className="min-h-screen bg-[var(--bg)] px-4 py-6 pb-40 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-32">
       {/* ── Barre de contexte : l'article reste visible à toutes les étapes ── */}
       <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Mise en vente
           </h1>
-          <p className="mt-1.5 text-[14px] font-medium text-[#71807A]">
+          <p className="mt-1.5 text-[14px] font-medium text-[var(--muted)]">
             Photos → détails → génération → export.
           </p>
         </div>
         {article && (
-          <div className="flex items-center gap-2.5 self-start rounded-[13px] border border-[#E4E9E2] bg-white px-3.5 py-2">
+          <div className="flex items-center gap-2.5 self-start rounded-[13px] border border-[var(--border)] bg-surface px-3.5 py-2">
             <span className="font-grotesk text-[15px] font-bold">{article.sku}</span>
-            <span className="h-4 w-px bg-[#E4E9E2]" />
-            <span className="text-[13px] font-medium text-[#71807A]">
+            <span className="h-4 w-px bg-[var(--border)]" />
+            <span className="text-[13px] font-medium text-[var(--muted)]">
               {[marqueQcm, categorieQcm].filter(Boolean).join(" · ") || "à préciser"}
             </span>
           </div>
@@ -772,7 +778,7 @@ export default function MiseEnVentePage() {
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="Ex : PRL1"
                   autoCapitalize="characters"
-                  className="min-w-0 flex-1 rounded-[13px] border-2 border-[#1B4332] px-4 py-3 font-grotesk text-[16px] font-bold uppercase text-[#16261D] outline-none"
+                  className="min-w-0 flex-1 rounded-[13px] border-2 border-[#1B4332] px-4 py-3 font-grotesk text-[16px] font-bold uppercase text-[var(--ink)] outline-none"
                 />
                 <button
                   type="submit"
@@ -788,24 +794,24 @@ export default function MiseEnVentePage() {
                 </p>
               )}
               {article && (
-                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#EEF1EC] pt-4 [animation:stepIn_.25s_both]">
+                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--bg)] pt-4 [animation:stepIn_.25s_both]">
                   <span className="font-grotesk text-[17px] font-bold">{article.sku}</span>
                   <StatutBadge statut={article.statut} />
-                  <span className="text-[13.5px] font-medium text-[#71807A]">
+                  <span className="text-[13.5px] font-medium text-[var(--muted)]">
                     Marque :{" "}
-                    <b className="text-[#3C4D44]">
+                    <b className="text-[var(--ink2)]">
                       {listingLabels(article).marque || "à préciser"}
                     </b>
                   </span>
-                  <span className="text-[13.5px] font-medium text-[#71807A]">
+                  <span className="text-[13.5px] font-medium text-[var(--muted)]">
                     Catégorie :{" "}
-                    <b className="text-[#3C4D44]">
+                    <b className="text-[var(--ink2)]">
                       {listingLabels(article).categorie || "à préciser"}
                     </b>
                   </span>
                   <span
                     title="Libellé du lot en base (utilisé par le Stock)"
-                    className="rounded-full bg-[#F2F5F0] px-2.5 py-1 text-[12px] font-semibold text-[#8A998F]"
+                    className="rounded-full bg-[var(--tint)] px-2.5 py-1 text-[12px] font-semibold text-[var(--faint)]"
                   >
                     Lot : {article.marque}
                   </span>
@@ -839,11 +845,11 @@ export default function MiseEnVentePage() {
                       <h2 className="font-grotesk text-[17px] font-bold">
                         Photos de l’article
                       </h2>
-                      <span className="text-[12.5px] font-medium text-[#94A29A]">
+                      <span className="text-[12.5px] font-medium text-[var(--faint-2)]">
                         Ajoute-les, puis choisis les meilleures à l’étape suivante.
                       </span>
                     </div>
-                    <span className="rounded-full bg-[#F2F5F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#71807A]">
+                    <span className="rounded-full bg-[var(--tint)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--muted)]">
                       {photos.length} / {MAX_PHOTOS}
                       {processing > 0 ? ` · ${processing} en cours…` : ""}
                     </span>
@@ -853,7 +859,7 @@ export default function MiseEnVentePage() {
                     {photos.map((p, i) => (
                       <div
                         key={p.id}
-                        className="group relative aspect-square overflow-hidden rounded-[15px] border border-[#E4E9E2] bg-[#F7F9F6] [animation:popIn_.2s_ease]"
+                        className="group relative aspect-square overflow-hidden rounded-[15px] border border-[var(--border)] bg-[var(--tint)] [animation:popIn_.2s_ease]"
                       >
                         <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[12px] font-bold text-white">
                           {i + 1}
@@ -861,7 +867,7 @@ export default function MiseEnVentePage() {
                         <button
                           onClick={() => removePhoto(p.id)}
                           aria-label={`Supprimer la photo ${i + 1}`}
-                          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[#16261D]/55 text-white transition-colors hover:bg-[#16261D]/80"
+                          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ink)]/55 text-white transition-colors hover:bg-[var(--ink)]/80"
                         >
                           <X className="h-3.5 w-3.5" strokeWidth={2.4} />
                         </button>
@@ -874,14 +880,14 @@ export default function MiseEnVentePage() {
                         <button
                           onClick={() => rotatePhoto(p.id, -90)}
                           aria-label="Tourner à gauche"
-                          className="absolute bottom-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[#3C4D44] shadow-sm transition-colors hover:bg-white hover:text-[#1B4332]"
+                          className="absolute bottom-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[#1B4332]"
                         >
                           <RotateCcw className="h-4 w-4" strokeWidth={2} />
                         </button>
                         <button
                           onClick={() => rotatePhoto(p.id, 90)}
                           aria-label="Tourner à droite"
-                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[#3C4D44] shadow-sm transition-colors hover:bg-white hover:text-[#1B4332]"
+                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[#1B4332]"
                         >
                           <RotateCw className="h-4 w-4" strokeWidth={2} />
                         </button>
@@ -890,7 +896,7 @@ export default function MiseEnVentePage() {
                     <button
                       onClick={() => fileRef.current?.click()}
                       disabled={photos.length >= MAX_PHOTOS}
-                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[15px] border-2 border-dashed border-[#C4D2C9] bg-[#F7F9F6] text-[#1B4332] transition-colors hover:border-[#1B4332] hover:bg-[#F0F5EE] disabled:opacity-50"
+                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[15px] border-2 border-dashed border-[#C4D2C9] bg-[var(--tint)] text-[#1B4332] transition-colors hover:border-[#1B4332] hover:bg-[#F0F5EE] disabled:opacity-50"
                     >
                       <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#EAF3ED]">
                         <Upload className="h-[22px] w-[22px]" strokeWidth={1.9} />
@@ -899,7 +905,7 @@ export default function MiseEnVentePage() {
                     </button>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-2.5 rounded-[13px] border border-dashed border-[#C4D2C9] bg-[#F7F9F6] px-4 py-3">
+                  <div className="mt-4 flex items-center gap-2.5 rounded-[13px] border border-dashed border-[#C4D2C9] bg-[var(--tint)] px-4 py-3">
                     <Upload
                       className="h-[18px] w-[18px] flex-shrink-0 text-[#1B4332]"
                       strokeWidth={1.9}
@@ -925,13 +931,13 @@ export default function MiseEnVentePage() {
                   className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${
                     selected.length >= MIN_SELECT
                       ? "bg-[#E4F3EA] text-[#2D6A4F]"
-                      : "bg-[#F2F5F0] text-[#8A998F]"
+                      : "bg-[var(--tint)] text-[var(--faint)]"
                   }`}
                 >
                   {selected.length} / {MAX_SELECT}
                 </span>
               </div>
-              <p className="mb-3.5 text-[12.5px] font-medium text-[#94A29A]">
+              <p className="mb-3.5 text-[12.5px] font-medium text-[var(--faint-2)]">
                 Choisis {MIN_SELECT} à {MAX_SELECT} photos. L’ordre = priorité.
               </p>
               <div className="grid grid-cols-2 gap-2.5">
@@ -944,7 +950,7 @@ export default function MiseEnVentePage() {
                       className={`relative aspect-square overflow-hidden rounded-[13px] border-[2.5px] transition-all ${
                         sel
                           ? "border-[#1B4332] shadow-[0_10px_22px_-12px_rgba(20,53,40,.7)]"
-                          : "border-transparent outline outline-1 outline-[#E4E9E2]"
+                          : "border-transparent outline outline-1 outline-[var(--border)]"
                       }`}
                     >
                       <button
@@ -968,7 +974,7 @@ export default function MiseEnVentePage() {
                       <button
                         onClick={() => setZoomedId(p.id)}
                         aria-label={`Agrandir la photo ${i + 1}`}
-                        className="absolute bottom-1.5 right-1.5 z-10 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/92 text-[#1B4332] shadow-[0_3px_9px_rgba(20,53,40,.22)] transition-colors hover:bg-white"
+                        className="absolute bottom-1.5 right-1.5 z-10 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/92 text-[#1B4332] shadow-[0_3px_9px_rgba(20,53,40,.22)] transition-colors hover:bg-surface"
                       >
                         <ZoomIn className="h-4 w-4" strokeWidth={2.2} />
                       </button>
@@ -977,7 +983,7 @@ export default function MiseEnVentePage() {
                 })}
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="flex aspect-square items-center justify-center rounded-[13px] border-2 border-dashed border-[#CBD8CE] text-[#A6B2A9] transition-colors hover:border-[#1B4332] hover:text-[#1B4332]"
+                  className="flex aspect-square items-center justify-center rounded-[13px] border-2 border-dashed border-[var(--border-strong)] text-[var(--faint-2)] transition-colors hover:border-[#1B4332] hover:text-[#1B4332]"
                   aria-label="Ajouter une photo"
                 >
                   <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
@@ -1083,7 +1089,7 @@ export default function MiseEnVentePage() {
               <div className={`${cardCls} p-5 md:px-6`}>
                 <div className="mb-4">
                   <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[#16261D]">
+                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
                       Taille
                     </label>
                     <span
@@ -1108,11 +1114,11 @@ export default function MiseEnVentePage() {
                   </div>
                 </div>
 
-                <div className="my-4 h-px bg-[#EEF1EC]" />
+                <div className="my-4 h-px bg-[var(--bg)]" />
 
                 <div className="mb-4">
                   <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[#16261D]">
+                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
                       État
                     </label>
                     <span
@@ -1135,14 +1141,14 @@ export default function MiseEnVentePage() {
                   </div>
                 </div>
 
-                <div className="my-4 h-px bg-[#EEF1EC]" />
+                <div className="my-4 h-px bg-[var(--bg)]" />
 
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[#16261D]">
+                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
                       Matière
                     </label>
-                    <span className="text-[11px] font-semibold text-[#A6B2A9]">
+                    <span className="text-[11px] font-semibold text-[var(--faint-2)]">
                       jusqu’à 2 · optionnel
                     </span>
                   </div>
@@ -1171,7 +1177,7 @@ export default function MiseEnVentePage() {
                 />
                 <div className="mt-3.5 flex flex-wrap items-center gap-2.5 rounded-xl bg-[#F1F6F2] px-4 py-3">
                   <FileText className="h-4 w-4 flex-shrink-0 text-[#1B4332]" strokeWidth={2} />
-                  <span className="text-[13px] font-medium text-[#3C4D44]">
+                  <span className="text-[13px] font-medium text-[var(--ink2)]">
                     Prompt :{" "}
                     <b className="text-[#1B4332]">
                       {prompts.find((p) => p.id === selectedPromptId)?.nom ?? "aucun"}
@@ -1179,7 +1185,7 @@ export default function MiseEnVentePage() {
                   </span>
                   <button
                     onClick={() => setShowPromptPicker((v) => !v)}
-                    className="ml-auto text-[12px] font-semibold text-[#8A998F] transition-colors hover:text-[#1B4332]"
+                    className="ml-auto text-[12px] font-semibold text-[var(--faint)] transition-colors hover:text-[#1B4332]"
                   >
                     {showPromptPicker ? "Fermer" : "Changer"}
                   </button>
@@ -1232,7 +1238,7 @@ export default function MiseEnVentePage() {
                 <h2 className="font-grotesk text-[22px] font-bold tracking-[-0.02em]">
                   Génération en cours…
                 </h2>
-                <p className="mt-2.5 text-[13.5px] font-medium text-[#94A29A]">
+                <p className="mt-2.5 text-[13.5px] font-medium text-[var(--faint-2)]">
                   MyFlip rédige ton annonce avec Gemini Flash
                 </p>
                 <div className="mx-auto mt-7 flex max-w-[420px] flex-col gap-3">
@@ -1255,16 +1261,16 @@ export default function MiseEnVentePage() {
                           {done ? (
                             <Check className="h-3 w-3" strokeWidth={3} />
                           ) : active ? (
-                            <span className="h-2 w-2 rounded-full bg-white" />
+                            <span className="h-2 w-2 rounded-full bg-surface" />
                           ) : null}
                         </span>
                         <span
                           className={`text-[14px] ${
                             done
-                              ? "font-semibold text-[#3C4D44]"
+                              ? "font-semibold text-[var(--ink2)]"
                               : active
-                                ? "font-bold text-[#16261D]"
-                                : "font-semibold text-[#A6B2A9]"
+                                ? "font-bold text-[var(--ink)]"
+                                : "font-semibold text-[var(--faint-2)]"
                           }`}
                         >
                           {msg}
@@ -1284,10 +1290,10 @@ export default function MiseEnVentePage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FBF3E2]">
               <RefreshCw className="h-6 w-6 text-[#B5872E]" strokeWidth={2} />
             </div>
-            <h2 className="font-grotesk text-[20px] font-bold text-[#16261D]">
+            <h2 className="font-grotesk text-[20px] font-bold text-[var(--ink)]">
               Session expirée
             </h2>
-            <p className="mx-auto mt-2 max-w-sm text-[14px] font-medium text-[#71807A]">
+            <p className="mx-auto mt-2 max-w-sm text-[14px] font-medium text-[var(--muted)]">
               {"Les photos et les données de l'article n'ont pas pu être restaurées."}
               {" Recommence depuis le début pour re-scanner le SKU."}
             </p>
@@ -1317,12 +1323,12 @@ export default function MiseEnVentePage() {
             <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[1fr_340px]">
               {/* Annonce en lecture seule : deux blocs prêts à coller. */}
               <div className={`${cardCls} p-5 md:p-6`}>
-                <div className="rounded-[16px] border border-[#E4E9E2] bg-[#F9FBF8] p-4">
+                <div className="rounded-[16px] border border-[var(--border)] bg-[var(--tint)] p-4">
                   <div className="mb-2 flex items-center justify-between gap-2.5">
                     <span className={labelCls}>Titre</span>
                     <button
                       onClick={() => copier("titre")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
                     >
                       {copied === "titre" ? (
                         <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
@@ -1332,18 +1338,18 @@ export default function MiseEnVentePage() {
                       {copied === "titre" ? "Copié" : "Copier"}
                     </button>
                   </div>
-                  <p className="font-grotesk text-[16px] font-bold text-[#16261D]">
+                  <p className="font-grotesk text-[16px] font-bold text-[var(--ink)]">
                     {titre}
                   </p>
                 </div>
 
                 {/* Contenu strictement identique à ce que copie le bouton. */}
-                <div className="mt-4 rounded-[16px] border border-[#E4E9E2] bg-[#F9FBF8] p-4">
+                <div className="mt-4 rounded-[16px] border border-[var(--border)] bg-[var(--tint)] p-4">
                   <div className="mb-2 flex items-center justify-between gap-2.5">
                     <span className={labelCls}>Description + Mots-clés</span>
                     <button
                       onClick={() => copier("annonce")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
                     >
                       {copied === "annonce" ? (
                         <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
@@ -1353,7 +1359,7 @@ export default function MiseEnVentePage() {
                       {copied === "annonce" ? "Copié" : "Copier"}
                     </button>
                   </div>
-                  <p className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[#16261D]">
+                  <p className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[var(--ink)]">
                     {annonceComplete}
                   </p>
                 </div>
@@ -1376,7 +1382,7 @@ export default function MiseEnVentePage() {
                       <button
                         onClick={downloadZip}
                         disabled={isZipping}
-                        className="rounded-full border border-[#E4E9E2] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE] disabled:opacity-50"
+                        className="rounded-full border border-[var(--border)] bg-surface px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
                       >
                         {isZipping ? "Préparation…" : "ZIP"}
                       </button>
@@ -1386,7 +1392,7 @@ export default function MiseEnVentePage() {
                         <button
                           key={p.id}
                           onClick={() => triggerDownload(p.blob, fileName(i))}
-                          className="aspect-square overflow-hidden rounded-[11px] border border-[#E4E9E2]"
+                          className="aspect-square overflow-hidden rounded-[11px] border border-[var(--border)]"
                           title={`Télécharger ${fileName(i)}`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1429,7 +1435,7 @@ export default function MiseEnVentePage() {
                     href="https://www.vestiairecollective.com/sell/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-[15px] bg-[#16261D] px-4 py-3.5 shadow-[0_12px_24px_-14px_rgba(22,38,29,.85)] transition-transform hover:-translate-y-0.5"
+                    className="flex items-center gap-3 rounded-[15px] bg-[var(--ink)] px-4 py-3.5 shadow-[0_12px_24px_-14px_rgba(22,38,29,.85)] transition-transform hover:-translate-y-0.5"
                   >
                     <span className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[11px] bg-white/15 font-grotesk text-[14px] font-extrabold text-white">
                       VC
@@ -1459,7 +1465,7 @@ export default function MiseEnVentePage() {
         className="sticky z-30 mx-auto mt-5 max-w-[1000px] md:bottom-5"
         style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }}
       >
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4E9E2] bg-white p-2.5 pl-3.5 shadow-[0_16px_34px_-20px_rgba(20,53,40,.4)] md:pl-5">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-surface p-2.5 pl-3.5 shadow-[0_16px_34px_-20px_rgba(20,53,40,.4)] md:pl-5">
           <div className="flex min-w-0 items-center gap-3">
             {(step === 2 || step === 4) && (
               <button onClick={() => setStep(step - 1)} className={btnGhost}>
@@ -1475,27 +1481,65 @@ export default function MiseEnVentePage() {
               {hint}
             </span>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1.5">
+          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
             <button
               onClick={resetAll}
               title="Tout réinitialiser"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold text-[#8A998F] transition-colors hover:text-[#1B4332]"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold text-[var(--faint)] transition-colors hover:text-[#1B4332]"
             >
               <RefreshCw className="h-4 w-4" strokeWidth={2} />
               <span className="hidden md:inline">Recommencer</span>
             </button>
-            <button
-              onClick={primaryAction}
-              disabled={!primaryEnabled}
-              className={`inline-flex min-h-[48px] items-center gap-2 rounded-[13px] px-5 text-[14px] font-extrabold text-white transition-all md:text-[15px] ${
-                primaryEnabled
-                  ? "bg-[#1B4332] shadow-[0_12px_26px_-12px_rgba(20,53,40,.9)] hover:bg-[#143528]"
-                  : "cursor-not-allowed bg-[#C3D0C8]"
-              }`}
-            >
-              {updateArticle.isPending && step === 4 ? "Enregistrement…" : primaryLabel}
-              {primaryIcon}
-            </button>
+            {step === 4 && article && result ? (
+              // Étape 4 : enregistrer l'annonce, avec 3 choix de statut d'un coup —
+              // sans changement, en brouillon, ou en vente.
+              saved ? (
+                <span className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[#E4F3EA] px-5 text-[14px] font-extrabold text-[#1B4332] md:text-[15px]">
+                  <Check className="h-[17px] w-[17px]" strokeWidth={2.6} />
+                  Enregistré{savedStatut ? ` · ${savedStatut}` : ""}
+                </span>
+              ) : (
+                <>
+                  <button
+                    onClick={() => enregistrer()}
+                    disabled={updateArticle.isPending}
+                    title={`Enregistre l'annonce sans changer le statut (reste « ${article.statut} »)`}
+                    className={`${btnGhost} min-h-[48px] disabled:opacity-50`}
+                  >
+                    Enregistrer
+                  </button>
+                  <button
+                    onClick={() => enregistrer("Brouillon")}
+                    disabled={updateArticle.isPending}
+                    title="Enregistre l'annonce et passe l'article en brouillon"
+                    className={`${btnGhost} min-h-[48px] disabled:opacity-50`}
+                  >
+                    Brouillon
+                  </button>
+                  <button
+                    onClick={() => enregistrer("En vente")}
+                    disabled={updateArticle.isPending}
+                    className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[#1B4332] px-5 text-[14px] font-extrabold text-white shadow-[0_12px_26px_-12px_rgba(20,53,40,.9)] transition-all hover:bg-[#143528] disabled:cursor-not-allowed disabled:opacity-60 md:text-[15px]"
+                  >
+                    {updateArticle.isPending ? "Enregistrement…" : "Mettre en vente"}
+                    <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />
+                  </button>
+                </>
+              )
+            ) : (
+              <button
+                onClick={primaryAction}
+                disabled={!primaryEnabled}
+                className={`inline-flex min-h-[48px] items-center gap-2 rounded-[13px] px-5 text-[14px] font-extrabold text-white transition-all md:text-[15px] ${
+                  primaryEnabled
+                    ? "bg-[#1B4332] shadow-[0_12px_26px_-12px_rgba(20,53,40,.9)] hover:bg-[#143528]"
+                    : "cursor-not-allowed bg-[#C3D0C8]"
+                }`}
+              >
+                {primaryLabel}
+                {primaryIcon}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1507,11 +1551,11 @@ export default function MiseEnVentePage() {
           role="dialog"
           aria-modal="true"
           aria-label={`Photo ${zoomedIdx + 1}`}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#16261D]/55 p-6 [animation:overlayIn_.2s_ease_both]"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--ink)]/55 p-6 [animation:overlayIn_.2s_ease_both]"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[min(540px,92vw)] rounded-[22px] bg-white p-4 shadow-[0_30px_80px_-18px_rgba(0,0,0,.5)] [animation:zoomCardIn_.28s_cubic-bezier(.16,.84,.44,1)_both]"
+            className="relative w-full max-w-[min(540px,92vw)] rounded-[22px] bg-surface p-4 shadow-[0_30px_80px_-18px_rgba(0,0,0,.5)] [animation:zoomCardIn_.28s_cubic-bezier(.16,.84,.44,1)_both]"
           >
             <button
               onClick={() => setZoomedId(null)}
@@ -1552,9 +1596,9 @@ function CopyField({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="rounded-[16px] border border-[#E4E9E2] bg-white p-4">
+    <div className="rounded-[16px] border border-[var(--border)] bg-surface p-4">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+        <span className="text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
           {label}
         </span>
         <button
@@ -1563,13 +1607,13 @@ function CopyField({
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="rounded-full border border-[#E4E9E2] bg-white px-3 py-1 text-[12px] font-semibold text-[#3C4D44] transition-colors hover:bg-[#F1F4EF]"
+          className="rounded-full border border-[var(--border)] bg-surface px-3 py-1 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
         >
           {copied ? "Copié ✓" : "Copier"}
         </button>
       </div>
       <p
-        className={`text-[14px] text-[#16261D] ${
+        className={`text-[14px] text-[var(--ink)] ${
           multiline ? "whitespace-pre-wrap" : "truncate"
         }`}
       >

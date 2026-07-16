@@ -53,18 +53,18 @@ function LoginForm() {
   }
 
   const inputCls =
-    "mb-4 w-full rounded-xl border border-[#E4E9E2] bg-[#F7F9F6] px-4 py-3 text-[14px] text-[#16261D] outline-none transition-colors placeholder:text-[#A6B2A9] focus:border-[#1B4332] focus:bg-white";
+    "mb-4 w-full rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3 text-[14px] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--faint-2)] focus:border-[#1B4332] focus:bg-surface";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#EEF1EC] px-4">
-      <div className="w-full max-w-sm rounded-[22px] border border-[#E4E9E2] bg-white p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-4">
+      <div className="w-full max-w-sm rounded-[22px] border border-[var(--border)] bg-surface p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#1B4332] font-bold text-white text-lg">
             M
           </span>
           <div>
-            <p className="font-bold text-[#16261D]">MyFlip</p>
-            <p className="text-[13px] text-[#71807A]">
+            <p className="font-bold text-[var(--ink)]">MyFlip</p>
+            <p className="text-[13px] text-[var(--muted)]">
               {mode === "login" ? "Connecte-toi pour continuer." : "Réinitialiser ton mot de passe"}
             </p>
           </div>
@@ -72,7 +72,7 @@ function LoginForm() {
 
         {mode === "login" ? (
           <form onSubmit={onSubmit} className="flex flex-col">
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[var(--muted)]">
               Email
             </label>
             <input
@@ -83,7 +83,7 @@ function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               className={inputCls}
             />
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[var(--muted)]">
               Mot de passe
             </label>
             <input
@@ -109,7 +109,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => { setMode("forgot"); setError(null); }}
-              className="mt-4 text-center text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+              className="mt-4 text-center text-[12.5px] text-[var(--faint-2)] transition-colors hover:text-[var(--muted)]"
             >
               Mot de passe oublié ?
             </button>
@@ -121,14 +121,14 @@ function LoginForm() {
             </div>
             <button
               onClick={() => { setMode("login"); setForgotDone(false); setForgotEmail(""); }}
-              className="text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+              className="text-[12.5px] text-[var(--faint-2)] transition-colors hover:text-[var(--muted)]"
             >
               ← Retour à la connexion
             </button>
           </div>
         ) : (
           <form onSubmit={onForgot} className="flex flex-col">
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-[#71807A]">
+            <label className="mb-1.5 block text-[12.5px] font-semibold text-[var(--muted)]">
               Ton adresse email
             </label>
             <input
@@ -150,7 +150,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setMode("login")}
-              className="mt-4 text-center text-[12.5px] text-[#94A29A] transition-colors hover:text-[#71807A]"
+              className="mt-4 text-center text-[12.5px] text-[var(--faint-2)] transition-colors hover:text-[var(--muted)]"
             >
               ← Retour à la connexion
             </button>

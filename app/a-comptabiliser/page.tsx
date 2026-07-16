@@ -26,15 +26,15 @@ function KpiMini({
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-[#E4E9E2] bg-white px-[22px] py-5">
+    <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
       <div
         className={`font-grotesk text-[30px] font-bold tracking-[-0.02em] ${
-          accent ? "text-[#2D6A4F]" : "text-[#16261D]"
+          accent ? "text-[#2D6A4F]" : "text-[var(--ink)]"
         }`}
       >
         {value}
       </div>
-      <div className="mt-1 text-[12.5px] font-semibold text-[#8A998F]">
+      <div className="mt-1 text-[12.5px] font-semibold text-[var(--faint)]">
         {label}
       </div>
     </div>
@@ -73,12 +73,12 @@ export default function AComptabiliserPage() {
   const showEmpty = !isLoading && !isError && articles.length === 0;
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-[22px]">
-        <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[#16261D] md:text-[30px]">
+        <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[var(--ink)] md:text-[30px]">
           À comptabiliser
         </h1>
-        <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+        <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
           Les ventes en attente de saisie comptable.
         </p>
       </header>
@@ -99,7 +99,7 @@ export default function AComptabiliserPage() {
 
       {/* Empty state (synchro auto, pas de bouton) */}
       {showEmpty && (
-        <div className="rounded-[24px] border border-[#E4E9E2] bg-white px-8 py-[70px] text-center">
+        <div className="rounded-[24px] border border-[var(--border)] bg-surface px-8 py-[70px] text-center">
           <div
             className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full shadow-[0_16px_30px_-16px_rgba(45,106,79,.55)]"
             style={{
@@ -110,10 +110,10 @@ export default function AComptabiliserPage() {
           >
             <Check className="h-12 w-12 text-[#1B4332]" strokeWidth={2.6} />
           </div>
-          <h2 className="font-grotesk text-[24px] font-bold tracking-[-0.02em] text-[#16261D]">
+          <h2 className="font-grotesk text-[24px] font-bold tracking-[-0.02em] text-[var(--ink)]">
             Tout est à jour !
           </h2>
-          <p className="mx-auto mt-2.5 max-w-[400px] text-[14.5px] font-medium leading-[1.55] text-[#71807A]">
+          <p className="mx-auto mt-2.5 max-w-[400px] text-[14.5px] font-medium leading-[1.55] text-[var(--muted)]">
             Aucune vente n’attend d’être comptabilisée. Les nouvelles ventes
             apparaissent ici automatiquement dès leur synchronisation.
           </p>
@@ -123,7 +123,7 @@ export default function AComptabiliserPage() {
       {/* États chargement / erreur */}
       {isLoading && <Loader />}
       {isError && (
-        <div className="rounded-[20px] border border-[#E4E9E2] bg-white px-6 py-10 text-center text-[#C2603F]">
+        <div className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-10 text-center text-[#C2603F]">
           {(error as Error).message}
         </div>
       )}
@@ -136,26 +136,26 @@ export default function AComptabiliserPage() {
             {sorted.map((a) => (
               <div
                 key={a.id}
-                className="rounded-[18px] border border-[#E4E9E2] bg-white p-4"
+                className="rounded-[18px] border border-[var(--border)] bg-surface p-4"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-grotesk font-bold text-[#16261D]">
+                  <span className="truncate font-grotesk font-bold text-[var(--ink)]">
                     {a.sku}
                   </span>
                   <StatutBadge statut={a.statut} />
                 </div>
                 <dl className="mt-3 space-y-1.5 text-[14px]">
                   <div className="flex justify-between gap-2">
-                    <dt className="text-[#94A29A]">Marque</dt>
-                    <dd className="text-[#16261D]">{a.marque}</dd>
+                    <dt className="text-[var(--faint-2)]">Marque</dt>
+                    <dd className="text-[var(--ink)]">{a.marque}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-[#94A29A]">Catégorie</dt>
-                    <dd className="text-[#71807A]">{a.categorie}</dd>
+                    <dt className="text-[var(--faint-2)]">Catégorie</dt>
+                    <dd className="text-[var(--muted)]">{a.categorie}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
-                    <dt className="text-[#94A29A]">Prix achat</dt>
-                    <dd className="text-[#16261D]">{euros(a.prixAchat)}</dd>
+                    <dt className="text-[var(--faint-2)]">Prix achat</dt>
+                    <dd className="text-[var(--ink)]">{euros(a.prixAchat)}</dd>
                   </div>
                 </dl>
                 <div className="mt-4 space-y-2">
@@ -176,7 +176,7 @@ export default function AComptabiliserPage() {
                       remettreEnStock.isPending &&
                       remettreEnStock.variables?.id === a.id
                     }
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E4E9E2] bg-white px-4 py-3 text-[13.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-surface px-4 py-3 text-[13.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
                   >
                     <RotateCw className="h-4 w-4" strokeWidth={2} />
                     Remettre en stock
@@ -194,10 +194,10 @@ export default function AComptabiliserPage() {
           </div>
 
           {/* Tableau (≥ md) */}
-          <div className="hidden overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white md:block">
+          <div className="hidden overflow-x-auto rounded-[20px] border border-[var(--border)] bg-surface md:block">
             <table className="w-full min-w-[900px] border-collapse text-[14px]">
               <thead>
-                <tr className="border-b border-[#E4E9E2] bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+                <tr className="border-b border-[var(--border)] bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
                   <th className="px-[22px] py-[15px]">SKU</th>
                   <th className="px-3 py-[15px]">Marque</th>
                   <th className="px-3 py-[15px]">Catégorie</th>
@@ -212,28 +212,28 @@ export default function AComptabiliserPage() {
                 {sorted.map((a) => (
                   <tr
                     key={a.id}
-                    className="border-b border-[#EEF1EC] transition-colors hover:bg-[#F7F9F6]"
+                    className="border-b border-[var(--bg)] transition-colors hover:bg-[var(--tint)]"
                   >
                     <td className="px-[22px] py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-grotesk font-bold text-[#16261D]">
+                        <span className="font-grotesk font-bold text-[var(--ink)]">
                           {a.sku}
                         </span>
                         <StatutBadge statut={a.statut} />
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 text-[#3C4D44]">{a.marque}</td>
-                    <td className="px-3 py-3.5 text-[#71807A]">{a.categorie}</td>
-                    <td className="px-3 py-3.5 text-right text-[#3C4D44]">
+                    <td className="px-3 py-3.5 text-[var(--ink2)]">{a.marque}</td>
+                    <td className="px-3 py-3.5 text-[var(--muted)]">{a.categorie}</td>
+                    <td className="px-3 py-3.5 text-right text-[var(--ink2)]">
                       {euros(a.prixAchat)}
                     </td>
-                    <td className="px-3 py-3.5 text-[#71807A]">
+                    <td className="px-3 py-3.5 text-[var(--muted)]">
                       {a.transporteur ?? "—"}
                     </td>
-                    <td className="px-3 py-3.5 text-right text-[#71807A]">
+                    <td className="px-3 py-3.5 text-right text-[var(--muted)]">
                       {a.prixVente != null ? euros(a.prixVente) : "—"}
                     </td>
-                    <td className="px-3 py-3.5 text-[#71807A]">
+                    <td className="px-3 py-3.5 text-[var(--muted)]">
                       {a.dateVente
                         ? new Date(a.dateVente).toLocaleDateString("fr-FR")
                         : "—"}
@@ -257,7 +257,7 @@ export default function AComptabiliserPage() {
                             remettreEnStock.isPending &&
                             remettreEnStock.variables?.id === a.id
                           }
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
                           title="Remettre en stock"
                         >
                           <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
@@ -298,15 +298,15 @@ export default function AComptabiliserPage() {
           onClick={() => !supprimer.isPending && setToDelete(null)}
         >
           <div
-            className="w-full max-w-md rounded-[20px] border border-[#E4E9E2] bg-white p-6"
+            className="w-full max-w-md rounded-[20px] border border-[var(--border)] bg-surface p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-grotesk text-[20px] font-bold text-[#16261D]">
+            <h2 className="font-grotesk text-[20px] font-bold text-[var(--ink)]">
               Supprimer l’article
             </h2>
-            <p className="mt-2 text-[14px] text-[#71807A]">
+            <p className="mt-2 text-[14px] text-[var(--muted)]">
               Supprimer l’article{" "}
-              <span className="font-grotesk font-bold text-[#16261D]">
+              <span className="font-grotesk font-bold text-[var(--ink)]">
                 {toDelete.sku}
               </span>{" "}
               ? Cette action est irréversible.
@@ -320,7 +320,7 @@ export default function AComptabiliserPage() {
               <button
                 onClick={() => setToDelete(null)}
                 disabled={supprimer.isPending}
-                className="rounded-full border border-[#E4E9E2] bg-white px-4 py-1.5 text-[13px] font-semibold text-[#71807A] transition-colors hover:bg-[#F1F4EF] disabled:opacity-50"
+                className="rounded-full border border-[var(--border)] bg-surface px-4 py-1.5 text-[13px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
               >
                 Annuler
               </button>

@@ -144,7 +144,7 @@ function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
 
 // Style "pill" blanc du redesign pour les selects de filtre.
 const inputCls =
-  "rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] outline-none transition-colors focus:border-[#CBD8CE]";
+  "rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] outline-none transition-colors focus:border-[var(--border-strong)]";
 
 // Détecte le breakpoint md (768px) pour ne rendre qu'une seule liste virtualisée
 // à la fois (sinon deux virtualizers tourneraient, dont un sur du DOM masqué).
@@ -354,7 +354,7 @@ const ArticleRow = memo(
       coefEffectif < a.coefObjectif;
     const cells: Record<SortKey, React.ReactNode> = {
       sku: (
-        <td key="sku" className="px-2 py-3 font-grotesk font-bold text-[#16261D]">
+        <td key="sku" className="px-2 py-3 font-grotesk font-bold text-[var(--ink)]">
           <span className="flex items-center gap-1.5">
             <EditableCell value={a.sku} onSave={(v) => onPatch(a.id, { sku: v })} />
             {a.photosPretes && <PhotosReadyIcon />}
@@ -497,7 +497,7 @@ const ArticleRow = memo(
       <tr
         ref={ref}
         {...rest}
-        className={`border-b border-[#EEF1EC] align-middle transition-[background-color,box-shadow] duration-150 hover:bg-[#F7F9F6] hover:shadow-[inset_3px_0_0_#1B4332] ${
+        className={`border-b border-[var(--bg)] align-middle transition-[background-color,box-shadow] duration-150 hover:bg-[var(--tint)] hover:shadow-[inset_3px_0_0_#1B4332] ${
           isSelected ? "bg-[#EAF3ED]" : ""
         }`}
       >
@@ -515,7 +515,7 @@ const ArticleRow = memo(
         </td>
         {shownColumns.map((c) => cells[c.key])}
         <td className="px-3 py-3">
-          <div className="flex items-center justify-end gap-2.5 text-[#A6B2A9]">
+          <div className="flex items-center justify-end gap-2.5 text-[var(--faint-2)]">
             <button
               onClick={() => onShowDetail(a)}
               className={`transition-colors hover:text-[#1B4332] ${
@@ -559,8 +559,8 @@ const ArticleCard = memo(
     return (
       <div ref={ref} {...rest} className="pb-3">
         <div
-          className={`rounded-[18px] border bg-white p-4 ${
-            isSelected ? "border-[#1B4332]" : "border-[#E4E9E2]"
+          className={`rounded-[18px] border bg-surface p-4 ${
+            isSelected ? "border-[#1B4332]" : "border-[var(--border)]"
           }`}
         >
           <div className="flex gap-3">
@@ -576,7 +576,7 @@ const ArticleCard = memo(
               onClick={() => onShowDetail(a)}
             >
               <div className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-grotesk font-bold text-[#16261D]">
+                <span className="truncate font-grotesk font-bold text-[var(--ink)]">
                   {a.sku}
                 </span>
                 {a.photosPretes && <PhotosReadyIcon />}
@@ -585,23 +585,23 @@ const ArticleCard = memo(
                 )}
               </div>
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="truncate text-[#71807A]">{a.marque}</span>
+                <span className="truncate text-[var(--muted)]">{a.marque}</span>
                 <CanalBadge canal={a.canal} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
-                <span className="text-[#3C4D44]">{euros(a.prixAchat)}</span>
-                <span className="text-[#A6B2A9]">→</span>
-                <span className="text-[#3C4D44]">
+                <span className="text-[var(--ink2)]">{euros(a.prixAchat)}</span>
+                <span className="text-[var(--faint-2)]">→</span>
+                <span className="text-[var(--ink2)]">
                   {a.prixVente != null ? euros(a.prixVente) : "—"}
                 </span>
-                <span className="text-[#A6B2A9]">|</span>
+                <span className="text-[var(--faint-2)]">|</span>
                 <span
                   className={`font-semibold ${
                     a.margeNette != null && a.margeNette > 0
                       ? "text-[#2D6A4F]"
                       : a.margeNette != null && a.margeNette < 0
                         ? "text-[#C2603F]"
-                        : "text-[#71807A]"
+                        : "text-[var(--muted)]"
                   }`}
                 >
                   {a.margeNette != null ? euros(a.margeNette) : "—"}
@@ -611,7 +611,7 @@ const ArticleCard = memo(
           </div>
 
           {/* Actions (parité avec les lignes du tableau) — touch targets 44px */}
-          <div className="mt-3 flex items-center gap-2 border-t border-[#EEF1EC] pt-3">
+          <div className="mt-3 flex items-center gap-2 border-t border-[var(--bg)] pt-3">
             <select
               value={a.statut}
               aria-label={`Statut de ${a.sku}`}
@@ -632,8 +632,8 @@ const ArticleCard = memo(
             <button
               onClick={() => onShowDetail(a)}
               aria-label="Voir le détail"
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[#E4E9E2] transition-colors active:bg-[#F7F9F6] ${
-                a.titreAnnonce ? "text-[#1B4332]" : "text-[#A6B2A9]"
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[var(--border)] transition-colors active:bg-[var(--tint)] ${
+                a.titreAnnonce ? "text-[#1B4332]" : "text-[var(--faint-2)]"
               }`}
             >
               <FileText className="h-[18px] w-[18px]" strokeWidth={2} />
@@ -641,7 +641,7 @@ const ArticleCard = memo(
             <button
               onClick={() => onDelete(a)}
               aria-label={`Supprimer ${a.sku}`}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[#E4E9E2] text-[#A6B2A9] transition-colors active:text-[#C2603F]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[var(--border)] text-[var(--faint-2)] transition-colors active:text-[#C2603F]"
             >
               <X className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
@@ -673,7 +673,7 @@ function StatCard({
       className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-4 transition-[transform,box-shadow,border-color] duration-[260ms] hover:-translate-y-[3px] ${
         dark
           ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_14px_30px_-20px_rgba(20,53,40,.7)] hover:shadow-[0_24px_44px_-22px_rgba(20,53,40,.85)]"
-          : "border-[#E4E9E2] bg-white hover:border-[#CBD8CE] hover:shadow-[0_18px_34px_-24px_rgba(20,53,40,.55)]"
+          : "border-[var(--border)] bg-surface hover:border-[var(--border-strong)] hover:shadow-[0_18px_34px_-24px_rgba(20,53,40,.55)]"
       }`}
     >
       {dark && (
@@ -699,7 +699,7 @@ function StatCard({
         </div>
         <div
           className={`text-[12px] font-semibold ${
-            dark ? "text-[#9FD4B5]" : "text-[#8A998F]"
+            dark ? "text-[#9FD4B5]" : "text-[var(--faint)]"
           }`}
         >
           {label}
@@ -714,7 +714,9 @@ function StockInner() {
   const params = useSearchParams();
 
   const [marque, setMarque] = useState(params.get("marque") ?? "");
-  const [statut, setStatut] = useState("");
+  // Initialisé depuis l'URL : les liens de notifications ouvrent une vue filtrée
+  // (ex. /stock?statut=Brouillon).
+  const [statut, setStatut] = useState(params.get("statut") ?? "");
   // `qInput` pilote le champ (instantané) ; `q` est la valeur débouncée envoyée
   // à l'API → évite une requête réseau (et un refetch de 1000+ lignes) par frappe.
   const [qInput, setQInput] = useState("");
@@ -729,6 +731,14 @@ function StockInner() {
   useEffect(() => {
     setCommande(commandeParam);
   }, [commandeParam]);
+
+  // Idem statut : si l'URL change (navigation douce depuis la cloche vers un
+  // autre filtre), on resynchronise. Les chips modifient l'état, pas l'URL, donc
+  // cet effet ne les écrase pas.
+  const statutParam = params.get("statut") ?? "";
+  useEffect(() => {
+    setStatut(statutParam);
+  }, [statutParam]);
 
   // Débounce de la recherche SKU (300 ms) avant d'attaquer l'API.
   useEffect(() => {
@@ -1035,13 +1045,13 @@ function StockInner() {
     : null;
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
             Stock
           </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[#71807A]">
+          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
             Double-clic sur une cellule pour la modifier.
           </p>
         </div>
@@ -1049,14 +1059,14 @@ function StockInner() {
           <div className="relative hidden md:block" ref={colsRef}>
             <button
               onClick={() => setColsOpen((o) => !o)}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
             >
               <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
               Colonnes
             </button>
             {colsOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-60 rounded-2xl border border-[#E4E9E2] bg-white p-2 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
-                <p className="px-3 py-2 text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+              <div className="absolute right-0 z-30 mt-2 w-60 rounded-2xl border border-[var(--border)] bg-surface p-2 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
+                <p className="px-3 py-2 text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
                   Colonnes affichées
                 </p>
                 {COLUMN_META.map((c) => (
@@ -1064,8 +1074,8 @@ function StockInner() {
                     key={c.key}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] ${
                       c.always
-                        ? "cursor-default text-[#8A998F]"
-                        : "cursor-pointer text-[#3C4D44] hover:bg-[#F1F4EF]"
+                        ? "cursor-default text-[var(--faint)]"
+                        : "cursor-pointer text-[var(--ink2)] hover:bg-[var(--tint)]"
                     }`}
                   >
                     <input
@@ -1077,13 +1087,13 @@ function StockInner() {
                     />
                     {c.label}
                     {c.always && (
-                      <span className="ml-auto text-[11.5px] text-[#A6B2A9]">
+                      <span className="ml-auto text-[11.5px] text-[var(--faint-2)]">
                         toujours
                       </span>
                     )}
                   </label>
                 ))}
-                <label className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-[#8A998F]">
+                <label className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-[var(--faint)]">
                   <input
                     type="checkbox"
                     className="h-4 w-4 cursor-default accent-[#1B4332]"
@@ -1092,7 +1102,7 @@ function StockInner() {
                     readOnly
                   />
                   Actions
-                  <span className="ml-auto text-[11.5px] text-[#A6B2A9]">
+                  <span className="ml-auto text-[11.5px] text-[var(--faint-2)]">
                     toujours
                   </span>
                 </label>
@@ -1101,7 +1111,7 @@ function StockInner() {
           </div>
           <button
             onClick={exportCSV}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-semibold text-[#3C4D44] transition-colors hover:border-[#CBD8CE]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
           >
             <Download className="h-4 w-4" strokeWidth={2} />
             Exporter CSV
@@ -1149,13 +1159,13 @@ function StockInner() {
 
       {/* Filtres */}
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:flex-wrap">
-        <div className="flex w-full items-center gap-2 rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 md:flex-1">
+        <div className="flex w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 md:flex-1">
           <Search className="h-[17px] w-[17px] flex-shrink-0 text-[#9BA89F]" strokeWidth={2} />
           <input
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Rechercher un SKU…"
-            className="w-full bg-transparent text-[13.5px] font-medium text-[#16261D] outline-none placeholder:text-[#9BA89F]"
+            className="w-full bg-transparent text-[13.5px] font-medium text-[var(--ink)] outline-none placeholder:text-[#9BA89F]"
           />
         </div>
         <select
@@ -1205,7 +1215,7 @@ function StockInner() {
               setCommande("");
               router.replace("/stock");
             }}
-            className="w-full rounded-xl border border-[#E4E9E2] bg-white px-3.5 py-2.5 text-[13.5px] font-medium text-[#71807A] transition-colors hover:border-[#CBD8CE] md:w-auto"
+            className="w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-medium text-[var(--muted)] transition-colors hover:border-[var(--border-strong)] md:w-auto"
           >
             Réinitialiser
           </button>
@@ -1227,13 +1237,13 @@ function StockInner() {
               className={`inline-flex items-center gap-1.5 rounded-[11px] border px-3.5 py-2 text-[13px] font-bold transition-[border-color,background,box-shadow] duration-200 ${
                 active
                   ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_8px_20px_-12px_rgba(20,53,40,.8)]"
-                  : "border-[#E4E9E2] bg-white text-[#3C4D44] hover:border-[#CBD8CE]"
+                  : "border-[var(--border)] bg-surface text-[var(--ink2)] hover:border-[var(--border-strong)]"
               }`}
             >
               {chip.label}
               <span
                 className={`rounded-full px-1.5 py-px text-[11px] font-bold ${
-                  active ? "bg-white/20 text-[#CFE6D8]" : "bg-[#F1F4EF] text-[#8A998F]"
+                  active ? "bg-white/20 text-[#CFE6D8]" : "bg-[var(--tint)] text-[var(--faint)]"
                 }`}
               >
                 {cnt}
@@ -1289,14 +1299,14 @@ function StockInner() {
       <div
         ref={desktopWrapRef}
         onPointerDown={onSelectPointerDown}
-        className="hidden overflow-x-auto rounded-[20px] border border-[#E4E9E2] bg-white md:block"
+        className="hidden overflow-x-auto rounded-[20px] border border-[var(--border)] bg-surface md:block"
       >
         <table
           style={{ minWidth: Math.max(640, colCount * 96) }}
           className="w-full border-collapse text-body-md"
         >
           <thead>
-            <tr className="border-b border-[#E4E9E2] bg-[#F7F9F6] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[#8A998F]">
+            <tr className="border-b border-[var(--border)] bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
               <th
                 className="w-10 px-[22px] py-[15px]"
                 title="Astuce : glisse le long de cette colonne pour sélectionner plusieurs lignes"
@@ -1321,7 +1331,7 @@ function StockInner() {
                 <th
                   key={c.key}
                   onClick={() => toggleSort(c.key)}
-                  className={`cursor-pointer select-none whitespace-nowrap px-3 py-[15px] transition-colors hover:text-[#3C4D44] ${
+                  className={`cursor-pointer select-none whitespace-nowrap px-3 py-[15px] transition-colors hover:text-[var(--ink2)] ${
                     c.align === "right" ? "text-right" : ""
                   }`}
                 >
@@ -1398,15 +1408,15 @@ function StockInner() {
       )}
 
       {/* Compteur */}
-      <div className="mt-5 flex flex-wrap gap-x-7 gap-y-1 text-[14px] text-[#71807A]">
+      <div className="mt-5 flex flex-wrap gap-x-7 gap-y-1 text-[14px] text-[var(--muted)]">
         <span>
-          <strong className="font-bold text-[#16261D]">{sorted.length.toLocaleString("fr-FR")}</strong> article(s) affiché(s)
+          <strong className="font-bold text-[var(--ink)]">{sorted.length.toLocaleString("fr-FR")}</strong> article(s) affiché(s)
         </span>
         <span>
-          <strong className="font-bold text-[#16261D]">{totals.enStock}</strong> en stock
+          <strong className="font-bold text-[var(--ink)]">{totals.enStock}</strong> en stock
         </span>
         <span>
-          <strong className="font-bold text-[#16261D]">{totals.vendus}</strong> vendus
+          <strong className="font-bold text-[var(--ink)]">{totals.vendus}</strong> vendus
         </span>
         <span>
           Marge nette filtrée :{" "}
@@ -1417,18 +1427,18 @@ function StockInner() {
       {/* Barre d'action de sélection en masse */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-sidebar">
-          <div className="flex flex-wrap items-center gap-3 rounded-full border border-[#E4E9E2] bg-white px-5 py-3 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
-            <span className="text-[14px] font-semibold text-[#16261D]">
+          <div className="flex flex-wrap items-center gap-3 rounded-full border border-[var(--border)] bg-surface px-5 py-3 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
+            <span className="text-[14px] font-semibold text-[var(--ink)]">
               {selected.size} article(s) sélectionné(s)
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[12px] font-medium text-[#8A998F]">
+              <span className="text-[12px] font-medium text-[var(--faint)]">
                 Changer le statut
               </span>
               <select
                 value={bulkStatut}
                 onChange={(e) => setBulkStatut(e.target.value)}
-                className="rounded-full border border-[#E4E9E2] bg-white px-3 py-1.5 text-[14px] font-semibold text-[#3C4D44] outline-none focus:border-[#CBD8CE]"
+                className="rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[14px] font-semibold text-[var(--ink2)] outline-none focus:border-[var(--border-strong)]"
               >
                 {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
                   <option key={s} value={s}>
@@ -1446,7 +1456,7 @@ function StockInner() {
             </button>
             <button
               onClick={clearSelection}
-              className="text-[12px] font-medium text-[#8A998F] hover:text-[#16261D]"
+              className="text-[12px] font-medium text-[var(--faint)] hover:text-[var(--ink)]"
             >
               Annuler
             </button>

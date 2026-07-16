@@ -59,7 +59,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Sidebar verticale fixe (desktop) */}
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-sidebar flex-col border-r border-[#E4E9E2] bg-white px-[18px] pb-[22px] pt-[26px] md:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-sidebar flex-col border-r border-[var(--border)] bg-surface px-[18px] pb-[22px] pt-[26px] md:flex">
         <div className="mb-[22px] px-2">
           <img
             src="/logo-atlas/myflip-sidebar.svg"
@@ -84,7 +84,7 @@ export default function Sidebar() {
                 className={`flex items-center gap-[13px] rounded-xl px-[13px] py-[11px] text-[14.5px] transition-colors ${
                   active
                     ? "bg-[#1B4332] font-semibold text-white"
-                    : "font-medium text-[#52635A] hover:bg-[#F1F4EF] hover:text-[#1B4332]"
+                    : "font-medium text-[#52635A] hover:bg-[var(--tint)] hover:text-[#1B4332]"
                 }`}
               >
                 <Icon className="h-[19px] w-[19px] flex-shrink-0" strokeWidth={2} />
@@ -102,28 +102,28 @@ export default function Sidebar() {
         <div className="mt-auto border-t border-[#EDF0EA] pt-3.5">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-[13px] rounded-xl px-[13px] py-[11px] text-[14.5px] font-medium text-[#52635A] transition-colors hover:bg-[#F1F4EF] hover:text-[#1B4332]"
+            className="flex w-full items-center gap-[13px] rounded-xl px-[13px] py-[11px] text-[14.5px] font-medium text-[#52635A] transition-colors hover:bg-[var(--tint)] hover:text-[#1B4332]"
           >
             <LogOut className="h-[19px] w-[19px] flex-shrink-0" strokeWidth={2} />
             Déconnexion
           </button>
-          <div className="mt-2 border-t border-[#E4E9E2] px-4 pb-2 pt-3">
+          <div className="mt-2 border-t border-[var(--border)] px-4 pb-2 pt-3">
             <div className="flex flex-wrap gap-x-3 gap-y-1">
               <a
                 href="/legal/mentions-legales"
-                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+                className="text-[11px] text-[var(--faint-2)] hover:text-[var(--muted)]"
               >
                 Mentions légales
               </a>
               <a
                 href="/legal/cgu"
-                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+                className="text-[11px] text-[var(--faint-2)] hover:text-[var(--muted)]"
               >
                 CGU
               </a>
               <a
                 href="/legal/confidentialite"
-                className="text-[11px] text-[#94A29A] hover:text-[#71807A]"
+                className="text-[11px] text-[var(--faint-2)] hover:text-[var(--muted)]"
               >
                 Confidentialité
               </a>
@@ -135,7 +135,7 @@ export default function Sidebar() {
 
       {/* Bottom navigation (mobile) — défilable horizontalement */}
       <nav
-        className="fixed bottom-0 left-0 z-40 flex w-full items-stretch overflow-x-auto border-t border-[#E4E9E2] bg-white md:hidden"
+        className="fixed bottom-0 left-0 z-40 flex w-full items-stretch overflow-x-auto border-t border-[var(--border)] bg-surface md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {NAV.map((item) => {
@@ -146,7 +146,7 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                active ? "text-[#1B4332]" : "text-[#94A29A]"
+                active ? "text-[#1B4332]" : "text-[var(--faint-2)]"
               }`}
             >
               <Icon className="h-5 w-5" strokeWidth={2} />
@@ -161,7 +161,7 @@ export default function Sidebar() {
         })}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="flex min-w-[64px] flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-[#94A29A]"
+          className="flex min-w-[64px] flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-[var(--faint-2)]"
         >
           <LogOut className="h-5 w-5" strokeWidth={2} />
           Sortir

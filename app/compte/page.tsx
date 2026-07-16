@@ -45,23 +45,23 @@ export default function ComptePage() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-[#E4E9E2] bg-[#F7F9F6] px-4 py-3 text-[14px] text-[#16261D] outline-none transition-colors placeholder:text-[#A6B2A9] focus:border-[#1B4332] focus:bg-white";
+    "w-full rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3 text-[14px] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--faint-2)] focus:border-[#1B4332] focus:bg-surface";
 
   return (
-    <main className="min-h-screen bg-[#EEF1EC] px-5 py-7 text-[#16261D] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <h1 className="mb-1 font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
         Mon compte
       </h1>
-      <p className="mb-7 text-[14.5px] font-medium text-[#71807A]">
+      <p className="mb-7 text-[14.5px] font-medium text-[var(--muted)]">
         Gestion de tes informations personnelles.
       </p>
 
       <div className="flex max-w-lg flex-col gap-5">
         {/* Email */}
-        <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
+        <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
           <h2 className="mb-4 font-grotesk text-[17px] font-bold">Adresse e-mail</h2>
-          <div className="flex items-center gap-3 rounded-xl border border-[#E4E9E2] bg-[#F7F9F6] px-4 py-3">
-            <Mail className="h-4 w-4 flex-shrink-0 text-[#8A998F]" strokeWidth={2} />
+          <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3">
+            <Mail className="h-4 w-4 flex-shrink-0 text-[var(--faint)]" strokeWidth={2} />
             <span className="text-[14px] text-[#52635A]">
               {session?.user?.email ?? "—"}
             </span>
@@ -69,7 +69,7 @@ export default function ComptePage() {
         </div>
 
         {/* Changer le mot de passe */}
-        <div className="rounded-[22px] border border-[#E4E9E2] bg-white px-6 py-6">
+        <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
           <div className="mb-4 flex items-center gap-2.5">
             <Lock className="h-[18px] w-[18px] text-[#1B4332]" strokeWidth={2} />
             <h2 className="font-grotesk text-[17px] font-bold">Changer le mot de passe</h2>
@@ -77,7 +77,7 @@ export default function ComptePage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12.5px] font-semibold text-[#71807A]">
+              <label className="text-[12.5px] font-semibold text-[var(--muted)]">
                 Mot de passe actuel
               </label>
               <input
@@ -91,7 +91,7 @@ export default function ComptePage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12.5px] font-semibold text-[#71807A]">
+              <label className="text-[12.5px] font-semibold text-[var(--muted)]">
                 Nouveau mot de passe
               </label>
               <input
@@ -105,7 +105,7 @@ export default function ComptePage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[12.5px] font-semibold text-[#71807A]">
+              <label className="text-[12.5px] font-semibold text-[var(--muted)]">
                 Confirmer le nouveau mot de passe
               </label>
               <input
