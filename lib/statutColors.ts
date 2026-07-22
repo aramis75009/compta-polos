@@ -6,6 +6,8 @@ export type StatutColor = { bg: string; text: string };
 export const STATUT_COLORS: Record<string, StatutColor> = {
   Brouillon:         { bg: "#F1F4EF", text: "#71807A" },
   "En stock":        { bg: "#FCF3CF", text: "#8A6D0F" },
+  // Photos prêtes = rose : jalon photo, distinct des voisins (jaune / bleu).
+  "Photos prêtes":   { bg: "#FBEAF1", text: "#BE4B7E" },
   "En vente":        { bg: "#E7F0FF", text: "#3B6FD4" },
   "En livraison":    { bg: "#FBF3E2", text: "#B5872E" },
   "À comptabiliser": { bg: "#FBEEE7", text: "#C2603F" },

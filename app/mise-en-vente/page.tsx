@@ -745,10 +745,7 @@ export default function MiseEnVentePage() {
       {/* ── Barre de contexte : l'article reste visible à toutes les étapes ── */}
       <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-            Mise en vente
-          </h1>
-          <p className="mt-1.5 text-[14px] font-medium text-[var(--muted)]">
+          <p className="text-[14px] font-medium text-[var(--muted)]">
             Photos → détails → génération → export.
           </p>
         </div>

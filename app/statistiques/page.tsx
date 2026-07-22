@@ -59,10 +59,7 @@ export default function StatistiquesPage() {
       {/* TOPBAR */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-            Statistiques
-          </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
+          <p className="text-[14.5px] font-medium text-[var(--muted)]">
             Analyse de la performance de ta revente.
           </p>
         </div>
@@ -71,9 +68,6 @@ export default function StatistiquesPage() {
             <Calendar className="h-4 w-4" strokeWidth={2} />
             Tout l’historique
             <ChevronDown className="h-[15px] w-[15px] opacity-55" strokeWidth={2} />
-          </div>
-          <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk font-bold text-[#CFE6D8]">
-            A
           </div>
         </div>
       </div>

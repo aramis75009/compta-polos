@@ -731,10 +731,7 @@ export default function CommandesPage() {
         style={{ animation: "fadeUp .4s both" }}
       >
         <div>
-          <h1 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 30, letterSpacing: "-.025em" }}>
-            Commandes
-          </h1>
-          <p style={{ margin: "7px 0 0", color: "var(--muted)", fontSize: 14.5, fontWeight: 500 }}>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14.5, fontWeight: 500 }}>
             Tes achats en lot, par fournisseur.
           </p>
         </div>

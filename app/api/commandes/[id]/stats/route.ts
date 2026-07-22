@@ -39,7 +39,6 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
         coefficient: true,
         dateVente: true,
         canal: true,
-        photosPretes: true,
       },
     });
 
@@ -200,10 +199,9 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
       }))
       .sort((a, b) => b.ca - a.ca);
 
-    // Angles morts : en stock et photos jamais préparées → CA immobilisé.
-    const dormants = articles.filter(
-      (a) => a.statut === "En stock" && !a.photosPretes,
-    ).length;
+    // Angles morts : en stock, photos pas encore prêtes → CA immobilisé.
+    // (Les articles photographiés sont passés au statut « Photos prêtes ».)
+    const dormants = articles.filter((a) => a.statut === "En stock").length;
     const caDormant = panierMoyen != null ? dormants * panierMoyen : null;
 
     // Top / flop catégorie — uniquement celles qui ont réellement vendu.

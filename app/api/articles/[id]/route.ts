@@ -13,7 +13,6 @@ type PatchBody = {
   prixVente?: number | null;
   dateVente?: string | null;
   canal?: string | null;
-  photosPretes?: boolean;
   titreAnnonce?: string | null;
   descriptionAnnonce?: string | null;
   motsClesAnnonce?: string | null;
@@ -49,8 +48,6 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       data.grade = body.grade ? String(body.grade).trim() : null;
     if (body.canal !== undefined)
       data.canal = body.canal ? String(body.canal).trim() : null;
-    if (body.photosPretes !== undefined)
-      data.photosPretes = Boolean(body.photosPretes);
     if (body.titreAnnonce !== undefined)
       data.titreAnnonce = body.titreAnnonce ? String(body.titreAnnonce) : null;
     if (body.descriptionAnnonce !== undefined)

@@ -158,9 +158,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk font-bold text-[#CFE6D8]">
-            A
-          </div>
         </div>
       </div>
 

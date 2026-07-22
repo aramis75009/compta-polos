@@ -61,7 +61,7 @@ export default function RootLayout({
             au chargement en mode sombre. Miroir de ThemeToggle (clé identique). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('myflip-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('myflip-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}try{if(localStorage.getItem('myflip-sidebar')==='collapsed')document.documentElement.dataset.sidebar='collapsed';}catch(e){}`,
           }}
         />
         <Providers>

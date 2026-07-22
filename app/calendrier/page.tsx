@@ -150,10 +150,7 @@ export default function CalendrierPage() {
         style={{ animation: "fadeUp .4s both" }}
       >
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-            Calendrier
-          </h1>
-          <p className="mt-[7px] text-[14.5px] font-medium text-[var(--muted)]">
+          <p className="text-[14.5px] font-medium text-[var(--muted)]">
             Tes ventes jour par jour — la couronne marque le meilleur jour de chaque semaine.
           </p>
         </div>

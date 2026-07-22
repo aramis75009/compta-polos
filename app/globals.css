@@ -42,6 +42,32 @@
   color-scheme: dark;
 }
 
+/* ── Sidebar repliable (desktop) ─────────────────────────────────────────
+   Largeur pilotée par data-sidebar sur <html> (posé sans flash par le script
+   inline de layout.tsx, puis par le bouton de repli). L'apparence rail est
+   pilotée par CSS pour éviter tout flash à l'hydratation. Le mobile (bottom
+   nav) n'est pas concerné : le décalage de contenu ne s'applique qu'en md+. */
+:root {
+  --sidebar-w: 256px;
+}
+:root[data-sidebar="collapsed"] {
+  --sidebar-w: 74px;
+}
+.sb-only-collapsed {
+  display: none;
+}
+:root[data-sidebar="collapsed"] .sb-hide-collapsed {
+  display: none !important;
+}
+:root[data-sidebar="collapsed"] .sb-only-collapsed {
+  display: flex;
+}
+:root[data-sidebar="collapsed"] .sb-item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 html,
 body {
   background-color: var(--bg);

@@ -75,10 +75,7 @@ export default function AComptabiliserPage() {
   return (
     <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-[22px]">
-        <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] text-[var(--ink)] md:text-[30px]">
-          À comptabiliser
-        </h1>
-        <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
+        <p className="text-[14.5px] font-medium text-[var(--muted)]">
           Les ventes en attente de saisie comptable.
         </p>
       </header>

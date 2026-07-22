@@ -45,30 +45,6 @@ import {
   X,
 } from "lucide-react";
 
-// Petit indicateur vert : les photos de l'article sont prêtes (retouchées
-// et téléchargées depuis la page Photos).
-function PhotosReadyIcon() {
-  return (
-    <span
-      title="Photos prêtes"
-      className="inline-flex shrink-0 text-mint"
-      aria-label="Photos prêtes"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        className="h-4 w-4"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      >
-        <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" />
-        <circle cx="12" cy="13" r="3.5" />
-      </svg>
-    </span>
-  );
-}
-
 type SortKey =
   | "sku"
   | "marque"
@@ -357,7 +333,6 @@ const ArticleRow = memo(
         <td key="sku" className="px-2 py-3 font-grotesk font-bold text-[var(--ink)]">
           <span className="flex items-center gap-1.5">
             <EditableCell value={a.sku} onSave={(v) => onPatch(a.id, { sku: v })} />
-            {a.photosPretes && <PhotosReadyIcon />}
           </span>
         </td>
       ),
@@ -579,7 +554,6 @@ const ArticleCard = memo(
                 <span className="truncate font-grotesk font-bold text-[var(--ink)]">
                   {a.sku}
                 </span>
-                {a.photosPretes && <PhotosReadyIcon />}
                 {a.titreAnnonce && (
                   <FileText className="h-4 w-4 text-[#1B4332]" strokeWidth={2} />
                 )}
@@ -1048,10 +1022,7 @@ function StockInner() {
     <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-            Stock
-          </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
+          <p className="text-[14.5px] font-medium text-[var(--muted)]">
             Double-clic sur une cellule pour la modifier.
           </p>
         </div>

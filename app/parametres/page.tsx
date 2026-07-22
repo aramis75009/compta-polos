@@ -128,10 +128,7 @@ export default function PromptsPage() {
     <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-            Prompts
-          </h1>
-          <p className="mt-1.5 text-[14.5px] font-medium text-[var(--muted)]">
+          <p className="text-[14.5px] font-medium text-[var(--muted)]">
             Tes modèles de génération d&apos;annonces.
           </p>
         </div>

@@ -49,7 +49,6 @@ model Article {
   dateVente   DateTime?
   transporteur String?
   trelloCardId String?
-  photosPretes Boolean  @default(false)
   commandeId  String?
   commande    Commande? @relation(fields: [commandeId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())

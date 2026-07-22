@@ -49,9 +49,6 @@ export default function ComptePage() {
 
   return (
     <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <h1 className="mb-1 font-grotesk text-[26px] font-bold tracking-[-0.025em] md:text-[30px]">
-        Mon compte
-      </h1>
       <p className="mb-7 text-[14.5px] font-medium text-[var(--muted)]">
         Gestion de tes informations personnelles.
       </p>

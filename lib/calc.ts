@@ -12,6 +12,7 @@ export const STATUT_VENDU = "Vendu";
 export const STATUTS = [
   "Brouillon",
   "En stock",
+  "Photos prêtes",
   "En vente",
   "En livraison",
   "À comptabiliser",
@@ -22,6 +23,9 @@ export const STATUTS = [
 
 /** Statut « à comptabiliser » : article livré, en attente de validation comptable. */
 export const STATUT_A_COMPTABILISER = "À comptabiliser";
+
+/** Statut « photos prêtes » : article photographié, prêt pour la mise en vente. */
+export const STATUT_PHOTOS_PRETES = "Photos prêtes";
 
 export type Statut = (typeof STATUTS)[number];
 

@@ -16,8 +16,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
-      {/* Décalage pour la sidebar (desktop) et la bottom nav (mobile) */}
-      <div className="pb-24 md:pb-0 md:pl-sidebar">
+      {/* Décalage pour la sidebar (desktop) et la bottom nav (mobile).
+          La largeur suit --sidebar-w → s'anime avec le repli de la sidebar. */}
+      <div className="pb-24 transition-[padding] duration-200 ease-out md:pb-0 md:pl-[var(--sidebar-w)]">
         <TopBar />
         {children}
       </div>

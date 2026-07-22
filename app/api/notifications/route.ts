@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const articles = await prisma.article.findMany({
-      select: { statut: true, photosPretes: true, titreAnnonce: true },
+      select: { statut: true, titreAnnonce: true },
     });
 
     const aComptabiliser = articles.filter(
@@ -19,9 +19,13 @@ export async function GET() {
 
     const brouillons = articles.filter((a) => a.statut === "Brouillon").length;
 
-    const sansPhotos = articles.filter(
-      (a) => a.statut === "En stock" && !a.photosPretes,
+    // Articles photographiés, prêts pour la rédaction de l'annonce.
+    const photosPretes = articles.filter(
+      (a) => a.statut === "Photos prêtes",
     ).length;
+
+    // « En stock » = pas encore photographié (les photographiés sont « Photos prêtes »).
+    const sansPhotos = articles.filter((a) => a.statut === "En stock").length;
 
     // Annonce rédigée mais article pas encore mis en vente : il ne reste qu'à publier.
     const annoncePrete = articles.filter(
@@ -66,6 +70,17 @@ export async function GET() {
             : "1 article est encore en brouillon.",
         count: brouillons,
         href: encodeStatut("Brouillon"),
+      },
+      {
+        key: "photos-pretes",
+        severity: "action",
+        title: "Photos prêtes à mettre en vente",
+        message:
+          photosPretes > 1
+            ? `${photosPretes} articles sont photographiés, prêts pour la mise en vente.`
+            : "1 article est photographié, prêt pour la mise en vente.",
+        count: photosPretes,
+        href: encodeStatut("Photos prêtes"),
       },
       {
         key: "sans-photos",
