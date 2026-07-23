@@ -228,7 +228,7 @@ export default function DashboardPage() {
 
       {/* CHART — CA par jour du mois (vue mois) ou CA par semaine (historique) */}
       {isMonth ? (
-        <MonthlyDailyBars data={data.caParJour} />
+        <MonthlyWeekBars data={data.caParJour} />
       ) : (
         <WeeklyBars key={periode} data={data.caParSemaine} />
       )}
@@ -571,20 +571,33 @@ function MonthKpi({
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Graphe : CA par jour du mois en cours (vue « Ce mois », calé calendrier)
+// Graphe : CA par semaine du mois en cours (vue « Ce mois »)
+// Agrège le CA journalier en tranches de 7 jours (1–7, 8–14, …) → 4-5 barres.
 // ─────────────────────────────────────────────────────────────────────────
 
-function MonthlyDailyBars({ data }: { data: { jour: string; ca: number }[] }) {
+function MonthlyWeekBars({ data }: { data: { jour: string; ca: number }[] }) {
   const [hovered, setHovered] = useState(-1);
-  const max = Math.max(1, ...data.map((d) => d.ca));
-  const total = data.reduce((s, d) => s + d.ca, 0);
-  let bestIdx = -1;
-  data.forEach((d, i) => {
-    if (d.ca > 0 && (bestIdx < 0 || d.ca > data[bestIdx].ca)) bestIdx = i;
-  });
+  const moisAbbr = new Date().toLocaleDateString("fr-FR", { month: "short" });
   const moisLabel = new Date().toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
+  });
+
+  // Tranches de 7 jours calées sur le début du mois.
+  const weeks: { label: string; ca: number }[] = [];
+  for (let start = 0; start < data.length; start += 7) {
+    const chunk = data.slice(start, start + 7);
+    weeks.push({
+      label: `${start + 1}–${start + chunk.length}`,
+      ca: chunk.reduce((s, d) => s + d.ca, 0),
+    });
+  }
+
+  const max = Math.max(1, ...weeks.map((w) => w.ca));
+  const total = weeks.reduce((s, w) => s + w.ca, 0);
+  let bestIdx = 0;
+  weeks.forEach((w, i) => {
+    if (w.ca > weeks[bestIdx].ca) bestIdx = i;
   });
 
   return (
@@ -592,7 +605,7 @@ function MonthlyDailyBars({ data }: { data: { jour: string; ca: number }[] }) {
       <div className="mb-2 flex items-start justify-between">
         <div>
           <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-            CA par jour
+            CA par semaine
           </h2>
           <p className="mt-1 text-[12.5px] font-medium text-[var(--faint)]">
             Total du mois : {euros(total)}
@@ -603,27 +616,28 @@ function MonthlyDailyBars({ data }: { data: { jour: string; ca: number }[] }) {
         </span>
       </div>
 
-      <div className="relative mt-4 h-[214px]">
+      <div className="relative mt-4 h-[248px]">
         {/* gridlines */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-[22px] top-0 flex flex-col justify-between">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[26px] top-0 flex flex-col justify-between">
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-[var(--border)]" />
         </div>
         {/* bars */}
-        <div className="absolute inset-0 flex items-stretch gap-[3px]">
-          {data.map((d, i) => {
-            const isBest = i === bestIdx;
+        <div className="absolute inset-0 flex items-stretch justify-center gap-4 md:gap-6">
+          {weeks.map((w, i) => {
+            const isBest = i === bestIdx && w.ca > 0;
             const isHover = hovered === i;
-            const height = `${Math.round((d.ca / max) * 100)}%`;
+            const height = `${Math.round((w.ca / max) * 100)}%`;
             const fill =
-              d.ca === 0
+              w.ca === 0
                 ? "transparent"
                 : isHover || isBest
                   ? "linear-gradient(180deg,#2D6A4F,#1B4332)"
                   : "linear-gradient(180deg,#B8D4C4,#9DBEAD)";
-            const showLabel = i === 0 || (i + 1) % 5 === 0;
+            const boxShadow =
+              isHover || isBest ? "0 10px 22px -10px rgba(27,67,50,.6)" : "none";
             return (
               <div
                 key={i}
@@ -632,31 +646,35 @@ function MonthlyDailyBars({ data }: { data: { jour: string; ca: number }[] }) {
                 onMouseLeave={() => setHovered(-1)}
               >
                 <div className="relative flex w-full flex-1 items-end justify-center">
-                  {isHover && d.ca > 0 && (
+                  {isHover && w.ca > 0 && (
                     <div
                       className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[11px] bg-[var(--ink)] px-3 py-2 text-white"
                       style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
                     >
-                      <div className="font-grotesk text-[14px] font-bold">
-                        {euros(d.ca)}
+                      <div className="font-grotesk text-[14.5px] font-bold">
+                        {euros(w.ca)}
                       </div>
                       <div className="mt-0.5 text-[11px] font-semibold text-[#9FD4B5]">
-                        {d.jour} {moisLabel.split(" ")[0]}
+                        {w.label} {moisAbbr}
                       </div>
                     </div>
                   )}
                   <div
-                    className="w-full max-w-[16px] cursor-pointer rounded-t-[4px] transition-[background] duration-200"
+                    className="w-full max-w-[54px] cursor-pointer transition-[background,box-shadow] duration-200"
                     style={{
                       height,
                       background: fill,
+                      borderRadius: "9px 9px 5px 5px",
+                      boxShadow,
                       transformOrigin: "bottom",
-                      animation: `growBar .5s cubic-bezier(.22,1,.36,1) ${(i * 0.012).toFixed(3)}s both`,
+                      animation: `growBar .55s cubic-bezier(.22,1,.36,1) ${(i * 0.06).toFixed(2)}s both`,
                     }}
                   />
                 </div>
-                <span className="mt-2 text-[10px] font-semibold text-[var(--faint)]">
-                  {showLabel ? d.jour : ""}
+                <span
+                  className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[var(--ink)]" : "text-[var(--faint)]"}`}
+                >
+                  {w.label} {moisAbbr}
                 </span>
               </div>
             );
