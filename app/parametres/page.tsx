@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Check, SquarePen, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Check, SquarePen, Trash2, Target } from "lucide-react";
+import { toast } from "sonner";
 import {
   PromptInput,
   useCreatePrompt,
@@ -10,6 +11,8 @@ import {
   useUpdatePrompt,
 } from "@/lib/hooks";
 import type { PromptTemplateDTO } from "@/lib/types";
+import { euros } from "@/lib/calc";
+import { getObjectifMensuel, setObjectifMensuel } from "@/lib/objectif";
 import Modal from "@/components/Modal";
 import Loader from "@/components/Loader";
 
@@ -71,6 +74,74 @@ const emptyForm = (): FormState => ({
   contenu: "",
   estDefaut: false,
 });
+
+// Carte de réglage de l'objectif de CA mensuel (localStorage, cf. lib/objectif).
+function ObjectifMensuelCard() {
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState<number | null>(null);
+
+  useEffect(() => {
+    const o = getObjectifMensuel();
+    setSaved(o);
+    setValue(o != null ? String(o) : "");
+  }, []);
+
+  const save = () => {
+    const n = value.trim() === "" ? null : Number(value);
+    setObjectifMensuel(Number.isFinite(n as number) ? (n as number) : null);
+    const o = getObjectifMensuel();
+    setSaved(o);
+    toast.success(
+      o != null ? `Objectif mensuel fixé à ${euros(o)}.` : "Objectif mensuel retiré.",
+    );
+  };
+
+  return (
+    <div className="mb-[26px] rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--tint)] text-[#1B4332]">
+          <Target className="h-[19px] w-[19px]" strokeWidth={2} />
+        </span>
+        <div>
+          <div className="font-grotesk text-[15.5px] font-bold text-[var(--ink)]">
+            Objectif de CA mensuel
+          </div>
+          <div className="text-[12.5px] font-medium text-[var(--muted)]">
+            Affiché en anneau de progression sur le Dashboard (mois en cours).
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && save()}
+            placeholder="0"
+            className="w-44 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-2.5 pr-9 text-[15px] font-semibold text-[var(--ink)] outline-none transition-colors focus:border-[#1B4332] focus:bg-surface"
+          />
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[14px] font-semibold text-[var(--faint)]">
+            €
+          </span>
+        </div>
+        <button
+          onClick={save}
+          className="rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+        >
+          Enregistrer
+        </button>
+        {saved != null && (
+          <span className="text-[13px] font-medium text-[var(--muted)]">
+            Actuel : <b className="text-[var(--ink)]">{euros(saved)}</b>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PromptsPage() {
   const { data: prompts = [], isLoading } = usePrompts();
@@ -167,6 +238,9 @@ export default function PromptsPage() {
           </div>
         </div>
       </div>
+
+      {/* Objectif mensuel (#15) — réglé ici, affiché en anneau sur le Dashboard */}
+      <ObjectifMensuelCard />
 
       <h2 className="mx-0.5 mb-4 font-grotesk text-[19px] font-bold text-[var(--ink)]">
         Modèles de prompts

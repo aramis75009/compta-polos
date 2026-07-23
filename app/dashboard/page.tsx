@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,10 +10,13 @@ import {
   TrendingDown,
   Calendar,
   ChevronDown,
+  ChevronRight,
   Check,
+  Target,
 } from "lucide-react";
 import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
+import { getObjectifMensuel } from "@/lib/objectif";
 import type { BrandRow, DashboardDelta, WeekPoint } from "@/lib/types";
 import Loader from "@/components/Loader";
 import WelcomeModal from "@/components/WelcomeModal";
@@ -80,9 +83,17 @@ function coefPillClasses(n: number): string {
 const name = process.env.NEXT_PUBLIC_USER_NAME ?? "Alex";
 
 export default function DashboardPage() {
-  const [periode, setPeriode] = useState<DashboardPeriode>("all");
+  // Le Dashboard atterrit sur le mois en cours (#15).
+  const [periode, setPeriode] = useState<DashboardPeriode>("month");
   const [showDropdown, setShowDropdown] = useState(false);
   const { data, isLoading, isError, error } = useDashboard(periode);
+  // CA du mois en cours pour l'anneau d'objectif — indépendant de la période
+  // sélectionnée. Même clé que « month » → dédupliqué par react-query.
+  const { data: moisData } = useDashboard("month");
+  // Objectif mensuel (localStorage, réglé dans Paramètres). Lu au montage pour
+  // éviter tout écart d'hydratation SSR.
+  const [objectif, setObjectif] = useState<number | null>(null);
+  useEffect(() => setObjectif(getObjectifMensuel()), []);
 
   if (isLoading && !data) {
     return (
@@ -171,6 +182,9 @@ export default function DashboardPage() {
         />
         <MargeCard total={data.margeNetteTotal} moyenne={data.margeMoyenne} delta={data.margeDelta} />
       </div>
+
+      {/* OBJECTIF MENSUEL (#15) */}
+      <ObjectiveRing caMois={moisData?.caTotal ?? null} objectif={objectif} />
 
       {/* 2 PETITS KPI */}
       <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -471,6 +485,113 @@ function TauxVenteCard({ pct, vendus }: { pct: number; vendus: number }) {
             {vendus.toLocaleString("fr-FR")} vendus
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Objectif mensuel — anneau de progression (#15)
+// ─────────────────────────────────────────────────────────────────────────
+
+function ObjectiveRing({
+  caMois,
+  objectif,
+}: {
+  caMois: number | null;
+  objectif: number | null;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Pas encore d'objectif : invitation discrète à le régler dans Paramètres.
+  if (objectif == null) {
+    return (
+      <Link
+        href="/parametres"
+        className="mb-5 flex items-center gap-3.5 rounded-[22px] border border-dashed border-[var(--border-strong)] bg-surface px-6 py-[18px] transition-colors hover:border-[#1B4332]"
+      >
+        <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[13px] bg-[var(--tint)] text-[#1B4332]">
+          <Target className="h-[22px] w-[22px]" strokeWidth={2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="font-grotesk text-[15px] font-bold text-[var(--ink)]">
+            Fixe ton objectif mensuel
+          </div>
+          <div className="text-[13px] font-medium text-[var(--muted)]">
+            Suis ta progression du mois d’un coup d’œil — règle-le dans Paramètres.
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 flex-shrink-0 text-[var(--faint-2)]" strokeWidth={2} />
+      </Link>
+    );
+  }
+
+  const ca = caMois ?? 0;
+  const pct = objectif > 0 ? Math.min(1, ca / objectif) : 0;
+  const atteint = ca >= objectif;
+  const offset = 100 - (mounted ? pct : 0) * 100;
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-x-8 gap-y-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-5 md:px-7">
+      <div className="relative h-[132px] w-[132px] flex-shrink-0">
+        <svg width="132" height="132" viewBox="0 0 150 150" style={{ transform: "rotate(-90deg)" }}>
+          <circle cx="75" cy="75" r="62" fill="none" stroke="var(--tint)" strokeWidth="14" />
+          <circle
+            cx="75"
+            cy="75"
+            r="62"
+            fill="none"
+            stroke="url(#objGrad)"
+            strokeWidth="14"
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray="100"
+            style={{ strokeDashoffset: offset, transition: "stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1)" }}
+          />
+          <defs>
+            <linearGradient id="objGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#2D6A4F" />
+              <stop offset="1" stopColor="#47C98E" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-grotesk text-[27px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            {Math.round(pct * 100)}%
+          </span>
+          <span className="text-[10.5px] font-semibold text-[var(--faint)]">
+            de l’objectif
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-wrap gap-x-10 gap-y-4">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
+            Objectif du mois
+          </div>
+          <div className="mt-1 font-grotesk text-[22px] font-bold text-[var(--ink)]">
+            {euros(objectif)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
+            {atteint ? "Dépassé de" : "Reste à faire"}
+          </div>
+          <div
+            className={`mt-1 font-grotesk text-[22px] font-bold ${atteint ? "text-[#2D6A4F]" : "text-[#1B4332]"}`}
+          >
+            {atteint ? signedEur(ca - objectif) : euros(objectif - ca)}
+          </div>
+        </div>
+        {atteint && (
+          <div className="flex items-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F3EA] px-3 py-1.5 text-[12.5px] font-bold text-[#2D6A4F]">
+              🎉 Objectif atteint
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
