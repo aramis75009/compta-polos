@@ -32,6 +32,7 @@ import StatutBadge from "@/components/StatutBadge";
 import Modal from "@/components/Modal";
 import Loader from "@/components/Loader";
 import { toast } from "sonner";
+import { celebrateSale } from "@/lib/celebrate";
 import {
   Package,
   Tag,
@@ -1004,7 +1005,12 @@ function StockInner() {
           canal,
         },
       },
-      { onSuccess: () => setSellTarget(null) },
+      {
+        onSuccess: (updated) => {
+          setSellTarget(null);
+          celebrateSale(updated.prixVente ?? prixVente, updated.margeNette);
+        },
+      },
     );
   };
 

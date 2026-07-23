@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -73,6 +74,20 @@ export default function Sidebar() {
   });
   const count = aComptabiliser?.length ?? 0;
 
+  // Indicateur actif unique qui glisse jusqu'à l'item courant (#07). On mesure
+  // la position/hauteur de l'item actif ; le repli (rail) ne change pas ces
+  // métriques verticales, donc l'indicateur reste juste.
+  const navRef = useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = useState<{ top: number; height: number } | null>(
+    null,
+  );
+  useLayoutEffect(() => {
+    const active = navRef.current?.querySelector<HTMLElement>(
+      '[data-active="true"]',
+    );
+    if (active) setIndicator({ top: active.offsetTop, height: active.offsetHeight });
+  }, [pathname]);
+
   return (
     <>
       {/* Sidebar verticale fixe (desktop), repliable en rail d'icônes */}
@@ -100,7 +115,15 @@ export default function Sidebar() {
           />
         </div>
 
-        <nav className="flex flex-col gap-2">
+        <nav ref={navRef} className="relative flex flex-col gap-2">
+          {/* Indicateur actif qui glisse (spring léger) — derrière les items */}
+          {indicator && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 z-0 rounded-xl bg-[#1B4332] transition-[top,height] duration-300 ease-[cubic-bezier(.34,1.4,.5,1)]"
+              style={{ top: indicator.top, height: indicator.height }}
+            />
+          )}
           {NAV.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
@@ -109,9 +132,10 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                className={`sb-item relative flex items-center gap-[13px] rounded-xl px-[13px] py-[12px] text-[15.5px] transition-colors ${
+                data-active={active}
+                className={`sb-item relative z-10 flex items-center gap-[13px] rounded-xl px-[13px] py-[12px] text-[15.5px] transition-colors ${
                   active
-                    ? "bg-[#1B4332] font-semibold text-white"
+                    ? "font-semibold text-white"
                     : "font-medium text-[#52635A] hover:bg-[var(--tint)] hover:text-[#1B4332]"
                 }`}
               >

@@ -225,6 +225,15 @@ body {
   0%,100% { transform: scale(1);   opacity: 1; }
   50%      { transform: scale(1.5); opacity: .55; }
 }
+/* Confettis de célébration à la vente (cf. lib/celebrate). Chaque particule
+   part du centre et s'envole vers --tx/--ty en tournant de --rot. */
+@keyframes confettiFly {
+  from { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  to {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot));
+  }
+}
 
 /* Scrollbar discrète, cohérente avec l'esprit épuré du design system */
 ::-webkit-scrollbar {

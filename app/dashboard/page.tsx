@@ -178,8 +178,8 @@ export default function DashboardPage() {
         <TauxVenteCard pct={data.pctVendu} vendus={data.vendus} />
       </div>
 
-      {/* CHART CA PAR SEMAINE */}
-      <WeeklyBars data={data.caParSemaine} />
+      {/* CHART CA PAR SEMAINE — keyé sur la période pour rejouer la cascade */}
+      <WeeklyBars key={periode} data={data.caParSemaine} />
 
       {/* PAR MARQUE */}
       <BrandGrid brands={data.parMarque} />
@@ -573,7 +573,14 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
                   )}
                   <div
                     className="w-full max-w-[46px] cursor-pointer transition-[background,box-shadow] duration-200"
-                    style={{ height, background: fill, borderRadius: "9px 9px 5px 5px", boxShadow }}
+                    style={{
+                      height,
+                      background: fill,
+                      borderRadius: "9px 9px 5px 5px",
+                      boxShadow,
+                      transformOrigin: "bottom",
+                      animation: `growBar .55s cubic-bezier(.22,1,.36,1) ${(i * 0.05).toFixed(2)}s both`,
+                    }}
                   />
                 </div>
                 <span className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[var(--ink)]" : "text-[var(--faint)]"}`}>
