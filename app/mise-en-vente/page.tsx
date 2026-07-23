@@ -481,6 +481,33 @@ export default function MiseEnVentePage() {
     await processFiles(files);
   }
 
+  // Coller une image (⌘V / Ctrl+V) — ex. depuis une annonce Vinted déjà prête.
+  // Passe par le même pipeline que le drop / Finder / appareil photo.
+  // Ref pour appeler toujours le dernier processFiles sans re-souscrire à chaque rendu.
+  const processFilesRef = useRef(processFiles);
+  processFilesRef.current = processFiles;
+  useEffect(() => {
+    if (step !== 1 || !article) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imgs: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          const f = it.getAsFile();
+          if (f) imgs.push(f);
+        }
+      }
+      // Pas d'image dans le presse-papier → on laisse le collage natif (texte).
+      if (imgs.length === 0) return;
+      e.preventDefault();
+      void processFilesRef.current(imgs);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [step, article]);
+
   function removePhoto(id: string) {
     setPhotos((prev) => {
       const p = prev.find((x) => x.id === id);
@@ -908,7 +935,7 @@ export default function MiseEnVentePage() {
                       strokeWidth={1.9}
                     />
                     <span className="text-[13px] font-medium text-[#5A6B61]">
-                      Glisse aussi tes fichiers directement ici — JPG, jusqu’à {MAX_PHOTOS} photos.
+                      Glisse tes fichiers ici, ou <b className="font-bold text-[#1B4332]">colle une image</b> (⌘V / Ctrl+V) — ex. depuis une annonce Vinted. Jusqu’à {MAX_PHOTOS} photos.
                     </span>
                   </div>
                 </div>
