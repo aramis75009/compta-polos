@@ -1401,41 +1401,40 @@ function StockInner() {
         </span>
       </div>
 
-      {/* Barre d'action de sélection en masse */}
+      {/* Barre d'action flottante (sélection en masse) — pilule sombre, suit le
+          repli de la sidebar via --sidebar-w. */}
       {selected.size > 0 && (
-        <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-sidebar">
-          <div className="flex flex-wrap items-center gap-3 rounded-full border border-[var(--border)] bg-surface px-5 py-3 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
-            <span className="text-[14px] font-semibold text-[var(--ink)]">
-              {selected.size} article(s) sélectionné(s)
+        <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-[var(--sidebar-w)]">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-full bg-[#16261D] py-2 pl-5 pr-2 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,.6)] [animation:fadeUp_.25s_cubic-bezier(.22,1,.36,1)_both]">
+            <span className="font-grotesk text-[13.5px] font-bold">
+              {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-medium text-[var(--faint)]">
-                Changer le statut
-              </span>
-              <select
-                value={bulkStatut}
-                onChange={(e) => setBulkStatut(e.target.value)}
-                className="rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[14px] font-semibold text-[var(--ink2)] outline-none focus:border-[var(--border-strong)]"
-              >
-                {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <span className="h-4 w-px bg-white/20" />
+            <span className="text-[12px] font-medium text-[#9FB2A7]">Statut</span>
+            <select
+              value={bulkStatut}
+              onChange={(e) => setBulkStatut(e.target.value)}
+              className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[13.5px] font-semibold text-white outline-none [color-scheme:dark] focus:border-white/30"
+            >
+              {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
             <button
               onClick={applyBulk}
               disabled={bulk.isPending}
-              className="rounded-full bg-[#1B4332] px-4 py-1.5 text-[14px] font-bold text-white transition-colors hover:bg-[#143528] disabled:opacity-60"
+              className="rounded-full bg-[#2D6A4F] px-4 py-1.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#35815F] disabled:opacity-60"
             >
               {bulk.isPending ? "…" : "Appliquer"}
             </button>
             <button
               onClick={clearSelection}
-              className="text-[12px] font-medium text-[var(--faint)] hover:text-[var(--ink)]"
+              aria-label="Annuler la sélection"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[#9FB2A7] transition-colors hover:bg-white/10 hover:text-white"
             >
-              Annuler
+              <X className="h-[17px] w-[17px]" strokeWidth={2.2} />
             </button>
           </div>
         </div>

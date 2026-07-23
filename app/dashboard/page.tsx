@@ -487,9 +487,6 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
   data.forEach((d, i) => {
     if (d.ca > data[bestIdx].ca) bestIdx = i;
   });
-  const avg = data.length > 0 ? data.reduce((s, d) => s + d.ca, 0) / data.length : 0;
-  const avgBottom = max > 0 ? 26 + (avg / max) * 222 : 0;
-
   return (
     <div className="mb-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6 transition-[box-shadow,border-color] duration-300 hover:border-[var(--border-strong)] hover:shadow-[0_24px_50px_-32px_rgba(20,53,40,.45)] md:px-7">
       <div className="mb-2 flex items-start justify-between">
@@ -501,10 +498,6 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
             <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--faint)]">
               <span className="h-[9px] w-[9px] rounded-[3px] bg-[#1B4332]" />
               Meilleure semaine
-            </span>
-            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--faint)]">
-              <span className="w-3.5 border-t-2 border-dashed border-[#B59A4F]" />
-              Moyenne
             </span>
           </div>
         </div>
@@ -522,18 +515,6 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
           <div className="border-t border-dashed border-[#EAEEE7]" />
           <div className="border-t border-[var(--border)]" />
         </div>
-        {/* ligne moyenne */}
-        {avg > 0 && (
-          <div
-            className="pointer-events-none absolute left-0 right-0"
-            style={{ bottom: avgBottom }}
-          >
-            <div className="border-t-2 border-dashed border-[#D9C58A]" />
-            <span className="absolute right-0 -top-[9px] bg-surface px-1 text-[10.5px] font-bold text-[#B59A4F]">
-              moy. {Math.round(avg).toLocaleString("fr-FR")} €
-            </span>
-          </div>
-        )}
         {/* bars */}
         <div className="absolute inset-0 flex items-stretch gap-2 md:gap-3.5">
           {data.map((d, i) => {
