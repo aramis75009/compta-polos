@@ -8,7 +8,10 @@ import type {
   WeekPoint,
 } from "@/lib/types";
 import {
+  endOfMonth,
   format,
+  getDate,
+  getDaysInMonth,
   startOfMonth,
   startOfWeek,
   subMonths,
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
         margeNette: true,
         coefficient: true,
         dateVente: true,
+        createdAt: true,
       },
     });
 
@@ -55,6 +59,12 @@ export async function GET(request: Request) {
       : allVendus;
     const vendus = vendusList.length;
     const enStock = articles.filter((a) => a.statut === "En stock").length;
+    // Portefeuille : articles actuellement au statut « En vente » (indépendant
+    // de la période). Nouveaux au stock : créés dans la période sélectionnée.
+    const enVente = articles.filter((a) => a.statut === "En vente").length;
+    const nouveaux = depuis
+      ? articles.filter((a) => a.createdAt >= depuis!).length
+      : totalArticles;
 
     const caTotal = vendusList.reduce((s, a) => s + (a.prixVente ?? 0), 0);
     const margeNetteTotal = vendusList.reduce(
@@ -75,19 +85,27 @@ export async function GET(request: Request) {
         coefs: number[];
       }
     >();
+    const ensureBrand = (marque: string) => {
+      let b = brands.get(marque);
+      if (!b) {
+        b = { total: 0, enStock: 0, vendus: 0, ca: 0, margeNette: 0, coefs: [] };
+        brands.set(marque, b);
+      }
+      return b;
+    };
+    // Portefeuille (tout l'historique) : total + stock par marque.
     for (const a of articles) {
-      const b =
-        brands.get(a.marque) ??
-        { total: 0, enStock: 0, vendus: 0, ca: 0, margeNette: 0, coefs: [] };
+      const b = ensureBrand(a.marque);
       b.total += 1;
       if (a.statut === "En stock") b.enStock += 1;
-      if (a.statut === STATUT_VENDU) {
-        b.vendus += 1;
-        b.ca += a.prixVente ?? 0;
-        b.margeNette += a.margeNette ?? 0;
-        if (a.coefficient != null) b.coefs.push(a.coefficient);
-      }
-      brands.set(a.marque, b);
+    }
+    // Ventes de la PÉRIODE : ca / vendus / marge / coef par marque.
+    for (const a of vendusList) {
+      const b = ensureBrand(a.marque);
+      b.vendus += 1;
+      b.ca += a.prixVente ?? 0;
+      b.margeNette += a.margeNette ?? 0;
+      if (a.coefficient != null) b.coefs.push(a.coefficient);
     }
     const parMarque: BrandRow[] = Array.from(brands.entries())
       .map(([marque, b]) => ({
@@ -125,6 +143,20 @@ export async function GET(request: Request) {
       ca: buckets.get(keys[idx]) ?? 0,
     }));
 
+    // --- CA par jour du mois EN COURS (pour la vue « Ce mois », calée calendrier) ---
+    const moisRef = new Date();
+    const debutMois = startOfMonth(moisRef);
+    const finMois = endOfMonth(moisRef);
+    const nbJours = getDaysInMonth(moisRef);
+    const jours = Array(nbJours).fill(0) as number[];
+    for (const a of allVendus) {
+      if (!a.dateVente) continue;
+      if (a.dateVente >= debutMois && a.dateVente <= finMois) {
+        jours[getDate(a.dateVente) - 1] += a.prixVente ?? 0;
+      }
+    }
+    const caParJour = jours.map((ca, i) => ({ jour: String(i + 1), ca }));
+
     // --- Évolution mois courant vs mois précédent (CA + marge nette) ---
     const debutMoisCourant = startOfMonth(new Date());
     const debutMoisPrecedent = startOfMonth(subMonths(new Date(), 1));
@@ -153,11 +185,14 @@ export async function GET(request: Request) {
       margeNetteTotal,
       margeMoyenne: caTotal ? margeNetteTotal / caTotal : 0,
       enStock,
+      enVente,
+      nouveaux,
       pctVendu,
       totalArticles,
       vendus,
       parMarque,
       caParSemaine,
+      caParJour,
       caDelta: delta(caMoisCourant, caMoisPrecedent),
       margeDelta: delta(margeMoisCourant, margeMoisPrecedent),
     };

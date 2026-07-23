@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Check,
   Target,
+  Tag,
+  type LucideIcon,
 } from "lucide-react";
 import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
@@ -94,6 +96,9 @@ export default function DashboardPage() {
   // éviter tout écart d'hydratation SSR.
   const [objectif, setObjectif] = useState<number | null>(null);
   useEffect(() => setObjectif(getObjectifMensuel()), []);
+  // Vue détaillée du mois en cours vs vue historique (« Tout l'historique » et
+  // autres périodes gardent l'affichage d'origine — rien de cassé).
+  const isMonth = periode === "month";
 
   if (isLoading && !data) {
     return (
@@ -183,20 +188,56 @@ export default function DashboardPage() {
         <MargeCard total={data.margeNetteTotal} moyenne={data.margeMoyenne} delta={data.margeDelta} />
       </div>
 
-      {/* OBJECTIF MENSUEL (#15) */}
-      <ObjectiveRing caMois={moisData?.caTotal ?? null} objectif={objectif} />
+      {/* OBJECTIF MENSUEL (#15) — seulement en vue « Ce mois » */}
+      {isMonth && (
+        <ObjectiveRing caMois={moisData?.caTotal ?? null} objectif={objectif} />
+      )}
 
-      {/* 2 PETITS KPI */}
-      <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <StockCard enStock={data.enStock} total={data.totalArticles} />
-        <TauxVenteCard pct={data.pctVendu} vendus={data.vendus} />
-      </div>
+      {/* KPI — vue mois (ventes / panier / en vente / nouveaux) ou vue historique */}
+      {isMonth ? (
+        <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <MonthKpi
+            icon={HandCoins}
+            label="Ventes ce mois"
+            value={String(data.vendus)}
+            sub={data.vendus > 1 ? "ventes" : "vente"}
+          />
+          <MonthKpi
+            icon={TrendingUp}
+            label="Panier moyen"
+            value={euros(data.vendus ? data.caTotal / data.vendus : 0)}
+          />
+          <MonthKpi
+            icon={Tag}
+            label="Actuellement en vente"
+            value={String(data.enVente)}
+          />
+          <MonthKpi
+            icon={Package}
+            label="Nouveaux au stock"
+            value={String(data.nouveaux)}
+            sub="ce mois"
+          />
+        </div>
+      ) : (
+        <div className="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <StockCard enStock={data.enStock} total={data.totalArticles} />
+          <TauxVenteCard pct={data.pctVendu} vendus={data.vendus} />
+        </div>
+      )}
 
-      {/* CHART CA PAR SEMAINE — keyé sur la période pour rejouer la cascade */}
-      <WeeklyBars key={periode} data={data.caParSemaine} />
+      {/* CHART — CA par jour du mois (vue mois) ou CA par semaine (historique) */}
+      {isMonth ? (
+        <MonthlyDailyBars data={data.caParJour} />
+      ) : (
+        <WeeklyBars key={periode} data={data.caParSemaine} />
+      )}
 
       {/* PAR MARQUE */}
-      <BrandGrid brands={data.parMarque} />
+      <BrandGrid
+        brands={isMonth ? data.parMarque.filter((b) => b.vendus > 0) : data.parMarque}
+        subtitle={isMonth ? "Marques vendues ce mois" : undefined}
+      />
     </Frame>
   );
 }
@@ -491,6 +532,142 @@ function TauxVenteCard({ pct, vendus }: { pct: number; vendus: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// KPI compact du mois (ventes, panier moyen, en vente, nouveaux)
+// ─────────────────────────────────────────────────────────────────────────
+
+function MonthKpi({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 rounded-[22px] border border-[var(--border)] bg-surface px-5 py-[18px] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-[var(--border-strong)] hover:shadow-[0_24px_44px_-28px_rgba(20,53,40,.5)]">
+      <div className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-[13px] bg-[#EAF3ED] text-[#1B4332]">
+        <Icon className="h-[22px] w-[22px]" strokeWidth={2} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-[var(--faint)]">
+          {label}
+        </div>
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <span className="truncate font-grotesk text-[25px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+            {value}
+          </span>
+          {sub && (
+            <span className="text-[12px] font-semibold text-[var(--faint-2)]">
+              {sub}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Graphe : CA par jour du mois en cours (vue « Ce mois », calé calendrier)
+// ─────────────────────────────────────────────────────────────────────────
+
+function MonthlyDailyBars({ data }: { data: { jour: string; ca: number }[] }) {
+  const [hovered, setHovered] = useState(-1);
+  const max = Math.max(1, ...data.map((d) => d.ca));
+  const total = data.reduce((s, d) => s + d.ca, 0);
+  let bestIdx = -1;
+  data.forEach((d, i) => {
+    if (d.ca > 0 && (bestIdx < 0 || d.ca > data[bestIdx].ca)) bestIdx = i;
+  });
+  const moisLabel = new Date().toLocaleDateString("fr-FR", {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="mb-5 rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6 transition-[box-shadow,border-color] duration-300 hover:border-[var(--border-strong)] hover:shadow-[0_24px_50px_-32px_rgba(20,53,40,.45)] md:px-7">
+      <div className="mb-2 flex items-start justify-between">
+        <div>
+          <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+            CA par jour
+          </h2>
+          <p className="mt-1 text-[12.5px] font-medium text-[var(--faint)]">
+            Total du mois : {euros(total)}
+          </p>
+        </div>
+        <span className="rounded-full bg-[var(--tint)] px-3 py-1.5 text-[12.5px] font-semibold capitalize text-[var(--muted)]">
+          {moisLabel}
+        </span>
+      </div>
+
+      <div className="relative mt-4 h-[214px]">
+        {/* gridlines */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-[22px] top-0 flex flex-col justify-between">
+          <div className="border-t border-dashed border-[#EAEEE7]" />
+          <div className="border-t border-dashed border-[#EAEEE7]" />
+          <div className="border-t border-dashed border-[#EAEEE7]" />
+          <div className="border-t border-[var(--border)]" />
+        </div>
+        {/* bars */}
+        <div className="absolute inset-0 flex items-stretch gap-[3px]">
+          {data.map((d, i) => {
+            const isBest = i === bestIdx;
+            const isHover = hovered === i;
+            const height = `${Math.round((d.ca / max) * 100)}%`;
+            const fill =
+              d.ca === 0
+                ? "transparent"
+                : isHover || isBest
+                  ? "linear-gradient(180deg,#2D6A4F,#1B4332)"
+                  : "linear-gradient(180deg,#B8D4C4,#9DBEAD)";
+            const showLabel = i === 0 || (i + 1) % 5 === 0;
+            return (
+              <div
+                key={i}
+                className="flex flex-1 flex-col items-center"
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(-1)}
+              >
+                <div className="relative flex w-full flex-1 items-end justify-center">
+                  {isHover && d.ca > 0 && (
+                    <div
+                      className="absolute bottom-[calc(100%-2px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[11px] bg-[var(--ink)] px-3 py-2 text-white"
+                      style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
+                    >
+                      <div className="font-grotesk text-[14px] font-bold">
+                        {euros(d.ca)}
+                      </div>
+                      <div className="mt-0.5 text-[11px] font-semibold text-[#9FD4B5]">
+                        {d.jour} {moisLabel.split(" ")[0]}
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    className="w-full max-w-[16px] cursor-pointer rounded-t-[4px] transition-[background] duration-200"
+                    style={{
+                      height,
+                      background: fill,
+                      transformOrigin: "bottom",
+                      animation: `growBar .5s cubic-bezier(.22,1,.36,1) ${(i * 0.012).toFixed(3)}s both`,
+                    }}
+                  />
+                </div>
+                <span className="mt-2 text-[10px] font-semibold text-[var(--faint)]">
+                  {showLabel ? d.jour : ""}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Objectif mensuel — anneau de progression (#15)
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -701,14 +878,27 @@ function WeeklyBars({ data }: { data: WeekPoint[] }) {
 // Par marque
 // ─────────────────────────────────────────────────────────────────────────
 
-function BrandGrid({ brands }: { brands: BrandRow[] }) {
+function BrandGrid({
+  brands,
+  subtitle,
+}: {
+  brands: BrandRow[];
+  subtitle?: string;
+}) {
   const router = useRouter();
   return (
     <div>
-      <div className="mx-0.5 mb-4 flex items-center justify-between">
-        <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-          Par marque
-        </h2>
+      <div className="mx-0.5 mb-4 flex items-end justify-between">
+        <div>
+          <h2 className="font-grotesk text-[19px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+            Par marque
+          </h2>
+          {subtitle && (
+            <p className="mt-0.5 text-[12.5px] font-medium text-[var(--faint)]">
+              {subtitle}
+            </p>
+          )}
+        </div>
         <Link
           href="/stock"
           className="text-[13px] font-semibold text-[var(--muted)] transition-colors hover:text-[#1B4332]"
@@ -719,7 +909,7 @@ function BrandGrid({ brands }: { brands: BrandRow[] }) {
 
       {brands.length === 0 ? (
         <div className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-12 text-center text-[var(--faint)]">
-          Aucune donnée.
+          {subtitle ? "Aucune vente ce mois pour l’instant." : "Aucune donnée."}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

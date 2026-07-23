@@ -148,11 +148,14 @@ export type DashboardDTO = {
   margeNetteTotal: number;
   margeMoyenne: number; // margeNetteTotal / caTotal (0..1)
   enStock: number;
+  enVente: number; // articles actuellement au statut « En vente »
+  nouveaux: number; // articles créés dans la période (createdAt)
   pctVendu: number;
   totalArticles: number;
   vendus: number;
   parMarque: BrandRow[];
   caParSemaine: WeekPoint[];
+  caParJour: { jour: string; ca: number }[]; // CA jour par jour du mois en cours
   caDelta: DashboardDelta; // CA mois courant vs mois précédent
   margeDelta: DashboardDelta; // marge nette mois courant vs mois précédent
 };
