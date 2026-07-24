@@ -16,6 +16,16 @@ import {
   Tag,
   type LucideIcon,
 } from "lucide-react";
+import {
+  addDays,
+  differenceInCalendarDays,
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
+import { fr } from "date-fns/locale";
 import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 import { getObjectifMensuel } from "@/lib/objectif";
@@ -572,25 +582,44 @@ function MonthKpi({
 
 // ─────────────────────────────────────────────────────────────────────────
 // Graphe : CA par semaine du mois en cours (vue « Ce mois »)
-// Agrège le CA journalier en tranches de 7 jours (1–7, 8–14, …) → 4-5 barres.
+// Semaines lundi → dimanche, calées sur la grille du Calendrier : chaque barre
+// vaut exactement la ligne « CA SEMAINE » correspondante. Découper en tranches
+// de 7 jours depuis le 1er donnait des semaines fictives (1–7, 8–14…) qui ne
+// tombaient jamais sur les mêmes ventes que le calendrier.
 // ─────────────────────────────────────────────────────────────────────────
 
 function MonthlyWeekBars({ data }: { data: { jour: string; ca: number }[] }) {
   const [hovered, setHovered] = useState(-1);
-  const moisAbbr = new Date().toLocaleDateString("fr-FR", { month: "short" });
-  const moisLabel = new Date().toLocaleDateString("fr-FR", {
+  const moisRef = new Date();
+  const moisLabel = moisRef.toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
   });
 
-  // Tranches de 7 jours calées sur le début du mois.
-  const weeks: { label: string; ca: number }[] = [];
-  for (let start = 0; start < data.length; start += 7) {
-    const chunk = data.slice(start, start + 7);
-    weeks.push({
-      label: `${start + 1}–${start + chunk.length}`,
-      ca: chunk.reduce((s, d) => s + d.ca, 0),
-    });
+  // Mêmes bornes que `weeks` dans app/calendrier/page.tsx.
+  const gridStart = startOfWeek(startOfMonth(moisRef), { weekStartsOn: 1 });
+  const gridEnd = endOfWeek(endOfMonth(moisRef), { weekStartsOn: 1 });
+  const nbSemaines = Math.round(
+    (differenceInCalendarDays(gridEnd, gridStart) + 1) / 7,
+  );
+  const weeks = Array.from({ length: nbSemaines }, (_, i) => {
+    const debut = addDays(gridStart, i * 7);
+    const fin = addDays(debut, 6);
+    return {
+      // Axe compact (le mois est déjà dans l'étiquette en haut à droite).
+      label: `${debut.getDate()}–${fin.getDate()}`,
+      // Infobulle : plage complète, les semaines à cheval le méritent.
+      plage: `${format(debut, "d MMM", { locale: fr })} – ${format(fin, "d MMM", { locale: fr })}`,
+      ca: 0,
+    };
+  });
+
+  // `data` ne contient que les jours du mois courant : les jours des mois
+  // voisins présents dans la grille restent donc à 0, comme au Calendrier.
+  for (const { jour, ca } of data) {
+    const date = new Date(moisRef.getFullYear(), moisRef.getMonth(), Number(jour));
+    const idx = Math.floor(differenceInCalendarDays(date, gridStart) / 7);
+    if (weeks[idx]) weeks[idx].ca += ca;
   }
 
   const max = Math.max(1, ...weeks.map((w) => w.ca));
@@ -655,7 +684,7 @@ function MonthlyWeekBars({ data }: { data: { jour: string; ca: number }[] }) {
                         {euros(w.ca)}
                       </div>
                       <div className="mt-0.5 text-[11px] font-semibold text-[#9FD4B5]">
-                        {w.label} {moisAbbr}
+                        {w.plage}
                       </div>
                     </div>
                   )}
@@ -674,7 +703,7 @@ function MonthlyWeekBars({ data }: { data: { jour: string; ca: number }[] }) {
                 <span
                   className={`mt-2.5 text-[12px] font-semibold transition-colors ${isHover || isBest ? "font-bold text-[var(--ink)]" : "text-[var(--faint)]"}`}
                 >
-                  {w.label} {moisAbbr}
+                  {w.label}
                 </span>
               </div>
             );

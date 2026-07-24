@@ -63,7 +63,7 @@ Avant cette normalisation, `marque` et `categorie` portaient tous deux le libell
 
 ⚠️ **Reste à traiter.** `components/NewCommandeModal.tsx` propose encore `["Polo Ralph Lauren", "Lacoste", "Tommy Hilfiger"]` comme marques : la première est un libellé de lot, pas une marque. Toute nouvelle commande créée ainsi réintroduit le problème sur ses articles. Corriger la liste implique de revoir les préfixes SKU (`skuPrefix` dans `lib/calc.ts` : « Polo Ralph Lauren » → `PRL`, mais « Ralph Lauren » → `RL`) — décision utilisateur, ne pas trancher seul.
 
-⚠️ **Colonne fantôme.** La table `Article` en base contient `photosPretes` (booléen, 1 242 `false` / 1 `true`) qui n'est **pas** déclarée dans `prisma/schema.prisma` et n'est utilisée nulle part (le code passe par le statut « Photos prêtes »). `prisma db push` proposera de la supprimer : ne pas accepter sans validation explicite. Pour les changements de schéma, préférer un `ALTER TABLE` ciblé.
+⚠️ **Colonne `photosPretes`.** La table `Article` en base contient `photosPretes` (booléen) qui n'est **pas** déclarée dans `prisma/schema.prisma` et n'est lue nulle part dans le code (le suivi passe par le statut « Photos prêtes »). **L'utilisateur a demandé explicitement de la conserver (24/07/2026)** : ne jamais la supprimer. Conséquence pratique : `prisma db push` proposera de la dropper à chaque changement de schéma — refuser, et faire un `ALTER TABLE` ciblé à la place.
 
 ### Emails transactionnels
 `lib/emails.ts` expose `sendWelcomeEmail()` et `sendResetEmail()`.
