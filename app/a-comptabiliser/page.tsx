@@ -12,7 +12,7 @@ import {
 import { euros, naturalSort, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import Loader from "@/components/Loader";
 import type { ArticleDTO } from "@/lib/types";
-import SellBar from "@/components/SellBar";
+import SellDialog from "@/components/SellDialog";
 import StatutBadge from "@/components/StatutBadge";
 import { celebrateSale } from "@/lib/celebrate";
 
@@ -285,7 +285,7 @@ export default function AComptabiliserPage() {
         </>
       )}
 
-      <SellBar
+      <SellDialog
         open={!!target}
         sku={target?.sku}
         defaultPrix={target?.prixVente}
