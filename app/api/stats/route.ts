@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { moyenne, STATUT_VENDU } from "@/lib/calc";
 import type { StatsDTO } from "@/lib/types";
@@ -15,10 +15,14 @@ const JOURS = [
   "Dimanche",
 ];
 
-// GET /api/stats
-export async function GET() {
+// GET /api/stats[?commande=<id>]
+// Sans paramètre : tout l'historique. Avec `commande` : les statistiques sont
+// recalculées sur les seuls articles de ce lot (même DTO, même page).
+export async function GET(req: NextRequest) {
   try {
+    const commandeId = req.nextUrl.searchParams.get("commande");
     const articles = await prisma.article.findMany({
+      where: commandeId ? { commandeId } : undefined,
       select: {
         sku: true,
         marque: true,

@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, ChevronDown, Zap, Clock } from "lucide-react";
-import { useStats } from "@/lib/hooks";
+import { Calendar, Check, ChevronDown, Zap, Clock } from "lucide-react";
+import { useCommandes, useStats } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
-import type { CanalCA, StatutCount, WeekdayPoint } from "@/lib/types";
+import type {
+  CanalCA,
+  CommandeDTO,
+  StatutCount,
+  WeekdayPoint,
+} from "@/lib/types";
 import { statutColor } from "@/lib/statutColors";
 import Loader from "@/components/Loader";
 
@@ -28,12 +33,147 @@ function Frame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function StatistiquesPage() {
-  const { data, isLoading, isError, error } = useStats();
+// « 10 juin 2026 »
+const dateLongue = (iso: string) =>
+  new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  if (isLoading) {
+const TOUT_HISTORIQUE = "Tout l’historique";
+
+// ── Sélecteur de périmètre : tout l'historique ou une commande ──
+// Cinq des sept commandes portent le même fournisseur : la date est le seul
+// discriminant, elle doit donc apparaître dans chaque entrée.
+function ScopePicker({
+  commandes,
+  commandeId,
+  label,
+  onSelect,
+}: {
+  commandes: CommandeDTO[];
+  commandeId: string | null;
+  label: string;
+  onSelect: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p className="text-[14.5px] font-medium text-[var(--muted)]">
+          {commandeId
+            ? "Analyse de la commande sélectionnée."
+            : "Analyse de la performance de ta revente."}
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          {open && (
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          )}
+          <button
+            onClick={() => setOpen(!open)}
+            className="relative z-20 flex max-w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+          >
+            <Calendar className="h-4 w-4 shrink-0" strokeWidth={2} />
+            <span className="truncate">{label}</span>
+            <ChevronDown
+              className={`h-[15px] w-[15px] shrink-0 opacity-55 transition-transform ${open ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
+          {/* Mobile : la topbar est en colonne, le bouton est calé à gauche —
+              un menu ancré à droite déborderait hors de l'écran. */}
+          {open && (
+            <div className="absolute left-0 top-full z-20 mt-1 max-h-[320px] w-[280px] overflow-y-auto rounded-[14px] border border-[var(--border)] bg-surface py-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,.15)] sm:left-auto sm:right-0">
+              <button
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+                className={`flex min-h-[44px] w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[13.5px] font-semibold transition-colors hover:bg-[var(--tint)] ${
+                  commandeId === null ? "text-[#1B4332]" : "text-[var(--ink2)]"
+                }`}
+              >
+                {TOUT_HISTORIQUE}
+                {commandeId === null && (
+                  <Check
+                    className="h-[14px] w-[14px] shrink-0 text-[#1B4332]"
+                    strokeWidth={2.5}
+                  />
+                )}
+              </button>
+              {commandes.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    onSelect(c.id);
+                    setOpen(false);
+                  }}
+                  className="flex min-h-[44px] w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-[var(--tint)]"
+                >
+                  <span className="min-w-0">
+                    <span
+                      className={`block truncate text-[13.5px] font-semibold ${
+                        commandeId === c.id
+                          ? "text-[#1B4332]"
+                          : "text-[var(--ink2)]"
+                      }`}
+                    >
+                      {c.fournisseur}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] font-medium text-[var(--faint-2)]">
+                      {dateLongue(c.date)} · {c.nbArticles} art.
+                    </span>
+                  </span>
+                  {commandeId === c.id && (
+                    <Check
+                      className="h-[14px] w-[14px] shrink-0 text-[#1B4332]"
+                      strokeWidth={2.5}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StatistiquesPage() {
+  // Périmètre des statistiques : null = tout l'historique, sinon une commande.
+  const [commandeId, setCommandeId] = useState<string | null>(null);
+  const { data: commandes = [] } = useCommandes();
+  const { data, isLoading, isError, error } = useStats(commandeId);
+
+  const selected = commandes.find((c) => c.id === commandeId) ?? null;
+  const commandeLabel = selected
+    ? `${selected.fournisseur} · ${dateLongue(selected.date)}`
+    : null;
+  const scopeLabel = commandeLabel ?? TOUT_HISTORIQUE;
+  // Formulation en milieu de phrase (« Basé sur … ») : minuscule sur le libellé
+  // générique, tel quel sur un nom de commande.
+  const sourceLabel = commandeLabel ?? "tout l’historique";
+
+  // Le sélecteur reste affiché pendant le chargement et en cas d'erreur :
+  // sinon on ne pourrait plus changer de commande depuis un lot en échec.
+  const picker = (
+    <ScopePicker
+      commandes={commandes}
+      commandeId={commandeId}
+      label={scopeLabel}
+      onSelect={setCommandeId}
+    />
+  );
+
+  if (isLoading && !data) {
     return (
       <Frame>
+        {picker}
         <Loader label="Chargement des statistiques" />
       </Frame>
     );
@@ -41,6 +181,7 @@ export default function StatistiquesPage() {
   if (isError || !data) {
     return (
       <Frame>
+        {picker}
         <p className="text-[#C2603F]">
           {error ? (error as Error).message : "Erreur de chargement."}
         </p>
@@ -56,21 +197,7 @@ export default function StatistiquesPage() {
 
   return (
     <Frame>
-      {/* TOPBAR */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[14.5px] font-medium text-[var(--muted)]">
-            Analyse de la performance de ta revente.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)]">
-            <Calendar className="h-4 w-4" strokeWidth={2} />
-            Tout l’historique
-            <ChevronDown className="h-[15px] w-[15px] opacity-55" strokeWidth={2} />
-          </div>
-        </div>
-      </div>
+      {picker}
 
       {/* GRADIENT KPIs */}
       <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -182,7 +309,7 @@ export default function StatistiquesPage() {
 
       {/* Meilleur jour + Donut */}
       <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr]">
-        <WeekdayCard days={data.parJourSemaine} />
+        <WeekdayCard days={data.parJourSemaine} source={sourceLabel} />
         <StatutDonut data={data.repartitionStatuts} total={totalArticles} />
       </div>
 
@@ -339,7 +466,13 @@ export default function StatistiquesPage() {
 }
 
 // ── Meilleur jour de la semaine (barres custom + tooltip) ──
-function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
+function WeekdayCard({
+  days,
+  source,
+}: {
+  days: WeekdayPoint[];
+  source: string;
+}) {
   const [hovered, setHovered] = useState(-1);
   const max = Math.max(1, ...days.map((d) => d.vendus));
   const allZero = days.length === 0 || days.every((d) => d.vendus === 0);
@@ -360,7 +493,7 @@ function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
             Nombre de ventes par jour
           </p>
           <p className="mt-0.5 text-[12px] text-[var(--faint-2)]">
-            {"Basé sur tout l'historique"}
+            Basé sur {source}
           </p>
         </div>
         {!allZero && champion && champion.vendus > 0 && (

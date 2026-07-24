@@ -259,10 +259,18 @@ export function useComptabiliser() {
 
 // ---------- Statistiques ----------
 
-export function useStats() {
+// `commandeId` restreint les statistiques à un lot. La clé de cache l'inclut :
+// chaque commande garde ses résultats, le retour sur « Tout l'historique » est
+// instantané.
+export function useStats(commandeId?: string | null) {
   return useQuery({
-    queryKey: ["stats"],
-    queryFn: () => jsonFetch<StatsDTO>("/api/stats"),
+    queryKey: ["stats", commandeId ?? "all"],
+    queryFn: () =>
+      jsonFetch<StatsDTO>(
+        commandeId
+          ? `/api/stats?commande=${encodeURIComponent(commandeId)}`
+          : "/api/stats",
+      ),
   });
 }
 
