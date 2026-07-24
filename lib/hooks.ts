@@ -71,6 +71,7 @@ export function useNotifications() {
 
 export type ArticleFilters = {
   marque?: string;
+  lot?: string; // libellé du lot d'achat (« Short Adidas »)
   statut?: string;
   q?: string;
   commande?: string;
@@ -79,6 +80,7 @@ export type ArticleFilters = {
 export function useArticles(filters: ArticleFilters = {}) {
   const params = new URLSearchParams();
   if (filters.marque) params.set("marque", filters.marque);
+  if (filters.lot) params.set("lot", filters.lot);
   if (filters.statut) params.set("statut", filters.statut);
   if (filters.q) params.set("q", filters.q);
   if (filters.commande) params.set("commande", filters.commande);

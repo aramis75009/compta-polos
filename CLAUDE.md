@@ -54,9 +54,16 @@ Les credentials sont stockés en base de données (table `User` Prisma/Neon), pa
 Prisma ORM + Neon PostgreSQL. Schéma dans `prisma/schema.prisma`.
 Modèle `User` : `id`, `email`, `password` (bcrypt), `resetToken`, `resetTokenExp`, `createdAt`.
 
-⚠️ **Marque / catégorie des articles.** En base, `Article.marque` et `Article.categorie` contiennent le même **libellé de lot** (« Polo Ralph Lauren »), qui mélange marque et type d'article. C'est cette valeur qui pilote les filtres du Stock.
-`app/mise-en-vente/page.tsx` la redécoupe pour l'annonce (« Ralph Lauren » + « Polo ») via `MARQUE_LISTING_MAP` / `listingLabels()`. Conversion **d'affichage uniquement** : ne jamais réécrire ces valeurs en base — cela casserait les filtres du Stock.
-Les lots multimarques (`Mix TNF/PAT/COL`, `Crazy Polaires`…) mappent volontairement sur une marque vide : c'est à l'utilisateur ou à l'IA de trancher.
+**Marque / catégorie / lot des articles.** Trois champs distincts depuis la normalisation du 24/07/2026 :
+- `Article.marque` — la marque réelle : `Adidas`, `Ralph Lauren`, `Lacoste`, `Tommy Hilfiger`, `Dickies`, `Helly Hansen`, `COOGI`, `TNF/PAT/COL`, ou `Mix` pour les lots sans marque identifiable.
+- `Article.categorie` — le type d'article seul : `Polo`, `Pull`, `Short`, `Chemise`, `Polaire`, `Coupe-vent`, `Short de bain`, ou `Mix` quand le lot mélange les pièces.
+- `Article.lot` — le **libellé du lot d'achat** (« Short Adidas », « Crazy Polaires »), conservé tel quel. C'est lui qui alimente le filtre « Tous les lots » du Stock (`?lot=`), à côté du filtre « Toutes les marques » (`?marque=`).
+
+Avant cette normalisation, `marque` et `categorie` portaient tous deux le libellé de lot. La migration one-shot a réparti les 1 243 articles sur les 17 libellés existants ; `listingLabels()` (`app/mise-en-vente/page.tsx`) ne fait plus que neutraliser les libellés collectifs (`Mix`, `TNF/PAT/COL`) qui n'ont pas leur place dans une annonce.
+
+⚠️ **Reste à traiter.** `components/NewCommandeModal.tsx` propose encore `["Polo Ralph Lauren", "Lacoste", "Tommy Hilfiger"]` comme marques : la première est un libellé de lot, pas une marque. Toute nouvelle commande créée ainsi réintroduit le problème sur ses articles. Corriger la liste implique de revoir les préfixes SKU (`skuPrefix` dans `lib/calc.ts` : « Polo Ralph Lauren » → `PRL`, mais « Ralph Lauren » → `RL`) — décision utilisateur, ne pas trancher seul.
+
+⚠️ **Colonne fantôme.** La table `Article` en base contient `photosPretes` (booléen, 1 242 `false` / 1 `true`) qui n'est **pas** déclarée dans `prisma/schema.prisma` et n'est utilisée nulle part (le code passe par le statut « Photos prêtes »). `prisma db push` proposera de la supprimer : ne pas accepter sans validation explicite. Pour les changements de schéma, préférer un `ALTER TABLE` ciblé.
 
 ### Emails transactionnels
 `lib/emails.ts` expose `sendWelcomeEmail()` et `sendResetEmail()`.

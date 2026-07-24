@@ -688,7 +688,10 @@ function StockInner() {
   const router = useRouter();
   const params = useSearchParams();
 
+  // Deux filtres distincts : la marque réelle (lien « par marque » du Dashboard)
+  // et le lot d'achat, qui garde les libellés d'origine.
   const [marque, setMarque] = useState(params.get("marque") ?? "");
+  const [lot, setLot] = useState(params.get("lot") ?? "");
   // Initialisé depuis l'URL : les liens de notifications ouvrent une vue filtrée
   // (ex. /stock?statut=Brouillon).
   const [statut, setStatut] = useState(params.get("statut") ?? "");
@@ -725,6 +728,7 @@ function StockInner() {
 
   const { data: articles = [], isLoading, isError, error } = useArticles({
     marque: marque || undefined,
+    lot: lot || undefined,
     statut: statut || undefined,
     q: q || undefined,
     commande: commande || undefined,
@@ -737,6 +741,7 @@ function StockInner() {
   // celle de la requête principale → pas d'appel réseau supplémentaire.
   const { data: articlesTousStatuts = [] } = useArticles({
     marque: marque || undefined,
+    lot: lot || undefined,
     q: q || undefined,
     commande: commande || undefined,
   });
@@ -830,12 +835,21 @@ function StockInner() {
     );
   };
 
-  // Liste des marques pour le filtre (calculée depuis les données chargées).
+  // Listes des filtres (calculées depuis les données chargées). Deux axes
+  // distincts : la marque réelle (Adidas) et le lot d'achat (« Short Adidas »).
   const marqueOptions = useMemo(() => {
     const set = new Set(articles.map((a) => a.marque));
     if (marque) set.add(marque);
     return Array.from(set).sort();
   }, [articles, marque]);
+
+  const lotOptions = useMemo(() => {
+    const set = new Set(
+      articles.map((a) => a.lot).filter((l): l is string => !!l),
+    );
+    if (lot) set.add(lot);
+    return Array.from(set).sort();
+  }, [articles, lot]);
 
   const sorted = useMemo(() => {
     const copy = [...articles];
@@ -1157,6 +1171,20 @@ function StockInner() {
             </option>
           ))}
         </select>
+        {/* Filtre par lot d'achat : garde les libellés d'origine
+            (« Short Adidas », « Crazy Polaires »…) que la marque ne porte plus. */}
+        <select
+          value={lot}
+          onChange={(e) => setLot(e.target.value)}
+          className={`${inputCls} w-full md:w-auto`}
+        >
+          <option value="">Tous les lots</option>
+          {lotOptions.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
         {/* Statut select — mobile only ; desktop uses chips below */}
         <select
           value={statut}
@@ -1182,10 +1210,11 @@ function StockInner() {
             </option>
           ))}
         </select>
-        {(marque || statut || qInput || commande) && (
+        {(marque || lot || statut || qInput || commande) && (
           <button
             onClick={() => {
               setMarque("");
+              setLot("");
               setStatut("");
               setQInput("");
               setQ("");

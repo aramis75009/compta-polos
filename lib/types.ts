@@ -3,8 +3,9 @@
 export type ArticleDTO = {
   id: string;
   sku: string;
-  marque: string;
-  categorie: string;
+  marque: string; // marque réelle : Adidas, Ralph Lauren, Mix…
+  categorie: string; // type d'article : Short, Polo, Pull…
+  lot: string | null; // libellé du lot d'achat : « Short Adidas »
   grade: string | null;
   statut: string;
   prixAchat: number;

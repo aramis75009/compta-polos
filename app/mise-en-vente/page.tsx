@@ -102,40 +102,22 @@ const CATEGORIES_LIST = [
   "Bermuda",
 ];
 
-// En base, `marque` et `categorie` portent le même libellé de lot ("Polo Ralph
-// Lauren"), qui mélange la marque et le type d'article. Pour l'annonce, on le
-// redécoupe. Clés = les 17 libellés réellement présents en base.
-// Marque vide = lot multimarque : on laisse l'utilisateur (ou l'IA) trancher.
-const MARQUE_LISTING_MAP: Record<string, { marque: string; categorie: string }> = {
-  "Polo Ralph Lauren": { marque: "Ralph Lauren", categorie: "Polo" },
-  "Polo Tommy Hilfiger": { marque: "Tommy Hilfiger", categorie: "Polo" },
-  "Pull Lacoste": { marque: "Lacoste", categorie: "Pull" },
-  "Half Zip Ralph Lauren": { marque: "Ralph Lauren", categorie: "Pull" },
-  "Half Zip Tommy Hilfinger": { marque: "Tommy Hilfiger", categorie: "Pull" }, // typo en base
-  "Torsadé Ralph Lauren": { marque: "Ralph Lauren", categorie: "Pull" },
-  "Short de bain Ralph Lauren": { marque: "Ralph Lauren", categorie: "Short de bain" },
-  "Short Adidas": { marque: "Adidas", categorie: "Short" },
-  "Chemise Dickies": { marque: "Dickies", categorie: "Chemise" },
-  "Mix Helly Hansen": { marque: "Helly Hansen", categorie: "" },
-  "Mix TNF/PAT/COL": { marque: "", categorie: "" },
-  "Mix short de sport de marque": { marque: "", categorie: "Short" },
-  "Crazy Coupe-vent": { marque: "", categorie: "Coupe-vent" },
-  "Crazy Polaires": { marque: "", categorie: "Polaire" },
-  "Pull COOGI style": { marque: "", categorie: "Pull" },
-  "Pull Ethnic": { marque: "", categorie: "Pull" },
-  "Pulls islandais": { marque: "", categorie: "Pull" },
-};
+// Marques « génériques » : elles décrivent un lot mixte, pas un fabricant, et
+// n'ont donc rien à faire dans une annonce — à l'utilisateur (ou à l'IA) de
+// trancher article par article.
+const MARQUES_NON_ANNONCABLES = new Set(["Mix", "TNF/PAT/COL", "À définir"]);
+// Idem côté type d'article pour les lots qui mélangent les pièces.
+const CATEGORIES_NON_ANNONCABLES = new Set(["Mix", "À définir"]);
 
 /**
- * Valeurs « annonce » d'un article, dérivées du libellé de lot.
- * Purement dérivé pour l'affichage et le pré-remplissage : la base, le DTO et
- * les filtres du Stock continuent d'utiliser le libellé de lot d'origine.
+ * Valeurs « annonce » d'un article. Depuis la normalisation de la base,
+ * `marque` et `categorie` sont déjà justes : on les reprend telles quelles,
+ * en neutralisant seulement les libellés collectifs.
  */
 function listingLabels(a: ArticleDTO): { marque: string; categorie: string } {
-  const mapped = MARQUE_LISTING_MAP[a.marque];
   return {
-    marque: mapped?.marque ?? a.marque,
-    categorie: mapped?.categorie ?? a.categorie,
+    marque: MARQUES_NON_ANNONCABLES.has(a.marque) ? "" : a.marque,
+    categorie: CATEGORIES_NON_ANNONCABLES.has(a.categorie) ? "" : a.categorie,
   };
 }
 
@@ -833,12 +815,14 @@ export default function MiseEnVentePage() {
                       {listingLabels(article).categorie || "à préciser"}
                     </b>
                   </span>
-                  <span
-                    title="Libellé du lot en base (utilisé par le Stock)"
-                    className="rounded-full bg-[var(--tint)] px-2.5 py-1 text-[12px] font-semibold text-[var(--faint)]"
-                  >
-                    Lot : {article.marque}
-                  </span>
+                  {article.lot && (
+                    <span
+                      title="Libellé du lot d'achat (filtre « Tous les lots » du Stock)"
+                      className="rounded-full bg-[var(--tint)] px-2.5 py-1 text-[12px] font-semibold text-[var(--faint)]"
+                    >
+                      Lot : {article.lot}
+                    </span>
+                  )}
                 </div>
               )}
             </form>

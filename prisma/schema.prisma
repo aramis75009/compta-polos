@@ -36,8 +36,12 @@ model Commande {
 model Article {
   id          String    @id @default(cuid())
   sku         String    @unique
+  // `marque` = la marque réelle (Adidas, Ralph Lauren…), `categorie` = le type
+  // d'article (Short, Polo…). `lot` conserve le libellé du lot d'achat
+  // (« Short Adidas ») : c'est lui qui alimente le filtre « Tous les lots ».
   marque      String
   categorie   String
+  lot         String?
   grade       String?
   statut      String    @default("En stock")
   prixAchat   Float
@@ -60,6 +64,7 @@ model Article {
 
   @@index([statut])
   @@index([marque])
+  @@index([lot])
   @@index([trelloCardId])
   @@index([dateVente])
   @@index([commandeId])

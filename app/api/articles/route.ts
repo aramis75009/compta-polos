@@ -5,17 +5,19 @@ import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/articles?marque=&statut=&q=
+// GET /api/articles?marque=&lot=&statut=&q=
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
     const marque = searchParams.get("marque")?.trim();
+    const lot = searchParams.get("lot")?.trim();
     const statut = searchParams.get("statut")?.trim();
     const q = searchParams.get("q")?.trim();
     const commande = searchParams.get("commande")?.trim();
 
     const where: Prisma.ArticleWhereInput = {};
     if (marque) where.marque = marque;
+    if (lot) where.lot = lot;
     if (statut) where.statut = statut;
     if (commande) where.commandeId = commande;
     if (q) where.sku = { contains: q, mode: "insensitive" };

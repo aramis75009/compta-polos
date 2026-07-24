@@ -119,6 +119,8 @@ export async function POST(req: NextRequest) {
         sku: `${prefix}-${skuNumber(start + i + 1)}`,
         marque,
         categorie,
+        // Libellé du lot d'achat : alimente le filtre « Tous les lots » du Stock.
+        lot: marque === categorie ? marque : `${categorie} ${marque}`,
         grade,
         statut: "En stock",
         prixAchat,
