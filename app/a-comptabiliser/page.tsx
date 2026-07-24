@@ -12,8 +12,9 @@ import {
 import { euros, naturalSort, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import Loader from "@/components/Loader";
 import type { ArticleDTO } from "@/lib/types";
-import SellModal from "@/components/SellModal";
+import SellBar from "@/components/SellBar";
 import StatutBadge from "@/components/StatutBadge";
+import { celebrateSale } from "@/lib/celebrate";
 
 // Petite carte KPI du redesign.
 function KpiMini({
@@ -61,7 +62,13 @@ export default function AComptabiliserPage() {
     if (!target) return;
     valider.mutate(
       { id: target.id, prixVente, dateVente: dateVenteISO, canal },
-      { onSuccess: () => setTarget(null) },
+      {
+        onSuccess: ({ article }) => {
+          setTarget(null);
+          // Même célébration que la vente depuis le Stock : confettis + toast.
+          celebrateSale(article.prixVente ?? prixVente, article.margeNette);
+        },
+      },
     );
   };
 
@@ -278,7 +285,7 @@ export default function AComptabiliserPage() {
         </>
       )}
 
-      <SellModal
+      <SellBar
         open={!!target}
         sku={target?.sku}
         defaultPrix={target?.prixVente}
