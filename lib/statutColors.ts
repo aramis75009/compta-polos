@@ -14,6 +14,10 @@ export const STATUT_COLORS: Record<string, StatutColor> = {
   // Vendu = vert forêt, la couleur de marque : c'est l'aboutissement du cycle.
   Vendu:             { bg: "#EAF3ED", text: "#1B4332" },
   "En lavage":       { bg: "#E2F7F8", text: "#0892A0" },
+  // Repassé = jalon franchi après le lavage. Indigo doux : la seule teinte
+  // encore libre, assez proche du cyan pour dire « même étape de remise en
+  // état », assez distincte pour ne pas se confondre avec « En vente ».
+  "Repassé":         { bg: "#EDEBFB", text: "#5B4FBE" },
   Perdu:             { bg: "#ECEEF0", text: "#2B3942" },
 };
 

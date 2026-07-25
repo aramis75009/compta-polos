@@ -18,6 +18,7 @@ export const STATUTS = [
   "À comptabiliser",
   "Vendu",
   "En lavage",
+  "Repassé",
   "Perdu",
 ] as const;
 
