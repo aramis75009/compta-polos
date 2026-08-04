@@ -1,34 +1,22 @@
-// Badge de canal de vente en lecture seule (pill subtile + pastille colorée,
-// style redesign). Couleurs en inline (le JIT Tailwind ne compile pas les
-// classes dynamiques). Utilisé uniquement par la page Stock.
+// Badge de canal de vente en lecture seule. Couleurs en inline (le JIT
+// Tailwind ne compile pas les classes dynamiques). Utilisé par la page Stock.
+//
+// Aplat saturé aux couleurs de la plateforme, et non pastel : sur une ligne
+// de tableau déjà porteuse d'un filet de statut et de trois colonnes de
+// chiffres, c'est le seul élément qui doive se reconnaître à la teinte seule,
+// sans être lu. Les valeurs viennent de `lib/canalColors.ts` — source unique,
+// partagée avec le reste de l'app.
 
-type CanalPill = { bg: string; text: string; dot: string };
-
-const CANAL_PILL: Record<string, CanalPill> = {
-  Vinted: { bg: "#E2F7F8", text: "#0892A0", dot: "#0BBBC4" },
-  "Vinted Go": { bg: "#E6EEFB", text: "#1D4ED8", dot: "#0047AB" },
-  "Vestiaire Collective": { bg: "#ECEEF0", text: "#2B3942", dot: "var(--ink)" },
-  Leboncoin: { bg: "#FFEDE5", text: "#C2410C", dot: "#FF6B35" },
-  "En main propre": { bg: "var(--tint)", text: "#52635A", dot: "#6B7280" },
-  Autre: { bg: "var(--tint)", text: "#52635A", dot: "var(--faint-2)" },
-};
-
-function canalPill(canal: string): CanalPill {
-  return CANAL_PILL[canal] ?? CANAL_PILL.Autre;
-}
+import { canalColor } from "@/lib/canalColors";
 
 export default function CanalBadge({ canal }: { canal: string | null }) {
   if (!canal) return <span className="text-[var(--faint-2)]">—</span>;
-  const c = canalPill(canal);
+  const c = canalColor(canal);
   return (
     <span
-      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12.5px] font-bold"
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 font-mono text-[10px] font-medium"
       style={{ backgroundColor: c.bg, color: c.text }}
     >
-      <span
-        className="h-[7px] w-[7px] flex-shrink-0 rounded-full"
-        style={{ backgroundColor: c.dot }}
-      />
       {canal}
     </span>
   );

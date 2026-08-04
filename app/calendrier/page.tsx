@@ -19,6 +19,7 @@ import { X } from "lucide-react";
 import { useCalendar } from "@/lib/hooks";
 import { coef, euros, moyenne } from "@/lib/calc";
 import type { CalendarDay } from "@/lib/types";
+import { Eyebrow } from "@/components/console";
 
 const JOURS = ["LUN", "MAR", "MER", "JEU", "VEN", "SAM", "DIM"];
 
@@ -54,15 +55,47 @@ function CountUp({
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+// Sens d'entrée de la grille : la nouvelle grille glisse depuis le côté d'où
+// vient le mois demandé, et monte au premier rendu.
+const GRID_ANIM: Record<"init" | "next" | "prev", string> = {
+  next: "gridFadeR .5s cubic-bezier(.22,1,.36,1) both",
+  prev: "gridFadeL .5s cubic-bezier(.22,1,.36,1) both",
+  init: "gridFadeUp .5s cubic-bezier(.22,1,.36,1) both",
+};
+
+// État visuel d'une case du calendrier. Quatre fonds possibles, du plus
+// prioritaire au plus neutre : survol, hors du mois, jour avec ventes, vide.
+type CellState = { hovered: boolean; inMonth: boolean; hasSale: boolean; today: boolean };
+
+function cellBackground({ hovered, inMonth, hasSale }: CellState): string {
+  if (hovered) return "var(--raise)";
+  if (!inMonth) return "transparent";
+  return hasSale ? "var(--acc-soft)" : "var(--surface)";
+}
+
+function cellShadow({ hovered, today }: CellState): string {
+  if (hovered) {
+    return "var(--shadow), inset 0 0 0 1.5px var(--acc)";
+  }
+  return today ? "inset 0 0 0 2px var(--acc)" : "none";
+}
+
+// Seules les cases vides du mois courant portent un liseré : ailleurs il
+// doublerait le fond (jour avec ventes) ou le vide (mois voisin).
+function cellBorder({ inMonth, hasSale }: CellState): string {
+  return inMonth && !hasSale ? "1px solid var(--bg)" : "1px solid transparent";
+}
+
 function coefPillStyle(v: number): React.CSSProperties {
-  let color = "#C2603F",
-    background = "#FBEEE7";
+  let color = "var(--neg)",
+    background = "var(--neg-soft)";
   if (v >= 2.3) {
-    color = "#2D6A4F";
-    background = "#E4F3EA";
+    color = "var(--pos)";
+    background = "var(--pos-soft)";
   } else if (v >= 2.0) {
-    color = "#B5872E";
-    background = "#FBF3E2";
+    color = "var(--warn)";
+    background = "var(--warn-soft)";
   }
   return {
     fontFamily: "var(--font-grotesk)",
@@ -91,6 +124,12 @@ export default function CalendrierPage() {
     for (const d of data?.days ?? []) m.set(d.date, d);
     return m;
   }, [data]);
+
+  // Vue liste mobile : les jours du mois du plus ancien au plus récent.
+  const joursTries = useMemo(
+    () => [...(data?.days ?? [])].sort((a, b) => a.date.localeCompare(b.date)),
+    [data],
+  );
 
   const weeks = useMemo(() => {
     const gridStart = startOfWeek(startOfMonth(current), { weekStartsOn: 1 });
@@ -134,26 +173,17 @@ export default function CalendrierPage() {
     setHovered(null);
   }
 
-  const gridAnim =
-    dir === "next"
-      ? "gridFadeR .5s cubic-bezier(.22,1,.36,1) both"
-      : dir === "prev"
-        ? "gridFadeL .5s cubic-bezier(.22,1,.36,1) both"
-        : "gridFadeUp .5s cubic-bezier(.22,1,.36,1) both";
+  const gridAnim = GRID_ANIM[dir];
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
+    <main className="min-h-screen bg-[var(--bg)] p-[14px] text-[var(--ink)] min-[900px]:p-[18px]">
 
       {/* ── En-tête ─────────────────────────────────────────────────────── */}
       <div
-        className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+        className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
         style={{ animation: "fadeUp .4s both" }}
       >
-        <div>
-          <p className="text-[14.5px] font-medium text-[var(--muted)]">
-            Tes ventes jour par jour — la couronne marque le meilleur jour de chaque semaine.
-          </p>
-        </div>
+        <Eyebrow>LA COURONNE MARQUE LE MEILLEUR JOUR DE CHAQUE SEMAINE</Eyebrow>
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => navigate(-1)}
@@ -190,7 +220,7 @@ export default function CalendrierPage() {
         <div className="flex-1" />
         <div className="hidden items-center gap-4 text-[12px] font-semibold text-[var(--faint)] md:flex">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-[13px] w-[13px] rounded-[4px] bg-[#E4F1E9]" />
+            <span className="h-[13px] w-[13px] rounded-[4px] bg-[var(--acc-soft)]" />
             Jour avec ventes
           </span>
           <span>👑 Meilleur jour</span>
@@ -198,26 +228,28 @@ export default function CalendrierPage() {
       </div>
 
       {isError && (
-        <p className="mb-4 rounded-[14px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[14px] text-[#C2603F]">
+        <p className="mb-4 rounded-[14px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-3 text-[13px] text-[var(--neg)]">
           Erreur lors du chargement du calendrier.
         </p>
       )}
 
       {/* ── Vue liste mobile ─────────────────────────────────────────────── */}
       <div className="space-y-2 md:hidden">
-        {isLoading ? (
-          <Loader label="Chargement du calendrier" />
-        ) : (data?.days ?? []).length === 0 ? (
+        {isLoading && <Loader label="Chargement du calendrier" />}
+
+        {!isLoading && joursTries.length === 0 && (
           <p className="rounded-[18px] border border-[var(--border)] bg-surface px-4 py-6 text-center text-[14px] text-[var(--faint)]">
             Aucune vente ce mois-ci.
           </p>
-        ) : (
-          [...(data?.days ?? [])].sort((a, b) => a.date.localeCompare(b.date)).map((dd) => {
+        )}
+
+        {!isLoading &&
+          joursTries.map((dd) => {
             const active = selected === dd.date;
             return (
               <div
                 key={dd.date}
-                className={`overflow-hidden rounded-[18px] border bg-surface transition-colors ${active ? "border-[#1B4332]" : "border-[var(--border)]"}`}
+                className={`overflow-hidden rounded-[18px] border bg-surface transition-colors ${active ? "border-[var(--acc)]" : "border-[var(--border)]"}`}
               >
                 <button
                   onClick={() => setSelected(active ? null : dd.date)}
@@ -237,7 +269,7 @@ export default function CalendrierPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-grotesk font-bold text-[var(--ink)]">{euros(dd.ca)}</div>
-                    <div className="text-[12px] text-[#2D6A4F]">NET {euros(dd.net)}</div>
+                    <div className="text-[12px] text-[var(--pos)]">NET {euros(dd.net)}</div>
                   </div>
                 </button>
                 {active && (
@@ -258,8 +290,7 @@ export default function CalendrierPage() {
                 )}
               </div>
             );
-          })
-        )}
+          })}
       </div>
 
       {/* ── Grille desktop ───────────────────────────────────────────────── */}
@@ -274,8 +305,8 @@ export default function CalendrierPage() {
               <span
                 key={j}
                 style={{
-                  fontSize: 11.5, fontWeight: 700, color: "#BE6E26", textAlign: "center",
-                  letterSpacing: ".04em", background: "#FBEEDD", border: "1px solid #F3DCC0",
+                  fontSize: 11.5, fontWeight: 700, color: "var(--warn)", textAlign: "center",
+                  letterSpacing: ".04em", background: "var(--warn-soft)", border: "1px solid var(--warn)",
                   borderRadius: 9, padding: "7px 0",
                 }}
               >
@@ -284,7 +315,7 @@ export default function CalendrierPage() {
             ))}
             <span
               style={{
-                fontSize: 11.5, fontWeight: 700, color: "#1B4332", textAlign: "center",
+                fontSize: 11.5, fontWeight: 700, color: "var(--acc)", textAlign: "center",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
@@ -329,33 +360,21 @@ export default function CalendrierPage() {
                       const today = isToday(d) && inMonth;
                       const isHov = hovered === key && hasSale;
                       const cellIdx = wi * 7 + di;
-
-                      const cellBg =
-                        isHov ? "#C2E2CF" : !inMonth ? "transparent" : hasSale ? "#E4F1E9" : "#FFFFFF";
-                      const cellShadow =
-                        isHov
-                          ? "0 22px 40px -14px rgba(27,67,50,.5), inset 0 0 0 1.5px #1B4332"
-                          : today
-                            ? "inset 0 0 0 2px #1B4332"
-                            : "none";
+                      const state = { hovered: isHov, inMonth, hasSale, today };
 
                       return (
                         <div
                           key={key}
                           onClick={() => { if (hasSale) setSelected(key); }}
-                          onMouseEnter={() => { if (hasSale) setHovered(key); else setHovered(null); }}
+                          onMouseEnter={() => setHovered(hasSale ? key : null)}
                           onMouseLeave={() => setHovered(null)}
                           style={{
                             minHeight: 94,
                             borderRadius: 13,
                             padding: "9px 11px",
-                            background: cellBg,
-                            border: !inMonth
-                              ? "1px solid transparent"
-                              : hasSale
-                                ? "1px solid transparent"
-                                : "1px solid var(--bg)",
-                            boxShadow: cellShadow,
+                            background: cellBackground(state),
+                            border: cellBorder(state),
+                            boxShadow: cellShadow(state),
                             opacity: inMonth ? 1 : 0.5,
                             cursor: hasSale ? "pointer" : "default",
                             display: "flex",
@@ -375,14 +394,14 @@ export default function CalendrierPage() {
                                 today
                                   ? {
                                       width: 24, height: 24, borderRadius: "50%",
-                                      background: "#1B4332", color: "#fff",
+                                      background: "var(--acc)", color: "var(--acc-ink)",
                                       display: "flex", alignItems: "center", justifyContent: "center",
                                       fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 13,
                                     }
                                   : {
                                       fontFamily: "var(--font-grotesk)",
                                       fontWeight: 700, fontSize: 14,
-                                      color: inMonth ? "var(--ink)" : "#C4CFC7",
+                                      color: inMonth ? "var(--ink)" : "var(--faint-2)",
                                     }
                               }
                             >
@@ -403,7 +422,7 @@ export default function CalendrierPage() {
                               <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 14, color: "var(--ink)", letterSpacing: "-0.01em" }}>
                                 {euros(dd.ca)}
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#5E7268", marginTop: 2 }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--ink2)", marginTop: 2 }}>
                                 NET {euros(dd.net)}
                               </div>
                               <div style={{ fontSize: 10.5, fontWeight: 500, color: "var(--faint-2)", marginTop: 1 }}>
@@ -418,7 +437,7 @@ export default function CalendrierPage() {
                               style={{
                                 position: "absolute", bottom: "calc(100% + 9px)", left: "50%",
                                 transform: "translateX(-50%)", whiteSpace: "nowrap",
-                                background: "var(--ink)", color: "#fff", padding: "8px 12px",
+                                background: "var(--ink)", color: "var(--bg)", padding: "8px 12px",
                                 borderRadius: 10, fontSize: 11, fontWeight: 600, letterSpacing: ".01em",
                                 boxShadow: "0 12px 28px -8px rgba(22,38,29,.55)",
                                 zIndex: 30, pointerEvents: "none",
@@ -443,8 +462,8 @@ export default function CalendrierPage() {
                     {/* Récap semaine */}
                     <div
                       style={{
-                        borderRadius: 13, background: "#fff",
-                        border: "1px solid #E7EDE5", borderLeft: "3px solid #1B4332",
+                        borderRadius: 16, background: "var(--surface)",
+                        border: "1px solid var(--border)", borderLeft: "3px solid var(--acc)",
                         padding: "11px 13px", display: "flex", flexDirection: "column",
                         transition: "box-shadow .18s ease, transform .18s ease",
                       }}
@@ -459,15 +478,15 @@ export default function CalendrierPage() {
                         el.style.transform = "";
                       }}
                     >
-                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".07em", color: "#9BA89F" }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: ".07em", color: "var(--faint)" }}>
                         CA SEMAINE
                       </span>
                       <span style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 17, letterSpacing: "-0.02em", color: "var(--ink)", marginTop: 2 }}>
                         {euros(wca)}
                       </span>
-                      <div style={{ height: 1, background: "#ECEFEA", margin: "9px 0" }} />
+                      <div style={{ height: 1, background: "var(--border)", margin: "9px 0" }} />
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <RecapRow label="Net" value={euros(wnet)} valueColor="#2D6A4F" />
+                        <RecapRow label="Net" value={euros(wnet)} valueColor="var(--pos)" />
                         <RecapRow label="Articles" value={String(wnb)} />
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                           <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--faint-2)" }}>Coef</span>
@@ -548,7 +567,7 @@ export default function CalendrierPage() {
               </div>
               <button
                 onClick={() => setSelected(null)}
-                className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-[var(--tint)] text-[var(--faint-2)] transition-colors hover:bg-[#E7EDE5] hover:text-[var(--ink2)]"
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-[var(--tint)] text-[var(--faint-2)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink2)]"
               >
                 <X className="h-4 w-4" strokeWidth={2.2} />
               </button>
@@ -556,8 +575,7 @@ export default function CalendrierPage() {
 
             {/* Carte CA avec sheen */}
             <div
-              className="relative mb-[14px] overflow-hidden rounded-[16px] p-5 text-white"
-              style={{ background: "radial-gradient(120% 130% at 88% 8%, #2D6A4F, #1B4332)" }}
+              className="relative mb-[14px] overflow-hidden rounded-[22px] bg-[var(--acc)] p-5 text-[var(--acc-ink)]"
             >
               <div
                 className="pointer-events-none absolute inset-y-0 left-0"
@@ -567,7 +585,7 @@ export default function CalendrierPage() {
                   animation: "sheen 2.4s ease-in-out .25s infinite",
                 }}
               />
-              <div className="relative text-[11px] font-bold tracking-[.07em] text-[#9FD4B5]">
+              <div className="relative text-[11px] font-bold tracking-[.07em] text-[var(--acc-ink)] opacity-70">
                 CHIFFRE D&apos;AFFAIRES
               </div>
               <div className="relative mt-1 font-grotesk text-[34px] font-bold tracking-[-0.02em]">
@@ -612,7 +630,7 @@ function MetricBand({ label, value, accent }: { label: string; value: React.Reac
   return (
     <div className="flex-1 px-[14px] text-center">
       <div className="text-[11.5px] font-bold tracking-[.05em] text-[var(--faint)]">{label}</div>
-      <div className={`mt-[5px] font-grotesk text-[26px] font-bold tracking-[-0.02em] ${accent ? "text-[#2D6A4F]" : "text-[var(--ink)]"}`}>
+      <div className={`mt-[5px] font-grotesk text-[26px] font-bold tracking-[-0.02em] ${accent ? "text-[var(--pos)]" : "text-[var(--ink)]"}`}>
         {value}
       </div>
     </div>
@@ -623,7 +641,7 @@ function ModalRow({ label, value, accent }: { label: string; value: string; acce
   return (
     <div className="flex items-center justify-between rounded-[13px] bg-[var(--tint)] px-[15px] py-[13px] transition-colors hover:bg-[var(--tint)]">
       <span className="text-[13.5px] font-semibold text-[var(--muted)]">{label}</span>
-      <span className={`font-grotesk text-[16px] font-bold ${accent ? "text-[#2D6A4F]" : "text-[var(--ink)]"}`}>
+      <span className={`font-grotesk text-[16px] font-bold ${accent ? "text-[var(--pos)]" : "text-[var(--ink)]"}`}>
         {value}
       </span>
     </div>

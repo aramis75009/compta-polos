@@ -35,7 +35,7 @@ export default function WelcomeModal() {
       />
       {/* Card */}
       <div className="relative w-full max-w-sm rounded-[22px] border border-[var(--border)] bg-surface p-8 shadow-[0_24px_60px_-20px_rgba(20,53,40,.35)]">
-        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#1B4332] font-bold text-white text-[22px]">
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--acc)] font-bold text-[var(--acc-ink)] text-[22px]">
           M
         </div>
         <h2 className="mb-2 font-grotesk text-[22px] font-bold text-[var(--ink)]">
@@ -47,7 +47,7 @@ export default function WelcomeModal() {
         </p>
         <button
           onClick={goToCommandes}
-          className="mb-3 w-full rounded-xl bg-[#1B4332] py-3 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
+          className="mb-3 w-full rounded-xl bg-[var(--acc)] py-3 text-[13.5px] font-bold text-[var(--acc-ink)] shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[var(--acc-hover)]"
         >
           Créer ma première commande
         </button>

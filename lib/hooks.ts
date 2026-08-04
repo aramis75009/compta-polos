@@ -11,11 +11,13 @@ import type {
   CalendarDTO,
   CommandeDTO,
   CommandeStatsDTO,
+  CompteVente,
   DashboardDTO,
   NotificationsDTO,
   PromptTemplateDTO,
   StatsDTO,
 } from "./types";
+import type { OrbiteData } from "./orbite/types";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -52,6 +54,7 @@ function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ["commandes"] });
     qc.invalidateQueries({ queryKey: ["stats"] });
     qc.invalidateQueries({ queryKey: ["notifications"] });
+    qc.invalidateQueries({ queryKey: ["orbite"] });
   };
 }
 
@@ -78,12 +81,12 @@ export type ArticleFilters = {
 };
 
 export function useArticles(filters: ArticleFilters = {}) {
+  // Les clés d'`ArticleFilters` sont exactement les noms de paramètres attendus
+  // par /api/articles : les valeurs vides sont simplement omises.
   const params = new URLSearchParams();
-  if (filters.marque) params.set("marque", filters.marque);
-  if (filters.lot) params.set("lot", filters.lot);
-  if (filters.statut) params.set("statut", filters.statut);
-  if (filters.q) params.set("q", filters.q);
-  if (filters.commande) params.set("commande", filters.commande);
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
   const qs = params.toString();
 
   return useQuery({
@@ -105,6 +108,7 @@ export type ArticlePatch = Partial<{
   titreAnnonce: string | null;
   descriptionAnnonce: string | null;
   motsClesAnnonce: string | null;
+  compteVente: CompteVente | null;
 }>;
 
 // Champs dont la modification impacte les vues agrégées
@@ -242,17 +246,19 @@ export function useComptabiliser() {
       prixVente,
       dateVente,
       canal,
+      compteVente,
     }: {
       id: string;
       prixVente: number;
       dateVente: string;
       canal?: string;
+      compteVente?: CompteVente;
     }) =>
       jsonFetch<{ article: ArticleDTO; trello: string | null }>(
         `/api/articles/${id}/comptabiliser`,
         {
           method: "POST",
-          body: JSON.stringify({ prixVente, dateVente, canal }),
+          body: JSON.stringify({ prixVente, dateVente, canal, compteVente }),
         },
       ),
     onSuccess: invalidate,
@@ -284,6 +290,15 @@ export function useDashboard(periode: DashboardPeriode = "all") {
   return useQuery({
     queryKey: ["dashboard", periode],
     queryFn: () => jsonFetch<DashboardDTO>(`/api/dashboard?periode=${periode}`),
+  });
+}
+
+// ---------- Orbite ----------
+
+export function useOrbite() {
+  return useQuery({
+    queryKey: ["orbite"],
+    queryFn: () => jsonFetch<OrbiteData>("/api/orbite"),
   });
 }
 

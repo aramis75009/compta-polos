@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FileSpreadsheet, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -9,14 +9,71 @@ import { coef, euros } from "@/lib/calc";
 import type { CommandeDTO } from "@/lib/types";
 import Loader from "@/components/Loader";
 import NewCommandeModal from "@/components/NewCommandeModal";
+import { CardTitle, Eyebrow, Frame, Module } from "@/components/console";
+
+/**
+ * Jeton pilule de Direction C. `accent` est réservé à la valeur qui compte le
+ * plus de la série — la maquette n'en allume qu'un seul par groupe, l'accent
+ * perdant tout son sens s'il est distribué à tous.
+ */
+function Chip({
+  children,
+  accent = false,
+}: {
+  children: ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <span
+      className={`rounded-full px-3.5 py-2 font-mono text-[11px] ${
+        accent
+          ? "bg-[var(--acc)] font-bold text-[var(--acc-ink)]"
+          : "bg-[var(--surface-2)] text-[var(--ink2)]"
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Ligne « Par fournisseur » : nom, montant, et barre de part relative. */
+function FournisseurLigne({
+  nom,
+  total,
+  part,
+  onClick,
+}: {
+  nom: string;
+  total: number;
+  part: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="block w-full border-b border-[var(--border)] py-2.5 text-left last:border-b-0"
+    >
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="truncate text-[13px] text-[var(--ink)]">{nom}</span>
+        <span className="flex-none font-mono text-[12.5px] [font-variant-numeric:tabular-nums]">
+          {euros(total)}
+        </span>
+      </span>
+      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <span
+          className="block h-full rounded-full bg-[var(--acc)]"
+          style={{ width: `${Math.max(2, Math.round(part * 100))}%` }}
+        />
+      </span>
+    </button>
+  );
+}
 
 function initials(name: string): string {
   const words = name.trim().split(/\s+/);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return name.trim().slice(0, 2).toUpperCase();
 }
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // En dessous de ce nombre de ventes, la projection est signalée comme peu fiable.
 const PROJECTION_MIN_VENTES = 10;
@@ -45,7 +102,7 @@ function Metric({
 }) {
   return (
     <div style={{ borderRadius: 11, background: "var(--tint)", padding: "10px 12px" }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#9BA89F" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--faint)" }}>
         {label}
       </div>
       <div style={{ marginTop: 3, fontSize: 18, fontWeight: 700, color: color ?? "var(--ink)" }}>
@@ -60,127 +117,56 @@ function Metric({
 
 function getRenta(recovered: number, invested: number) {
   if (recovered >= invested)
-    return { label: "Rentabilisée", color: "#2D6A4F", bg: "#E4F3EA", key: "rentable" as const };
+    return { label: "Rentabilisée", color: "var(--pos)", bg: "var(--pos-soft)", key: "rentable" as const };
   if (recovered < invested * 0.5)
-    return { label: "En cours", color: "#C2603F", bg: "#FBEEE7", key: "encours" as const };
-  return { label: "Seuil proche", color: "#B5872E", bg: "#FBF3E2", key: "proche" as const };
+    return { label: "En cours", color: "var(--neg)", bg: "var(--neg-soft)", key: "encours" as const };
+  return { label: "Seuil proche", color: "var(--warn)", bg: "var(--warn-soft)", key: "proche" as const };
 }
 
 function pctColor(pct: number) {
-  if (pct < 0.3) return "#C2603F";
-  if (pct <= 0.6) return "#B5872E";
-  return "#2D6A4F";
+  if (pct < 0.3) return "var(--neg)";
+  if (pct <= 0.6) return "var(--warn)";
+  return "var(--pos)";
 }
 
-// ── Line chart ─────────────────────────────────────────────────────────────────
-function InvestChart({ months }: { months: { label: string; value: number }[] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const max = Math.max(1, ...months.map((m) => m.value));
+// ── Courbe d'investissement ───────────────────────────────────────────────
+// Direction C la veut discrète : un tracé, un aplat, et l'axe des mois en
+// chasse fixe sous le graphe. Pas d'étiquette par point — le chiffre héros
+// juste au-dessus porte déjà la valeur, les répéter huit fois la diluait.
+type Mois = { key: string; label: string; value: number };
+
+function Sparkline({ months }: { months: Mois[] }) {
   const n = months.length;
-  const total = months.reduce((s, m) => s + m.value, 0);
-  const avg = n > 0 ? total / n : 0;
-  const xs = months.map((_, i) => 50 + (i * 520) / Math.max(1, n - 1));
-  const ys = months.map((m) => 178 - (m.value / max) * 126);
-  const maxIdx = months.reduce((best, m, i) => (m.value > months[best].value ? i : best), 0);
-  const line = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
-  const area = `M${xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")} L${xs[n - 1].toFixed(1)},178 L${xs[0].toFixed(1)},178 Z`;
+  if (n === 0) return null;
+  const max = Math.max(1, ...months.map((m) => m.value));
+  const xs = months.map((_, i) => (i * 420) / Math.max(1, n - 1));
+  const ys = months.map((m) => 110 - (m.value / max) * 96);
+  const pts = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
 
   return (
-    <div style={{ borderRadius: 22, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px 18px" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-        <div>
-          <h2 style={{ margin: 0, fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 18, color: "var(--ink)" }}>
-            Investissements dans le temps
-          </h2>
-          <p style={{ margin: "5px 0 0", fontSize: 13, color: "var(--faint)", fontWeight: 500 }}>
-            Montant investi par mois
-          </p>
-        </div>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--muted)", background: "var(--tint)", padding: "7px 13px", borderRadius: 20 }}>
-          {n} mois
-        </span>
-      </div>
+    <>
       <svg
-        viewBox="0 0 620 216"
-        width="100%"
-        style={{ display: "block", height: "auto", overflow: "visible", marginTop: 14, fontFamily: "var(--font-grotesk)" }}
-        onMouseLeave={() => setHovered(null)}
+        viewBox="0 0 420 120"
+        preserveAspectRatio="none"
+        className="mt-5 block h-[130px] w-full"
+        aria-label="Investissement dans le temps"
       >
-        <defs>
-          <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#1B4332" stopOpacity="0.16" />
-            <stop offset="1" stopColor="#1B4332" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <line x1="50" y1="52" x2="570" y2="52" stroke="#EEF2EC" strokeWidth="1" />
-        <line x1="50" y1="115" x2="570" y2="115" stroke="#EEF2EC" strokeWidth="1" />
-        <line x1="50" y1="178" x2="570" y2="178" stroke="var(--border)" strokeWidth="1" />
-        <path d={area} fill="url(#areaFill)" />
         <polyline
-          points={line}
+          points={pts}
           fill="none"
-          stroke="#1B4332"
-          strokeWidth="3"
-          strokeLinecap="round"
+          stroke="var(--acc)"
+          strokeWidth="2.5"
           strokeLinejoin="round"
-          strokeDasharray="1200"
-          style={{ animation: "drawLine 1.4s ease both" }}
+          vectorEffect="non-scaling-stroke"
         />
-        {n <= 8 &&
-          xs.map((x, i) => {
-            const isFirst = i === 0;
-            const isLast = i === n - 1;
-            return (
-              <text
-                key={i}
-                x={x.toFixed(1)}
-                y={(ys[i] - 11).toFixed(1)}
-                textAnchor={isFirst ? "start" : isLast ? "end" : "middle"}
-                fill={isFirst || isLast ? "#1B4332" : "#5B6A62"}
-                fontSize="11.5"
-                fontWeight={isFirst || isLast ? "700" : "600"}
-              >
-                {euros(months[i].value)}
-              </text>
-            );
-          })}
-        {xs.map((x, i) =>
-          i === maxIdx ? (
-            <circle key={i} cx={x} cy={ys[i]} r="5" fill="#1B4332" style={{ cursor: "pointer" }} onMouseEnter={() => setHovered(i)} />
-          ) : (
-            <circle key={i} cx={x} cy={ys[i]} r="4.5" fill="#fff" stroke="#1B4332" strokeWidth="3" style={{ cursor: "pointer" }} onMouseEnter={() => setHovered(i)} />
-          ),
-        )}
-        {hovered !== null && (
-          <g>
-            <rect
-              x={Math.max(50, Math.min(xs[hovered] - 36, 534)).toFixed(1)}
-              y={(ys[hovered] - 36).toFixed(1)}
-              width="72" height="24" rx="8" fill="var(--ink)"
-            />
-            <text
-              x={Math.max(86, Math.min(xs[hovered], 570)).toFixed(1)}
-              y={(ys[hovered] - 19).toFixed(1)}
-              textAnchor="middle" fill="white" fontSize="11" fontWeight="700"
-            >
-              {euros(months[hovered].value)}
-            </text>
-          </g>
-        )}
-        {xs.map((x, i) => (
-          <text key={i} x={x.toFixed(1)} y="202" textAnchor="middle" fill="var(--faint)" fontSize="12" fontWeight="600">
-            {capitalize(months[i].label)}
-          </text>
-        ))}
+        <polygon points={`${pts} 420,120 0,120`} fill="var(--acc)" opacity=".1" />
       </svg>
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--bg)", fontSize: 13, fontWeight: 500, color: "var(--muted)" }}>
-        {"Total : "}
-        <strong style={{ color: "#1B2A22", fontWeight: 700 }}>{euros(total)}</strong>
-        <span style={{ color: "#C2CDC5", margin: "0 8px" }}>·</span>
-        {"Moy./mois : "}
-        <strong style={{ color: "#1B2A22", fontWeight: 700 }}>{euros(avg)}</strong>
+      <div className="mt-1.5 flex justify-between font-mono text-[9.5px] uppercase tracking-[0.1em] text-[var(--faint)]">
+        {months.map((m) => (
+          <span key={m.key}>{m.label}</span>
+        ))}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -236,7 +222,7 @@ function CommandeDetailPanel({
             {statut.label}
           </span>
         </div>
-        <div style={{ height: 11, width: "100%", borderRadius: 8, background: "#EAEFE8", overflow: "hidden" }}>
+        <div style={{ height: 11, width: "100%", borderRadius: 8, background: "var(--surface-2)", overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: 8, width: `${width}%`, background: statut.color, transition: "width .8s cubic-bezier(.34,1.2,.5,1)" }} />
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 26px", marginTop: 12, fontSize: 13.5, color: "var(--muted)" }}>
@@ -246,7 +232,7 @@ function CommandeDetailPanel({
           <span>
             Vendus&nbsp;: <strong style={{ color: "var(--ink)" }}>{r.vendus}/{r.totalArticles}</strong>
             {r.perdus > 0 && (
-              <span style={{ color: "#C2603F" }}> · {r.perdus} perdu{r.perdus > 1 ? "s" : ""}</span>
+              <span style={{ color: "var(--neg)" }}> · {r.perdus} perdu{r.perdus > 1 ? "s" : ""}</span>
             )}
           </span>
         </div>
@@ -261,7 +247,7 @@ function CommandeDetailPanel({
 
       {/* Projection : où ce lot atterrit */}
       {r.panierMoyen != null && (
-        <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "#fff", padding: "16px 18px", marginBottom: 16 }}>
+        <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)", padding: "16px 18px", marginBottom: 16 }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
             Projection
           </h3>
@@ -270,7 +256,7 @@ function CommandeDetailPanel({
               ventes, elle ne vaut rien : le dire plutôt que d'afficher un
               coefficient rassurant calculé sur 7 articles. */}
           {r.vendus < PROJECTION_MIN_VENTES && (
-            <p style={{ margin: "0 0 12px", padding: "8px 11px", borderRadius: 9, background: "#FBF3E2", color: "#B5872E", fontSize: 12, fontWeight: 600 }}>
+            <p style={{ margin: "0 0 12px", padding: "8px 11px", borderRadius: 9, background: "var(--warn-soft)", color: "var(--warn)", fontSize: 12, fontWeight: 600 }}>
               Projection calculée sur {r.vendus} vente{r.vendus > 1 ? "s" : ""} seulement
               {r.totalArticles > 0 && ` (${Math.round((r.vendus / r.totalArticles) * 100)} % du lot)`}
               {" "}— indicative, à confirmer avec plus de ventes.
@@ -292,7 +278,7 @@ function CommandeDetailPanel({
                   : "sans objectif"
               }
               color={
-                objectifTenu == null ? undefined : objectifTenu ? "#2D6A4F" : "#C2603F"
+                objectifTenu == null ? undefined : objectifTenu ? "var(--pos)" : "var(--neg)"
               }
             />
             <Metric
@@ -320,7 +306,7 @@ function CommandeDetailPanel({
               flexDirection: "column",
               gap: 7,
               fontSize: 12.5,
-              color: "#5A6B61",
+              color: "var(--ink2)",
             }}
           >
             {/* La ligne qui change une décision : faut-il remonter les prix ? */}
@@ -345,7 +331,7 @@ function CommandeDetailPanel({
               </li>
             )}
             {r.dormants > 0 && (
-              <li style={{ color: "#B5872E" }}>
+              <li style={{ color: "var(--warn)" }}>
                 {r.dormants} article{r.dormants > 1 ? "s" : ""} jamais mis en vente
                 (photos non prêtes)
                 {r.caDormant != null ? ` — ≈ ${euros(r.caDormant)} de CA immobilisé` : ""}.
@@ -379,7 +365,7 @@ function CommandeDetailPanel({
       {/* Category table (grid, no <table>) */}
       <div style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 760 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "0 8px 8px", fontSize: 11, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#9BA89F" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "0 8px 8px", fontSize: 11, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--faint)" }}>
             <div>Catégorie</div>
             <div style={{ textAlign: "right" }}>Total</div>
             <div style={{ textAlign: "right" }}>En stock</div>
@@ -395,8 +381,8 @@ function CommandeDetailPanel({
               coefObjectif == null || r.coefMoyen === 0
                 ? "var(--ink)"
                 : r.coefMoyen < coefObjectif
-                  ? "#C2603F"
-                  : "#2D6A4F";
+                  ? "var(--neg)"
+                  : "var(--pos)";
             return (
               <div key={r.categorie} style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "10px 8px", borderTop: "1px solid var(--bg)", fontSize: 13.5, fontVariantNumeric: "tabular-nums" as const }}>
                 <div style={{ fontWeight: 600, color: "var(--ink)" }}>{r.categorie}</div>
@@ -405,7 +391,7 @@ function CommandeDetailPanel({
                 <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.enVente}</div>
                 <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.vendus}</div>
                 <div style={{ textAlign: "right", fontWeight: 600, color: "var(--ink)" }}>{euros(r.ca)}</div>
-                <div style={{ textAlign: "right", fontWeight: 600, color: "#2D6A4F" }}>{euros(r.margeNette)}</div>
+                <div style={{ textAlign: "right", fontWeight: 600, color: "var(--pos)" }}>{euros(r.margeNette)}</div>
                 <div style={{ textAlign: "right", fontWeight: 700, color: cc }}>{r.coefMoyen > 0 ? coef(r.coefMoyen) : "—"}</div>
                 <div style={{ textAlign: "right", fontWeight: 700, color: pctColor(r.pctVendu) }}>{Math.round(r.pctVendu * 100)}%</div>
               </div>
@@ -417,31 +403,77 @@ function CommandeDetailPanel({
   );
 }
 
-// ── Commande card row ──────────────────────────────────────────────────────────
-function CommandeRow({
+// ── Table « Commandes récentes » ─────────────────────────────────────────
+
+/** En-tête de colonne : mono 9,5 px très espacé, la signature de Direction C. */
+function Th({
+  children,
+  align = "left",
+  className = "",
+}: {
+  children: ReactNode;
+  align?: "left" | "right" | "center";
+  className?: string;
+}) {
+  const alignCls =
+    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+  return (
+    <th
+      className={`px-2.5 py-2.5 font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--faint)] ${alignCls} ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+/** Pastille de rentabilité, partagée par la ligne de table et la carte mobile. */
+function RentaBadge({ statut }: { statut: ReturnType<typeof getRenta> | null }) {
+  if (!statut)
+    return <span className="font-mono text-[11px] text-[var(--faint-2)]">—</span>;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em]"
+      style={{ background: statut.bg, color: statut.color }}
+    >
+      <span
+        className="inline-block h-[6px] w-[6px] rounded-full"
+        style={{ background: statut.color }}
+      />
+      {statut.label}
+    </span>
+  );
+}
+
+/**
+ * Une commande dans la table. Le détail dépliable de l'ancienne liste est
+ * conservé : il occupe une seconde ligne en `colSpan`, seule façon de garder
+ * un `<table>` valide tout en préservant le panneau.
+
+ *
+ * Les stats sont chargées pour chaque ligne, pas seulement à l'ouverture : la
+ * colonne « Rentabilité » en dépend et doit être lisible sans déplier.
+ */
+function CommandeTableRow({
   c,
-  index,
   expanded,
   onToggle,
 }: {
   c: CommandeDTO;
-  index: number;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const router = useRouter();
   const del = useDeleteCommande();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [cardHovered, setCardHovered] = useState(false);
-  const [rowHovered, setRowHovered] = useState(false);
   const { data: stats } = useCommandeStats(c.id);
 
   const montantRecupere = stats?.rows.reduce((s, r) => s + r.ca, 0) ?? null;
-  const statut = montantRecupere !== null ? getRenta(montantRecupere, c.coutTotal) : null;
+  const statut =
+    montantRecupere !== null ? getRenta(montantRecupere, c.coutTotal) : null;
 
   const handleDelete = () => {
     setMenuOpen(false);
-    if (confirm(`Supprimer la commande « ${c.fournisseur} » et ses articles ?`)) {
+    if (confirm(`Supprimer la commande « ${c.fournisseur} » et ses articles ?`)) {
       del.mutate(c.id, {
         onSuccess: () => toast.success("Commande supprimée."),
         onError: (e) => toast.error((e as Error).message),
@@ -449,208 +481,158 @@ function CommandeRow({
     }
   };
 
-  const COL = "minmax(150px,1.6fr) 110px 80px 120px 110px 150px 168px";
-
   return (
-    <div
-      onMouseEnter={() => setCardHovered(true)}
-      onMouseLeave={() => setCardHovered(false)}
-      style={{
-        borderRadius: 16,
-        background: "#fff",
-        border: `1px solid ${cardHovered ? "var(--border-strong)" : "var(--border)"}`,
-        boxShadow: cardHovered ? "0 16px 34px -22px rgba(20,53,40,.5)" : "none",
-        transform: cardHovered ? "translateY(-2px)" : "translateY(0)",
-        position: "relative",
-        transition: "border-color .2s, box-shadow .25s, transform .25s",
-        animation: `rowIn .5s ${index * 65}ms both`,
-      }}
-    >
-      {/* Desktop row */}
-      <div
-        className="hidden md:grid"
-        style={{
-          gridTemplateColumns: COL,
-          gap: 14,
-          alignItems: "center",
-          padding: "15px 22px",
-          cursor: "pointer",
-          borderRadius: 16,
-          background: rowHovered ? "#F5F9F3" : "transparent",
-          transition: "background .2s",
-        }}
+    <>
+      <tr
         onClick={onToggle}
-        onMouseEnter={() => setRowHovered(true)}
-        onMouseLeave={() => setRowHovered(false)}
+        className="cursor-pointer border-b border-[var(--border)] transition-colors hover:bg-[var(--surface-2)]"
       >
-        {/* Fournisseur */}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {c.fournisseur}
-          </div>
-          {c.coefObjectif != null && (
-            <div style={{ marginTop: 2, fontSize: 12, fontWeight: 500, color: "var(--faint-2)" }}>
-              Objectif&nbsp;: ×{c.coefObjectif}
-            </div>
-          )}
-        </div>
-
-        <div style={{ fontSize: 13.5, color: "var(--muted)", fontWeight: 500 }}>
+        <td className="py-3 pl-5 pr-2.5 font-mono text-[12px] font-bold">
+          {c.fournisseur}
+        </td>
+        <td className="px-2.5 py-3 font-mono text-[12px] text-[var(--ink2)]">
           {new Date(c.date).toLocaleDateString("fr-FR")}
-        </div>
-
-        <div style={{ fontSize: 13.5, color: "var(--muted)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+        </td>
+        <td className="px-2.5 py-3 text-right font-mono text-[12.5px]">
           {c.nbArticles}
-        </div>
-
-        <div style={{ fontSize: 13.5, color: "var(--ink)", textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+        </td>
+        <td className="px-2.5 py-3 text-right font-mono text-[12.5px] font-bold">
           {euros(c.coutTotal)}
-        </div>
-
-        <div style={{ fontSize: 13.5, color: "#2D6A4F", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+        </td>
+        <td className="px-2.5 py-3 text-right font-mono text-[12.5px] text-[var(--ink2)]">
           {euros(c.prixUnitaire)}
-        </div>
-
-        {/* Rentabilité badge */}
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          {statut ? (
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 7,
-              padding: "6px 12px 6px 11px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-              background: statut.bg, color: statut.color,
-              animation: statut.key === "encours" ? "pulseBadge 1.9s ease-in-out infinite" : "none",
-            }}>
-              <span style={{
-                width: 8, height: 8, borderRadius: "50%", background: statut.color, display: "inline-block",
-                animation: statut.key === "encours" ? "pulseDot 1.5s ease-in-out infinite" : "none",
-              }} />
-              {statut.label}
-            </span>
-          ) : (
-            <span style={{ fontSize: 12, color: "#C2CDC5" }}>—</span>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div
-          style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, position: "relative" }}
+        </td>
+        <td className="px-2.5 py-3 text-center">
+          <RentaBadge statut={statut} />
+        </td>
+        <td
+          className="py-2 pl-2.5 pr-5 text-right"
           onClick={(e) => e.stopPropagation()}
         >
-          <ToggleBtn expanded={expanded} onToggle={onToggle} />
-
-          {/* ⋯ context menu */}
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <DotsBtn onClick={() => setMenuOpen((o) => !o)} />
+          <span className="relative inline-flex items-center gap-1.5">
+            <button
+              onClick={onToggle}
+              className="inline-flex min-h-[34px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 text-[12px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+            >
+              {expanded ? "Masquer" : "Détail"}
+              <ChevronDown
+                strokeWidth={2.4}
+                className="h-3.5 w-3.5 transition-transform"
+                style={{ transform: `rotate(${expanded ? 180 : 0}deg)` }}
+              />
+            </button>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Actions"
+              className="flex h-[34px] w-[34px] items-center justify-center rounded-full text-[17px] leading-none text-[var(--faint)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink2)]"
+            >
+              ⋯
+            </button>
             {menuOpen && (
               <>
-                <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setMenuOpen(false)} />
-                <div style={{
-                  position: "absolute", top: 38, right: 0, zIndex: 50,
-                  width: 184, background: "#fff", border: "1px solid var(--border)",
-                  borderRadius: 14, padding: 6,
-                  boxShadow: "0 18px 38px -18px rgba(20,53,40,.45)",
-                  animation: "modalIn .16s ease both",
-                }}>
+                <span
+                  className="fixed inset-0 z-40"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <span className="absolute right-0 top-[38px] z-50 block w-[184px] rounded-[16px] border border-[var(--border)] bg-surface p-1.5 shadow-[var(--shadow)]">
                   <MenuBtn
                     label="Voir les articles"
                     color="var(--ink2)"
-                    hoverBg="var(--tint)"
-                    onClick={() => { router.push(`/stock?commande=${c.id}`); setMenuOpen(false); }}
+                    hoverBg="var(--surface-2)"
+                    onClick={() => {
+                      router.push(`/stock?commande=${c.id}`);
+                      setMenuOpen(false);
+                    }}
                   />
                   <MenuBtn
                     label="Supprimer"
-                    color="#C2603F"
-                    hoverBg="#FBEEE7"
+                    color="var(--neg)"
+                    hoverBg="var(--neg-soft)"
                     onClick={handleDelete}
                   />
-                </div>
+                </span>
               </>
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile card */}
-      <div
-        className="md:hidden flex items-center justify-between gap-3 p-4 cursor-pointer"
-        onClick={onToggle}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
-            {initials(c.fournisseur)}
-          </div>
-          <div className="min-w-0">
-            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)" }} className="truncate">{c.fournisseur}</div>
-            <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 1 }}>
-              {new Date(c.date).toLocaleDateString("fr-FR")} · {c.nbArticles} art.
-            </div>
-          </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--ink)", fontFamily: "var(--font-grotesk)" }}>{euros(c.coutTotal)}</div>
-          {statut && <div style={{ fontSize: 11.5, fontWeight: 700, color: statut.color }}>{statut.label}</div>}
-        </div>
-      </div>
-
-      {/* Slide-down detail panel */}
-      <div style={{ display: "grid", gridTemplateRows: expanded ? "1fr" : "0fr", transition: "grid-template-rows .4s cubic-bezier(.4,0,.2,1)" }}>
-        <div style={{ overflow: "hidden", minHeight: 0 }}>
-          <div style={{ opacity: expanded ? 1 : 0, transition: "opacity .3s ease .06s", padding: "2px 22px 22px" }}>
+          </span>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
+          <td colSpan={7} className="px-5 py-4">
             <CommandeDetailPanel
               commandeId={c.id}
               coutTotal={c.coutTotal}
               coefObjectif={c.coefObjectif}
             />
-          </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/** Rendu mobile : CLAUDE.md interdit la table sous 768 px. */
+function CommandeCarte({
+  c,
+  expanded,
+  onToggle,
+}: {
+  c: CommandeDTO;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { data: stats } = useCommandeStats(c.id);
+  const montantRecupere = stats?.rows.reduce((s, r) => s + r.ca, 0) ?? null;
+  const statut =
+    montantRecupere !== null ? getRenta(montantRecupere, c.coutTotal) : null;
+
+  return (
+    <div className="border-b border-[var(--border)] last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="flex min-h-[64px] w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[12px] bg-[var(--acc)] font-mono text-[12px] font-bold text-[var(--acc-ink)]">
+            {initials(c.fournisseur)}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[14px] font-semibold">
+              {c.fournisseur}
+            </span>
+            <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--faint)]">
+              {new Date(c.date).toLocaleDateString("fr-FR")} · {c.nbArticles} ART.
+            </span>
+          </span>
+        </span>
+        <span className="flex-none text-right">
+          <span className="block font-mono text-[13px] font-bold [font-variant-numeric:tabular-nums]">
+            {euros(c.coutTotal)}
+          </span>
+          {statut && (
+            <span
+              className="mt-0.5 block font-mono text-[10px] uppercase"
+              style={{ color: statut.color }}
+            >
+              {statut.label}
+            </span>
+          )}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4">
+          <CommandeDetailPanel
+            commandeId={c.id}
+            coutTotal={c.coutTotal}
+            coefObjectif={c.coefObjectif}
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// Small stateless helpers to avoid anonymous inline functions in JSX
-function ToggleBtn({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
-  const [h, setH] = useState(false);
-  return (
-    <button
-      onClick={onToggle}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        background: h ? "#E4F0E3" : "#F1F5EF",
-        border: `1px solid ${h ? "#BFD4BD" : "#E0E8DD"}`,
-        borderRadius: 10, padding: "7px 12px",
-        fontSize: 12.5, fontWeight: 700, color: "#1B4332",
-        fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap",
-        transition: "background .2s, border-color .2s",
-      }}
-    >
-      {expanded ? "Masquer" : "Voir le détail"}
-      <ChevronDown strokeWidth={2.4} style={{ width: 14, height: 14, transform: `rotate(${expanded ? 180 : 0}deg)`, transition: "transform .35s" }} />
-    </button>
-  );
-}
 
-function DotsBtn({ onClick }: { onClick: () => void }) {
-  const [h, setH] = useState(false);
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      aria-label="Actions"
-      style={{
-        width: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center",
-        background: h ? "#EEF2EC" : "transparent", border: "none", borderRadius: 8,
-        color: h ? "var(--ink2)" : "var(--faint)", fontSize: 17, fontWeight: 700, lineHeight: 1, cursor: "pointer",
-        transition: "background .2s, color .2s",
-      }}
-    >
-      ⋯
-    </button>
-  );
-}
 
 function MenuBtn({ label, color, hoverBg, onClick }: { label: string; color: string; hoverBg: string; onClick: () => void }) {
   const [h, setH] = useState(false);
@@ -687,10 +669,21 @@ export default function CommandesPage() {
     const totalArticles = commandes.reduce((s, c) => s + c.nbArticles, 0);
     return {
       totalInvesti,
+      totalArticles,
       nbCommandes: commandes.length,
       prixUnitMoyen: totalArticles > 0 ? totalInvesti / totalArticles : 0,
     };
   }, [commandes]);
+
+  // Date de la commande la plus récente, pour la ligne mono du module d'ajout.
+  const derniereCommande = useMemo(
+    () =>
+      commandes.reduce<string | null>(
+        (recent, c) => (recent === null || c.date > recent ? c.date : recent),
+        null,
+      ),
+    [commandes],
+  );
 
   const months = useMemo(() => {
     const now = new Date();
@@ -723,216 +716,154 @@ export default function CommandesPage() {
   }, [commandes]);
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[56px]">
+    <Frame>
 
-      {/* Header */}
-      <header
-        className="mb-[22px] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-        style={{ animation: "fadeUp .4s both" }}
-      >
-        <div>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14.5, fontWeight: 500 }}>
-            Tes achats en lot, par fournisseur.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-[11px]">
-          <button
-            onClick={() => toast.info("Import Excel — bientôt disponible.")}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-[15px] py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
-          >
-            <FileSpreadsheet className="h-4 w-4" strokeWidth={2} />
-            Importer un Excel
-          </button>
-          <button
-            onClick={() => setNewCommande(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-[17px] py-[11px] text-[13.5px] font-bold text-white transition-[background,transform] hover:-translate-y-px hover:bg-[#143528]"
-            style={{ boxShadow: "0 10px 22px -12px rgba(20,53,40,.8)" }}
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.3} />
-            Nouvelle commande
-          </button>
-        </div>
-      </header>
+      {/* ── Grille haute : 1.4fr / 1fr, comme la maquette ─────────────── */}
+      <section className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-[1.4fr_1fr]">
 
-      {/* KPIs */}
-      <div
-        className="mb-5 grid grid-cols-1 gap-[18px] sm:grid-cols-3"
-        style={{ animation: "fadeUp .45s both" }}
-      >
-        <div style={{
-          borderRadius: 20,
-          background: "radial-gradient(120% 130% at 88% 8%, #2D6A4F 0%, #1B4332 55%, #143528 100%)",
-          color: "#fff", padding: "24px 26px",
-          boxShadow: "0 18px 40px -24px rgba(20,53,40,.7)",
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".07em", color: "#9FD4B5" }}>TOTAL INVESTI</div>
-          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 42, letterSpacing: "-.025em", marginTop: 8, fontVariantNumeric: "tabular-nums" }}>
+        {/* Total investi — le chiffre héros de l'écran */}
+        <Module className="p-[26px] shadow-[var(--shadow)]">
+          <Eyebrow>TOTAL INVESTI</Eyebrow>
+          <div className="mt-2.5 whitespace-nowrap text-[42px] font-bold leading-none tracking-[-0.045em] [font-variant-numeric:tabular-nums] min-[900px]:text-[58px]">
             {euros(kpis.totalInvesti)}
           </div>
-          <div style={{ fontSize: 13, color: "#BBD3C5", fontWeight: 500, marginTop: 6 }}>
-            {kpis.nbCommandes} commande{kpis.nbCommandes > 1 ? "s" : ""} · 6 derniers mois
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <Chip>
+              {kpis.nbCommandes} COMMANDE{kpis.nbCommandes > 1 ? "S" : ""}
+            </Chip>
+            <Chip>PRIX UNITAIRE MOYEN {euros(kpis.prixUnitMoyen)}</Chip>
+            <Chip accent>
+              {kpis.totalArticles.toLocaleString("fr-FR")} PIÈCE
+              {kpis.totalArticles > 1 ? "S" : ""}
+            </Chip>
           </div>
+          <Sparkline months={months} />
+        </Module>
+
+        {/* Colonne droite : ajout de pièces, puis répartition fournisseurs */}
+        <div className="flex flex-col gap-[14px]">
+          <Module className="p-[22px]">
+            <CardTitle className="mb-3">Ajouter des pièces</CardTitle>
+            <div className="flex flex-col gap-2.5">
+              <button
+                onClick={() => setNewCommande(true)}
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-[16px] bg-[var(--acc)] px-[18px] text-left text-[13.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
+              >
+                <Plus className="h-4 w-4 flex-none" strokeWidth={2.3} />
+                Créer une commande
+              </button>
+              <button
+                onClick={() => toast.info("Import Excel — bientôt disponible.")}
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)] px-[18px] text-left text-[13.5px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+              >
+                <FileSpreadsheet className="h-4 w-4 flex-none" strokeWidth={2} />
+                Importer un fichier Excel
+              </button>
+            </div>
+            <div className="mt-3 font-mono text-[10px] uppercase leading-[1.6] tracking-[0.1em] text-[var(--faint)]">
+              {derniereCommande
+                ? `DERNIÈRE COMMANDE — ${dateFr(derniereCommande)} · ${kpis.totalArticles.toLocaleString("fr-FR")} PIÈCES AU TOTAL`
+                : "AUCUNE COMMANDE ENREGISTRÉE"}
+            </div>
+          </Module>
+
+          <Module className="flex-1 p-[22px]">
+            <CardTitle className="mb-3">Par fournisseur</CardTitle>
+            {suppliers.length === 0 ? (
+              <p className="font-mono text-[11px] text-[var(--faint)]">
+                Aucun fournisseur.
+              </p>
+            ) : (
+              suppliers.map((f) => (
+                <FournisseurLigne
+                  key={f.name}
+                  nom={f.name}
+                  total={f.total}
+                  part={suppliers[0].total > 0 ? f.total / suppliers[0].total : 0}
+                  onClick={() => router.push("/stock")}
+                />
+              ))
+            )}
+          </Module>
+        </div>
+      </section>
+
+      {/* ── Commandes récentes ─────────────────────────────────────────
+          La maquette pose une vraie table à en-têtes mono. Le détail
+          dépliable et le menu d'actions de l'ancienne liste sont conservés :
+          la ligne reste cliquable, et le panneau s'ouvre dans une ligne qui
+          couvre toute la largeur. */}
+      <Module className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-3 pt-[18px]">
+          <CardTitle className="">Commandes récentes</CardTitle>
+          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--faint)]">
+            {commandes.length} AU TOTAL
+          </span>
         </div>
 
-        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "#EAF3ED", color: "#1B4332", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            </div>
-            <div>
-              <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{kpis.nbCommandes}</div>
-              <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600 }}>Commandes passées</div>
-            </div>
+        {isLoading && (
+          <div className="flex justify-center py-16">
+            <Loader label="Chargement des commandes" />
           </div>
-        </div>
+        )}
+        {isError && (
+          <p className="py-10 text-center font-mono text-[12px] text-[var(--neg)]">
+            {(error as Error).message}
+          </p>
+        )}
+        {!isLoading && !isError && commandes.length === 0 && (
+          <p className="py-10 text-center font-mono text-[12px] text-[var(--faint)]">
+            Aucune commande. Crée ta première commande !
+          </p>
+        )}
 
-        <div style={{ borderRadius: 20, background: "#fff", border: "1px solid var(--border)", padding: "24px 26px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "#EAF3ED", color: "#1B4332", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        {commandes.length > 0 && (
+          <>
+            {/* Desktop : table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[760px] border-collapse [font-variant-numeric:tabular-nums]">
+                <thead>
+                  <tr className="bg-[var(--surface-2)]">
+                    <Th className="pl-5">FOURNISSEUR</Th>
+                    <Th>DATE</Th>
+                    <Th align="right">PIÈCES</Th>
+                    <Th align="right">MONTANT</Th>
+                    <Th align="right">P.U. MOYEN</Th>
+                    <Th align="center">RENTABILITÉ</Th>
+                    <Th align="right" className="pr-5">
+                      ACTIONS
+                    </Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commandes.map((c: CommandeDTO) => (
+                    <CommandeTableRow
+                      key={c.id}
+                      c={c}
+                      expanded={expandedId === c.id}
+                      onToggle={() => toggleDetail(c.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div>
-              <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 34, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{euros(kpis.prixUnitMoyen)}</div>
-              <div style={{ fontSize: 12.5, color: "var(--faint)", fontWeight: 600 }}>Prix unitaire moyen</div>
+
+            {/* Mobile : cartes (CLAUDE.md — jamais de table sous 768 px) */}
+            <div className="flex flex-col md:hidden">
+              {commandes.map((c: CommandeDTO) => (
+                <CommandeCarte
+                  key={c.id}
+                  c={c}
+                  expanded={expandedId === c.id}
+                  onToggle={() => toggleDetail(c.id)}
+                />
+              ))}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart */}
-      <div className="mb-5" style={{ animation: "fadeUp .45s .06s both" }}>
-        <InvestChart months={months} />
-      </div>
-
-      {/* Suppliers */}
-      {suppliers.length > 0 && (
-        <div className="mb-6" style={{ animation: "fadeUp .45s .12s both" }}>
-          <h2 style={{ margin: "2px 2px 16px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "var(--ink)" }}>
-            Par fournisseur
-          </h2>
-          <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
-            {suppliers.map((s) => (
-              <SupplierCard key={s.name} s={s} onClick={() => router.push("/stock")} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Commandes list */}
-      <div style={{ animation: "fadeUp .45s .18s both" }}>
-        <h2 style={{ margin: "2px 2px 14px", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 19, color: "var(--ink)" }}>
-          Détail des commandes
-        </h2>
-
-        {/* Column headers (desktop only) */}
-        <div
-          className="hidden md:grid"
-          style={{
-            gridTemplateColumns: "minmax(150px,1.6fr) 110px 80px 120px 110px 150px 168px",
-            gap: 14, alignItems: "center",
-            padding: "0 22px 11px",
-            fontSize: 11, fontWeight: 700, letterSpacing: ".06em", color: "#9BA89F", textTransform: "uppercase",
-          }}
-        >
-          <div>Fournisseur</div>
-          <div>Date</div>
-          <div style={{ textAlign: "right" }}>Nb art.</div>
-          <div style={{ textAlign: "right" }}>Coût total</div>
-          <div style={{ textAlign: "right" }}>Prix unit.</div>
-          <div style={{ textAlign: "center" }}>Rentabilité</div>
-          <div />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-          {isLoading && (
-            <div className="py-16 flex justify-center">
-              <Loader label="Chargement des commandes" />
-            </div>
-          )}
-          {isError && (
-            <p className="py-10 text-center text-[14px] text-[#C2603F]">
-              {(error as Error).message}
-            </p>
-          )}
-          {!isLoading && !isError && commandes.length === 0 && (
-            <p className="py-10 text-center text-[14px] text-[var(--faint)]">
-              Aucune commande. Crée ta première commande !
-            </p>
-          )}
-          {commandes.map((c: CommandeDTO, i) => (
-            <CommandeRow
-              key={c.id}
-              c={c}
-              index={i}
-              expanded={expandedId === c.id}
-              onToggle={() => toggleDetail(c.id)}
-            />
-          ))}
-        </div>
-      </div>
+          </>
+        )}
+      </Module>
 
       <NewCommandeModal open={newCommande} onClose={() => setNewCommande(false)} />
-    </main>
-  );
-}
-
-// Supplier card with hover state
-function SupplierCard({
-  s,
-  onClick,
-}: {
-  s: { name: string; total: number; articles: number; count: number; last: number; unit: number };
-  onClick: () => void;
-}) {
-  const [h, setH] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      style={{
-        borderRadius: 20,
-        background: h ? "#FCFDFB" : "#fff",
-        border: `1px solid ${h ? "var(--border-strong)" : "var(--border)"}`,
-        padding: "22px 24px",
-        textAlign: "left",
-        cursor: "pointer",
-        boxShadow: h ? "0 16px 32px -22px rgba(20,53,40,.55)" : "none",
-        transform: h ? "translateY(-3px)" : "translateY(0)",
-        transition: "border-color .2s, box-shadow .2s, transform .2s, background .2s",
-        width: "100%",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#1B4332", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 15 }}>
-            {initials(s.name)}
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15.5, letterSpacing: "-.01em", color: "var(--ink)" }}>{s.name}</div>
-            <div style={{ fontSize: 12.5, color: "var(--faint-2)", fontWeight: 500, marginTop: 1 }}>
-              Dernier achat · {new Date(s.last).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-            </div>
-          </div>
-        </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#2D6A4F", background: "#EAF3ED", padding: "5px 10px", borderRadius: 18 }}>
-          {s.count} cmd
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: 26, marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--bg)" }}>
-        <div>
-          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Coût total</div>
-          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.total)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Articles</div>
-          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{s.articles}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11.5, color: "var(--faint)", fontWeight: 600 }}>Prix unit.</div>
-          <div style={{ fontFamily: "var(--font-grotesk)", fontWeight: 700, fontSize: 20, letterSpacing: "-.02em", marginTop: 3 }}>{euros(s.unit)}</div>
-        </div>
-      </div>
-    </button>
+    </Frame>
   );
 }

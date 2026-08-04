@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { CANAUX } from "@/lib/canalColors";
+import type { CompteVente } from "@/lib/types";
 
 // Validation d'une vente : carte centrée (même structure que l'ancien modal
 // clair) habillée aux couleurs de la barre de sélection du Stock — fond sombre
-// #16261D, contrôles bg-white/10, action verte #2D6A4F.
+// #16261D, contrôles bg-white/10, action verte var(--pos).
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -16,37 +17,54 @@ const LABEL = "mb-1.5 block text-[12.5px] font-semibold text-[#9FB2A7]";
 const FIELD =
   "min-h-[44px] w-full rounded-xl border border-white/15 bg-white/10 px-3.5 text-[14px] font-semibold text-white outline-none transition-colors [color-scheme:dark] focus:border-white/35";
 
+const COMPTES_VENTE: { value: CompteVente; label: string }[] = [
+  { value: "VINTED_PRO", label: "Vinted Pro" },
+  { value: "VINTED_SECOND", label: "Vinted Second" },
+  { value: "VESTIAIRE_COLLECTIVE", label: "Vestiaire Collective" },
+];
+
+type Props = {
+  open: boolean;
+  sku?: string;
+  defaultPrix?: number | null;
+  defaultDate?: string | null;
+  defaultCanal?: string | null;
+  defaultCompteVente?: CompteVente | null;
+  pending?: boolean;
+  error?: string | null;
+  onClose: () => void;
+  onConfirm: (
+    prixVente: number,
+    dateVenteISO: string,
+    canal: string,
+    compteVente: CompteVente,
+  ) => void;
+};
+
 export default function SellDialog({
   open,
   sku,
   defaultPrix,
   defaultDate,
   defaultCanal,
+  defaultCompteVente,
   pending,
   error,
   onClose,
   onConfirm,
-}: {
-  open: boolean;
-  sku?: string;
-  defaultPrix?: number | null;
-  defaultDate?: string | null;
-  defaultCanal?: string | null;
-  pending?: boolean;
-  error?: string | null;
-  onClose: () => void;
-  onConfirm: (prixVente: number, dateVenteISO: string, canal: string) => void;
-}) {
+}: Props) {
   const [prix, setPrix] = useState("");
   const [date, setDate] = useState(todayISO());
   const [canal, setCanal] = useState<string>("Vinted");
+  const [compteVente, setCompteVente] = useState<CompteVente>("VINTED_PRO");
 
   useEffect(() => {
     if (!open) return;
     setPrix(defaultPrix != null ? String(defaultPrix) : "");
     setDate(defaultDate ? defaultDate.slice(0, 10) : todayISO());
     setCanal(defaultCanal || "Vinted");
-  }, [open, sku, defaultPrix, defaultDate, defaultCanal]);
+    setCompteVente(defaultCompteVente || "VINTED_PRO");
+  }, [open, sku, defaultPrix, defaultDate, defaultCanal, defaultCompteVente]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +81,7 @@ export default function SellDialog({
     e.preventDefault();
     const p = Number(prix);
     if (!Number.isFinite(p) || p <= 0) return;
-    onConfirm(p, new Date(date).toISOString(), canal);
+    onConfirm(p, new Date(date).toISOString(), canal, compteVente);
   };
 
   return (
@@ -142,6 +160,24 @@ export default function SellDialog({
               ))}
             </select>
           </div>
+
+          <div>
+            <label className={LABEL} htmlFor="sell-compte">
+              Compte de vente
+            </label>
+            <select
+              id="sell-compte"
+              value={compteVente}
+              onChange={(e) => setCompteVente(e.target.value as CompteVente)}
+              className={`${FIELD} cursor-pointer`}
+            >
+              {COMPTES_VENTE.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (
@@ -160,7 +196,7 @@ export default function SellDialog({
           <button
             type="submit"
             disabled={pending}
-            className="min-h-[44px] rounded-full bg-[#2D6A4F] px-5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#35815F] disabled:opacity-60"
+            className="min-h-[44px] rounded-full bg-[var(--pos)] px-5 text-[13.5px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
           >
             {pending ? "Validation…" : "Confirmer la vente"}
           </button>

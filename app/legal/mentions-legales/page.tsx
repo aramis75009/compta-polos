@@ -14,7 +14,7 @@ export default function MentionsLegalesPage() {
                 Contact :{" "}
                 <a
                   href="mailto:aramis.begnene@gmail.com"
-                  className="text-[#1B4332] underline-offset-2 hover:underline"
+                  className="text-[var(--acc)] underline-offset-2 hover:underline"
                 >
                   aramis.begnene@gmail.com
                 </a>

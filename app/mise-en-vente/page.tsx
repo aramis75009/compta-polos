@@ -33,6 +33,7 @@ import {
 } from "@/lib/imageProcessing";
 import type { ArticleDTO } from "@/lib/types";
 import StatutBadge from "@/components/StatutBadge";
+import { Eyebrow } from "@/components/console";
 
 const MAX_PHOTOS = 20;
 const MAX_SELECT = 3;
@@ -47,7 +48,7 @@ type Photo = {
 };
 
 const inputCls =
-  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[#1B4332]";
+  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[var(--acc)]";
 
 const STEPS = ["Photos", "Détails", "Génération", "Export"] as const;
 
@@ -140,7 +141,7 @@ type PersistedState = {
 
 const labelCls = "text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]";
 const cardCls =
-  "rounded-[20px] border border-[var(--border)] bg-surface shadow-[0_18px_40px_-30px_rgba(20,53,40,.28)]";
+  "rounded-[20px] border border-[var(--border)] bg-surface shadow-[var(--shadow)]";
 
 /** Chip de sélection (marque, catégorie, taille, état, matière). 44px = touch target. */
 function Chip({
@@ -159,7 +160,7 @@ function Chip({
       aria-pressed={active}
       className={`inline-flex min-h-[44px] items-center justify-center rounded-xl border-[1.5px] px-4 text-[13.5px] font-semibold transition-all ${
         active
-          ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_8px_18px_-11px_rgba(20,53,40,.85)]"
+          ? "border-[var(--acc)] bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)]"
           : "border-[var(--border)] bg-surface text-[var(--ink2)] hover:border-[var(--border-strong)]"
       }`}
     >
@@ -187,9 +188,9 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-full font-grotesk text-[16px] font-bold transition-all ${
                   done
-                    ? "bg-[#1B4332] text-white"
+                    ? "bg-[var(--acc)] text-[var(--acc-ink)]"
                     : active
-                      ? "bg-[#1B4332] text-white shadow-[0_0_0_5px_#E1ECE4]"
+                      ? "bg-[var(--acc)] text-[var(--acc-ink)] shadow-[0_0_0_5px_var(--acc-soft)]"
                       : "border-2 border-[var(--border)] bg-surface text-[var(--faint-2)]"
                 }`}
               >
@@ -198,7 +199,7 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
               <span
                 className={`text-[12px] md:text-[13px] ${
                   done || active
-                    ? "font-bold text-[#1B4332]"
+                    ? "font-bold text-[var(--acc)]"
                     : "font-semibold text-[var(--faint-2)]"
                 }`}
               >
@@ -208,7 +209,7 @@ function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
             {n < STEPS.length && (
               <div
                 className={`mx-1.5 mt-[18px] h-[3px] flex-1 rounded-full transition-colors ${
-                  n < step ? "bg-[#1B4332]" : "bg-[var(--border)]"
+                  n < step ? "bg-[var(--acc)]" : "bg-[var(--border)]"
                 }`}
               />
             )}
@@ -750,19 +751,15 @@ export default function MiseEnVentePage() {
     "inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-4 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]";
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-4 py-6 pb-40 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-32">
+    <main className="min-h-screen bg-[var(--bg)] p-[14px] pb-40 text-[var(--ink)] min-[900px]:p-[18px] min-[900px]:pb-32">
       {/* ── Barre de contexte : l'article reste visible à toutes les étapes ── */}
-      <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-[14px] font-medium text-[var(--muted)]">
-            Photos → détails → génération → export.
-          </p>
-        </div>
+      <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <Eyebrow>PHOTOS → DÉTAILS → GÉNÉRATION → EXPORT</Eyebrow>
         {article && (
-          <div className="flex items-center gap-2.5 self-start rounded-[13px] border border-[var(--border)] bg-surface px-3.5 py-2">
-            <span className="font-grotesk text-[15px] font-bold">{article.sku}</span>
+          <div className="flex items-center gap-2.5 self-start rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2">
+            <span className="font-mono text-[12.5px] font-bold">{article.sku}</span>
             <span className="h-4 w-px bg-[var(--border)]" />
-            <span className="text-[13px] font-medium text-[var(--muted)]">
+            <span className="font-mono text-[11px] text-[var(--ink2)]">
               {[marqueQcm, categorieQcm].filter(Boolean).join(" · ") || "à préciser"}
             </span>
           </div>
@@ -784,18 +781,18 @@ export default function MiseEnVentePage() {
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="Ex : PRL1"
                   autoCapitalize="characters"
-                  className="min-w-0 flex-1 rounded-[13px] border-2 border-[#1B4332] px-4 py-3 font-grotesk text-[16px] font-bold uppercase text-[var(--ink)] outline-none"
+                  className="min-w-0 flex-1 rounded-[13px] border-2 border-[var(--acc)] px-4 py-3 font-grotesk text-[16px] font-bold uppercase text-[var(--ink)] outline-none"
                 />
                 <button
                   type="submit"
                   disabled={lookupLoading || !sku.trim()}
-                  className="min-h-[48px] rounded-[13px] bg-[#1B4332] px-7 text-[14.5px] font-bold text-white transition-colors hover:bg-[#143528] disabled:opacity-50"
+                  className="min-h-[48px] rounded-[13px] bg-[var(--acc)] px-7 text-[14.5px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-50"
                 >
                   {lookupLoading ? "Recherche…" : "Vérifier"}
                 </button>
               </div>
               {lookupError && (
-                <p className="mt-3 rounded-[10px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-2.5 text-[13.5px] text-[#C2603F]">
+                <p className="mt-3 rounded-[10px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-2.5 text-[13.5px] text-[var(--neg)]">
                   {lookupError}
                 </p>
               )}
@@ -845,7 +842,7 @@ export default function MiseEnVentePage() {
                   onDragEnter={onDragOver}
                   onDragLeave={onDragLeave}
                   className={`${cardCls} p-5 transition-colors md:p-6 ${
-                    isDragging ? "border-[#1B4332] bg-[#F0F5EE]" : ""
+                    isDragging ? "border-[var(--acc)] bg-[var(--surface-2)]" : ""
                   } [animation:stepIn_.28s_both]`}
                 >
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
@@ -869,13 +866,13 @@ export default function MiseEnVentePage() {
                         key={p.id}
                         className="group relative aspect-square overflow-hidden rounded-[15px] border border-[var(--border)] bg-[var(--tint)] [animation:popIn_.2s_ease]"
                       >
-                        <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[12px] font-bold text-white">
+                        <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--acc)] font-mono text-[11px] font-bold text-[var(--acc-ink)]">
                           {i + 1}
                         </span>
                         <button
                           onClick={() => removePhoto(p.id)}
                           aria-label={`Supprimer la photo ${i + 1}`}
-                          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ink)]/55 text-white transition-colors hover:bg-[var(--ink)]/80"
+                          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ink)]/55 text-[var(--bg)] transition-colors hover:bg-[var(--ink)]/80"
                         >
                           <X className="h-3.5 w-3.5" strokeWidth={2.4} />
                         </button>
@@ -888,14 +885,14 @@ export default function MiseEnVentePage() {
                         <button
                           onClick={() => rotatePhoto(p.id, -90)}
                           aria-label="Tourner à gauche"
-                          className="absolute bottom-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[#1B4332]"
+                          className="absolute bottom-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[var(--acc)]"
                         >
                           <RotateCcw className="h-4 w-4" strokeWidth={2} />
                         </button>
                         <button
                           onClick={() => rotatePhoto(p.id, 90)}
                           aria-label="Tourner à droite"
-                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[#1B4332]"
+                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[var(--acc)]"
                         >
                           <RotateCw className="h-4 w-4" strokeWidth={2} />
                         </button>
@@ -904,22 +901,22 @@ export default function MiseEnVentePage() {
                     <button
                       onClick={() => fileRef.current?.click()}
                       disabled={photos.length >= MAX_PHOTOS}
-                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[15px] border-2 border-dashed border-[#C4D2C9] bg-[var(--tint)] text-[#1B4332] transition-colors hover:border-[#1B4332] hover:bg-[#F0F5EE] disabled:opacity-50"
+                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[15px] border-2 border-dashed border-[var(--border-strong)] bg-[var(--tint)] text-[var(--acc)] transition-colors hover:border-[var(--acc)] hover:bg-[var(--surface-2)] disabled:opacity-50"
                     >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#EAF3ED]">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--surface-2)]">
                         <Upload className="h-[22px] w-[22px]" strokeWidth={1.9} />
                       </span>
                       <span className="text-[12.5px] font-bold">Ajouter</span>
                     </button>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-2.5 rounded-[13px] border border-dashed border-[#C4D2C9] bg-[var(--tint)] px-4 py-3">
+                  <div className="mt-4 flex items-center gap-2.5 rounded-[13px] border border-dashed border-[var(--border-strong)] bg-[var(--tint)] px-4 py-3">
                     <Upload
-                      className="h-[18px] w-[18px] flex-shrink-0 text-[#1B4332]"
+                      className="h-[18px] w-[18px] flex-shrink-0 text-[var(--acc)]"
                       strokeWidth={1.9}
                     />
-                    <span className="text-[13px] font-medium text-[#5A6B61]">
-                      Glisse tes fichiers ici, ou <b className="font-bold text-[#1B4332]">colle une image</b> (⌘V / Ctrl+V) — ex. depuis une annonce Vinted. Jusqu’à {MAX_PHOTOS} photos.
+                    <span className="text-[13px] font-medium text-[var(--ink2)]">
+                      Glisse tes fichiers ici, ou <b className="font-bold text-[var(--acc)]">colle une image</b> (⌘V / Ctrl+V) — ex. depuis une annonce Vinted. Jusqu’à {MAX_PHOTOS} photos.
                     </span>
                   </div>
                 </div>
@@ -938,7 +935,7 @@ export default function MiseEnVentePage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${
                     selected.length >= MIN_SELECT
-                      ? "bg-[#E4F3EA] text-[#2D6A4F]"
+                      ? "bg-[var(--pos-soft)] text-[var(--pos)]"
                       : "bg-[var(--tint)] text-[var(--faint)]"
                   }`}
                 >
@@ -957,7 +954,7 @@ export default function MiseEnVentePage() {
                       key={p.id}
                       className={`relative aspect-square overflow-hidden rounded-[13px] border-[2.5px] transition-all ${
                         sel
-                          ? "border-[#1B4332] shadow-[0_10px_22px_-12px_rgba(20,53,40,.7)]"
+                          ? "border-[var(--acc)] shadow-[var(--shadow)]"
                           : "border-transparent outline outline-1 outline-[var(--border)]"
                       }`}
                     >
@@ -975,14 +972,14 @@ export default function MiseEnVentePage() {
                         />
                       </button>
                       {sel && (
-                        <span className="pointer-events-none absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[12px] font-bold text-white [animation:popIn_.18s_ease]">
+                        <span className="pointer-events-none absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--acc)] font-mono text-[11px] font-bold text-[var(--acc-ink)] [animation:popIn_.18s_ease]">
                           {order + 1}
                         </span>
                       )}
                       <button
                         onClick={() => setZoomedId(p.id)}
                         aria-label={`Agrandir la photo ${i + 1}`}
-                        className="absolute bottom-1.5 right-1.5 z-10 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/92 text-[#1B4332] shadow-[0_3px_9px_rgba(20,53,40,.22)] transition-colors hover:bg-surface"
+                        className="absolute bottom-1.5 right-1.5 z-10 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/92 text-[var(--acc)] shadow-[0_3px_9px_rgba(20,53,40,.22)] transition-colors hover:bg-surface"
                       >
                         <ZoomIn className="h-4 w-4" strokeWidth={2.2} />
                       </button>
@@ -991,7 +988,7 @@ export default function MiseEnVentePage() {
                 })}
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="flex aspect-square items-center justify-center rounded-[13px] border-2 border-dashed border-[var(--border-strong)] text-[var(--faint-2)] transition-colors hover:border-[#1B4332] hover:text-[#1B4332]"
+                  className="flex aspect-square items-center justify-center rounded-[13px] border-2 border-dashed border-[var(--border-strong)] text-[var(--faint-2)] transition-colors hover:border-[var(--acc)] hover:text-[var(--acc)]"
                   aria-label="Ajouter une photo"
                 >
                   <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
@@ -1012,7 +1009,7 @@ export default function MiseEnVentePage() {
               {/* Détecté depuis le lot */}
               <div className={`${cardCls} p-5 md:px-6`}>
                 <div className="mb-3.5 flex items-center gap-2">
-                  <Sparkles className="h-[15px] w-[15px] text-[#1B4332]" strokeWidth={2.2} />
+                  <Sparkles className="h-[15px] w-[15px] text-[var(--acc)]" strokeWidth={2.2} />
                   <span className={labelCls}>Détecté depuis le lot — modifiable</span>
                 </div>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -1047,7 +1044,7 @@ export default function MiseEnVentePage() {
                           list="marques-list"
                           placeholder="Saisis la marque"
                           autoFocus
-                          className={`${inputCls} mt-2.5 border-[1.5px] border-[#1B4332]`}
+                          className={`${inputCls} mt-2.5 border-[1.5px] border-[var(--acc)]`}
                         />
                         <datalist id="marques-list">
                           {MARQUES_LIST.map((m) => (
@@ -1086,7 +1083,7 @@ export default function MiseEnVentePage() {
                         onChange={(e) => setCategorieQcm(e.target.value)}
                         placeholder="Saisis la catégorie"
                         autoFocus
-                        className={`${inputCls} mt-2.5 border-[1.5px] border-[#1B4332]`}
+                        className={`${inputCls} mt-2.5 border-[1.5px] border-[var(--acc)]`}
                       />
                     )}
                   </div>
@@ -1103,8 +1100,8 @@ export default function MiseEnVentePage() {
                     <span
                       className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                         taille
-                          ? "bg-[#E4F3EA] text-[#2D6A4F]"
-                          : "bg-[#FBEEE7] text-[#C2603F]"
+                          ? "bg-[var(--pos-soft)] text-[var(--pos)]"
+                          : "bg-[var(--neg-soft)] text-[var(--neg)]"
                       }`}
                     >
                       {taille ? "ok" : "requis"}
@@ -1131,7 +1128,7 @@ export default function MiseEnVentePage() {
                     </label>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        etat ? "bg-[#E4F3EA] text-[#2D6A4F]" : "bg-[#FBEEE7] text-[#C2603F]"
+                        etat ? "bg-[var(--pos-soft)] text-[var(--pos)]" : "bg-[var(--neg-soft)] text-[var(--neg)]"
                       }`}
                     >
                       {etat ? "ok" : "requis"}
@@ -1183,17 +1180,17 @@ export default function MiseEnVentePage() {
                   placeholder="Ex : dernière collection, coupe slim, voir photo 4…"
                   className={`${inputCls} mt-2 resize-y leading-[1.55]`}
                 />
-                <div className="mt-3.5 flex flex-wrap items-center gap-2.5 rounded-xl bg-[#F1F6F2] px-4 py-3">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-[#1B4332]" strokeWidth={2} />
+                <div className="mt-3.5 flex flex-wrap items-center gap-2.5 rounded-xl bg-[var(--surface-2)] px-4 py-3">
+                  <FileText className="h-4 w-4 flex-shrink-0 text-[var(--acc)]" strokeWidth={2} />
                   <span className="text-[13px] font-medium text-[var(--ink2)]">
                     Prompt :{" "}
-                    <b className="text-[#1B4332]">
+                    <b className="text-[var(--acc)]">
                       {prompts.find((p) => p.id === selectedPromptId)?.nom ?? "aucun"}
                     </b>
                   </span>
                   <button
                     onClick={() => setShowPromptPicker((v) => !v)}
-                    className="ml-auto text-[12px] font-semibold text-[var(--faint)] transition-colors hover:text-[#1B4332]"
+                    className="ml-auto text-[12px] font-semibold text-[var(--faint)] transition-colors hover:text-[var(--acc)]"
                   >
                     {showPromptPicker ? "Fermer" : "Changer"}
                   </button>
@@ -1222,7 +1219,7 @@ export default function MiseEnVentePage() {
           <div className="[animation:stepIn_.3s_both]">
             {generate.isError ? (
               <div className={`${cardCls} px-6 py-12 text-center`}>
-                <p className="mx-auto max-w-md rounded-[12px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[14px] text-[#C2603F]">
+                <p className="mx-auto max-w-md rounded-[12px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-3 text-[14px] text-[var(--neg)]">
                   {(generate.error as Error).message}
                 </p>
                 <button onClick={() => setStep(2)} className={`${btnGhost} mx-auto mt-5`}>
@@ -1233,12 +1230,12 @@ export default function MiseEnVentePage() {
             ) : (
               <div className={`${cardCls} px-6 py-14 text-center`}>
                 <div className="relative mx-auto mb-[26px] h-[84px] w-[84px]">
-                  <div className="absolute inset-0 rounded-full border-[5px] border-[#EAF0EB]" />
+                  <div className="absolute inset-0 rounded-full border-[5px] border-[var(--surface-2)]" />
                   {/* `animate-spin` (Tailwind) plutôt qu'une animation inline :
                       le keyframe est garanti présent dans le bundle. */}
-                  <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-transparent border-r-[#2D6A4F] border-t-[#1B4332]" />
+                  <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-transparent border-r-[var(--pos)] border-t-[var(--acc)]" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-[#1B4332] text-[#9FD4B5]">
+                    <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-[var(--acc)] text-[var(--acc-dim)]">
                       <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
                     </span>
                   </div>
@@ -1257,13 +1254,14 @@ export default function MiseEnVentePage() {
                       <div
                         key={i}
                         className={`flex items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-colors ${
-                          active ? "bg-[#F1F6F2]" : "bg-transparent"
+                          active ? "bg-[var(--surface-2)]" : "bg-transparent"
                         }`}
                       >
                         <span
-                          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white"
+                          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
                           style={{
-                            background: done ? "#1B4332" : active ? "#2D6A4F" : "#EAF0EB",
+                            background: done ? "var(--acc)" : active ? "var(--pos)" : "var(--surface-2)",
+                            color: done ? "var(--acc-ink)" : active ? "var(--bg)" : "var(--faint)",
                           }}
                         >
                           {done ? (
@@ -1295,8 +1293,8 @@ export default function MiseEnVentePage() {
         {/* ÉTAPE 4 — Fallback si article perdu après refresh */}
         {step === 4 && !article && (
           <div className={`${cardCls} px-6 py-12 text-center`}>
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FBF3E2]">
-              <RefreshCw className="h-6 w-6 text-[#B5872E]" strokeWidth={2} />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--warn-soft)]">
+              <RefreshCw className="h-6 w-6 text-[var(--warn)]" strokeWidth={2} />
             </div>
             <h2 className="font-grotesk text-[20px] font-bold text-[var(--ink)]">
               Session expirée
@@ -1319,11 +1317,11 @@ export default function MiseEnVentePage() {
         {/* ÉTAPE 4 — Export */}
         {step === 4 && article && result && (
           <div className="flex flex-col gap-4 [animation:stepIn_.3s_both]">
-            <div className="flex items-center gap-2.5 rounded-[14px] border border-[#CDE7D6] bg-[#E4F3EA] px-4 py-3.5">
-              <span className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[#1B4332] text-white">
+            <div className="flex items-center gap-2.5 rounded-[14px] border border-[var(--pos)] bg-[var(--pos-soft)] px-4 py-3.5">
+              <span className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[var(--acc)] text-[var(--acc-ink)]">
                 <Check className="h-4 w-4" strokeWidth={3} />
               </span>
-              <span className="text-[14px] font-bold text-[#1B4332]">
+              <span className="text-[14px] font-bold text-[var(--acc)]">
                 Annonce générée — relis, ajuste, publie.
               </span>
             </div>
@@ -1373,7 +1371,7 @@ export default function MiseEnVentePage() {
                 </div>
 
                 {updateArticle.isError && (
-                  <p className="mt-3 rounded-[10px] border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-2.5 text-[13.5px] text-[#C2603F]">
+                  <p className="mt-3 rounded-[10px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-2.5 text-[13.5px] text-[var(--neg)]">
                     {(updateArticle.error as Error).message}
                   </p>
                 )}
@@ -1473,7 +1471,7 @@ export default function MiseEnVentePage() {
         className="sticky z-30 mx-auto mt-5 max-w-[1000px] md:bottom-5"
         style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }}
       >
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-surface p-2.5 pl-3.5 shadow-[0_16px_34px_-20px_rgba(20,53,40,.4)] md:pl-5">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-surface p-2.5 pl-3.5 shadow-[var(--shadow)] md:pl-5">
           <div className="flex min-w-0 items-center gap-3">
             {(step === 2 || step === 4) && (
               <button onClick={() => setStep(step - 1)} className={btnGhost}>
@@ -1483,7 +1481,7 @@ export default function MiseEnVentePage() {
             )}
             <span
               className={`truncate text-[12.5px] font-semibold md:text-[13px] ${
-                hintOk ? "text-[#1B4332]" : "text-[#C2603F]"
+                hintOk ? "text-[var(--acc)]" : "text-[var(--neg)]"
               }`}
             >
               {hint}
@@ -1493,7 +1491,7 @@ export default function MiseEnVentePage() {
             <button
               onClick={resetAll}
               title="Tout réinitialiser"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold text-[var(--faint)] transition-colors hover:text-[#1B4332]"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold text-[var(--faint)] transition-colors hover:text-[var(--acc)]"
             >
               <RefreshCw className="h-4 w-4" strokeWidth={2} />
               <span className="hidden md:inline">Recommencer</span>
@@ -1502,7 +1500,7 @@ export default function MiseEnVentePage() {
               // Étape 4 : enregistrer l'annonce, avec 3 choix de statut d'un coup —
               // sans changement, en brouillon, ou en vente.
               saved ? (
-                <span className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[#E4F3EA] px-5 text-[14px] font-extrabold text-[#1B4332] md:text-[15px]">
+                <span className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[var(--pos-soft)] px-5 text-[14px] font-extrabold text-[var(--acc)] md:text-[15px]">
                   <Check className="h-[17px] w-[17px]" strokeWidth={2.6} />
                   Enregistré{savedStatut ? ` · ${savedStatut}` : ""}
                 </span>
@@ -1527,7 +1525,7 @@ export default function MiseEnVentePage() {
                   <button
                     onClick={() => enregistrer("En vente")}
                     disabled={updateArticle.isPending}
-                    className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[#1B4332] px-5 text-[14px] font-extrabold text-white shadow-[0_12px_26px_-12px_rgba(20,53,40,.9)] transition-all hover:bg-[#143528] disabled:cursor-not-allowed disabled:opacity-60 md:text-[15px]"
+                    className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[var(--acc)] px-5 text-[14px] font-extrabold text-[var(--acc-ink)] shadow-[var(--shadow)] transition-all hover:bg-[var(--acc-hover)] disabled:cursor-not-allowed disabled:opacity-60 md:text-[15px]"
                   >
                     {updateArticle.isPending ? "Enregistrement…" : "Mettre en vente"}
                     <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />
@@ -1538,10 +1536,10 @@ export default function MiseEnVentePage() {
               <button
                 onClick={primaryAction}
                 disabled={!primaryEnabled}
-                className={`inline-flex min-h-[48px] items-center gap-2 rounded-[13px] px-5 text-[14px] font-extrabold text-white transition-all md:text-[15px] ${
+                className={`inline-flex min-h-[48px] items-center gap-2 rounded-[16px] px-5 text-[14px] font-bold transition-all md:text-[15px] ${
                   primaryEnabled
-                    ? "bg-[#1B4332] shadow-[0_12px_26px_-12px_rgba(20,53,40,.9)] hover:bg-[#143528]"
-                    : "cursor-not-allowed bg-[#C3D0C8]"
+                    ? "bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)] hover:bg-[var(--acc-hover)]"
+                    : "cursor-not-allowed bg-[var(--border-strong)] text-[var(--faint)]"
                 }`}
               >
                 {primaryLabel}
@@ -1568,7 +1566,7 @@ export default function MiseEnVentePage() {
             <button
               onClick={() => setZoomedId(null)}
               aria-label="Fermer"
-              className="absolute -right-3 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#1B4332] text-white shadow-[0_8px_20px_-6px_rgba(20,53,40,.7)] transition-colors hover:bg-[#143528]"
+              className="absolute -right-3 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)] transition-colors hover:bg-[var(--acc-hover)]"
             >
               <X className="h-[18px] w-[18px]" strokeWidth={2.4} />
             </button>
@@ -1579,7 +1577,7 @@ export default function MiseEnVentePage() {
               className="max-h-[70vh] w-full rounded-[14px] object-contain"
             />
             <div className="mt-3 flex items-center justify-between gap-3 px-1">
-              <span className="font-grotesk text-[14px] font-semibold text-[#5A6B61]">
+              <span className="font-grotesk text-[14px] font-semibold text-[var(--ink2)]">
                 {fileName(zoomedIdx)}
               </span>
               <button onClick={() => setZoomedId(null)} className={btnGhost}>

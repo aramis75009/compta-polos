@@ -10,7 +10,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import {
+  useWindowVirtualizer,
+  type Virtualizer,
+} from "@tanstack/react-virtual";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArticlePatch,
@@ -21,8 +24,9 @@ import {
   useUpdateArticle,
 } from "@/lib/hooks";
 import { coef, euros, naturalSort, STATUT_VENDU, STATUTS } from "@/lib/calc";
-import { statutColor } from "@/lib/statutColors";
+import StatutPill from "@/components/StatutPill";
 import { CANAUX } from "@/lib/canalColors";
+import { statutMarker } from "@/lib/statutColors";
 import type { ArticleDTO } from "@/lib/types";
 import EditableCell from "@/components/EditableCell";
 import SellModal from "@/components/SellModal";
@@ -34,10 +38,6 @@ import Loader from "@/components/Loader";
 import { toast } from "sonner";
 import { celebrateSale } from "@/lib/celebrate";
 import {
-  Package,
-  Tag,
-  Check,
-  HandCoins,
   Plus,
   Download,
   SlidersHorizontal,
@@ -87,6 +87,12 @@ const COLUMN_META: ColumnMeta[] = [
 
 const COLUMN_STORAGE_KEY = "myflip-columns";
 
+// Chips de filtre par statut : « Tous » puis un chip par statut connu.
+const STATUT_CHIPS: { label: string; value: string }[] = [
+  { label: "Tous", value: "" },
+  ...STATUTS.map((s) => ({ label: s, value: s })),
+];
+
 const defaultColumnVisibility = (): Record<string, boolean> =>
   Object.fromEntries(COLUMN_META.map((c) => [c.key, c.defaultVisible]));
 
@@ -108,6 +114,23 @@ const CSV_VALUE: Record<SortKey, (a: ArticleDTO) => string | number> = {
   transporteur: (a) => a.transporteur ?? "",
 };
 
+/**
+ * Fenêtre visible d'un virtualizer + les deux cales qui la maintiennent à sa
+ * place dans le flux (une ligne de tableau en desktop, un div en mobile).
+ * `scrollMargin` compense le décalage entre le haut de la fenêtre et le haut de
+ * la liste — sans lui, la liste se décale de la hauteur des KPI et des filtres.
+ */
+function virtualWindow(v: Virtualizer<Window, Element>) {
+  const items = v.getVirtualItems();
+  if (items.length === 0) return { items, padTop: 0, padBottom: 0 };
+  const margin = v.options.scrollMargin;
+  return {
+    items,
+    padTop: items[0].start - margin,
+    padBottom: v.getTotalSize() - (items[items.length - 1].end - margin),
+  };
+}
+
 function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
   const va = a[key];
   const vb = b[key];
@@ -119,9 +142,35 @@ function compare(a: ArticleDTO, b: ArticleDTO, key: SortKey): number {
   return naturalSort(String(va), String(vb));
 }
 
-// Style "pill" blanc du redesign pour les selects de filtre.
-const inputCls =
-  "rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] outline-none transition-colors focus:border-[var(--border-strong)]";
+// ── Vocabulaire visuel « Console » ──────────────────────────────────────
+// Toute la barre d'outils est en pastilles de 40px posées sur le fond creusé
+// (--tint) du module : les contrôles se lisent comme un bloc unique, et rien
+// ne concurrence le tableau. Ces trois constantes sont la seule source de
+// vérité de cette hauteur — les modifier déplace toute la barre d'un coup.
+// 44px en mobile (cible tactile Apple HIG), 40px en desktop (maquette C).
+const CTRL =
+  "h-11 md:h-10 rounded-full border border-[var(--border)] bg-[var(--tint)] text-[13px] text-[var(--ink2)] outline-none transition-colors hover:border-[var(--border-strong)] focus:border-[var(--border-strong)]";
+const CTRL_SELECT = `${CTRL} max-w-[220px] cursor-pointer truncate px-3.5 font-semibold`;
+const CTRL_BTN = `${CTRL} inline-flex items-center gap-2 px-4 font-semibold`;
+
+// Micro-label en capitales monospacées : en-têtes de colonnes et libellés de
+// KPI. C'est le marqueur typographique de la direction — jamais utilisé pour
+// du contenu, uniquement pour nommer une donnée.
+const MICRO =
+  "font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--faint)]";
+
+// Couleur de la marge nette. Le zéro et l'absence de valeur se lisent pareil :
+// il n'y a rien à saluer ni à alarmer. Deux palettes, une par vue — la ligne de
+// tableau passe par les alias Tailwind, la carte mobile par les variables.
+function margeRowClass(marge: number | null): string {
+  if (marge == null) return "text-[var(--faint-2)]";
+  return marge < 0 ? "text-error" : "text-primary";
+}
+
+function margeCardClass(marge: number | null): string {
+  if (marge == null || marge === 0) return "text-[var(--faint-2)]";
+  return marge < 0 ? "text-[#C2603F]" : "text-[var(--pos)]";
+}
 
 // Détecte le breakpoint md (768px) pour ne rendre qu'une seule liste virtualisée
 // à la fois (sinon deux virtualizers tourneraient, dont un sur du DOM masqué).
@@ -331,14 +380,33 @@ const ArticleRow = memo(
       coefEffectif < a.coefObjectif;
     const cells: Record<SortKey, React.ReactNode> = {
       sku: (
-        <td key="sku" className="px-2 py-3 font-grotesk font-bold text-[var(--ink)]">
-          <span className="flex items-center gap-1.5">
-            <EditableCell value={a.sku} onSave={(v) => onPatch(a.id, { sku: v })} />
+        <td
+          key="sku"
+          className="py-[9px] pl-2 pr-2 font-mono text-[12.5px] font-bold text-[var(--ink)]"
+        >
+          {/* Filet vertical à la couleur du statut : c'est lui qui rend la
+              colonne scannable. Le statut reste lisible en toutes lettres plus
+              loin dans la ligne — le filet ne fait que le rendre repérable
+              sans lire, en balayant la première colonne du regard. */}
+          <span className="flex items-center">
+            <span
+              aria-hidden="true"
+              className="mr-px h-[19px] w-[3px] flex-none rounded-full"
+              style={{ backgroundColor: statutMarker(a.statut) }}
+            />
+            {/* min-w-0 : sans lui l'input d'édition (w-full) déborderait de la
+                largeur du filet, et la troncature du libellé ne prendrait pas. */}
+            <span className="min-w-0 flex-1">
+              <EditableCell
+                value={a.sku}
+                onSave={(v) => onPatch(a.id, { sku: v })}
+              />
+            </span>
           </span>
         </td>
       ),
       marque: (
-        <td key="marque" className="px-2 py-3 text-ink">
+        <td key="marque" className="px-2 py-[9px] text-[13px] font-semibold text-ink">
           <EditableCell
             value={a.marque}
             onSave={(v) => onPatch(a.id, { marque: v })}
@@ -346,7 +414,7 @@ const ArticleRow = memo(
         </td>
       ),
       categorie: (
-        <td key="categorie" className="px-2 py-3 text-ink-muted">
+        <td key="categorie" className="px-2 py-[9px] text-[12.5px] text-ink-muted">
           <EditableCell
             value={a.categorie}
             onSave={(v) => onPatch(a.id, { categorie: v })}
@@ -354,38 +422,29 @@ const ArticleRow = memo(
         </td>
       ),
       grade: (
-        <td key="grade" className="px-2 py-3 text-ink-muted">
+        <td key="grade" className="px-2 py-[9px] text-[12.5px] text-ink-muted">
           <EditableCell
             value={a.grade}
             onSave={(v) => onPatch(a.id, { grade: v || null })}
           />
         </td>
       ),
+      // 6px de padding et non 9 : la pastille fait 32px de haut à elle seule,
+      // c'est elle qui cale la hauteur de ligne — cf. estimateSize plus bas.
       statut: (
-        <td key="statut" className="px-2 py-3">
-          <select
+        <td key="statut" className="px-2 py-1.5">
+          <StatutPill
             value={a.statut}
-            onChange={(e) => onStatutChange(a, e.target.value)}
-            style={{
-              backgroundColor: statutColor(a.statut).bg,
-              color: statutColor(a.statut).text,
-            }}
-            className="cursor-pointer rounded-full border-0 px-3 py-1 text-label-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            {STATUTS.map((s) => (
-              <option
-                key={s}
-                value={s}
-                style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}
-              >
-                {s}
-              </option>
-            ))}
-          </select>
+            onChange={(s) => onStatutChange(a, s)}
+            ariaLabel={`Statut de ${a.sku}`}
+          />
         </td>
       ),
       prixAchat: (
-        <td key="prixAchat" className="px-2 py-3 text-ink">
+        <td
+          key="prixAchat"
+          className="px-2 py-[9px] font-mono text-[12.5px] tabular-nums text-ink"
+        >
           <EditableCell
             value={a.prixAchat}
             display={euros(a.prixAchat)}
@@ -396,7 +455,10 @@ const ArticleRow = memo(
         </td>
       ),
       prixVente: (
-        <td key="prixVente" className="px-2 py-3 text-ink">
+        <td
+          key="prixVente"
+          className="px-2 py-[9px] font-mono text-[12.5px] tabular-nums text-ink"
+        >
           <EditableCell
             value={a.prixVente}
             display={a.prixVente != null ? euros(a.prixVente) : "—"}
@@ -408,39 +470,46 @@ const ArticleRow = memo(
         </td>
       ),
       margeBrute: (
-        <td key="margeBrute" className="px-3 py-3 text-right text-ink-muted">
+        <td
+          key="margeBrute"
+          className="px-3 py-[9px] text-right font-mono text-[12.5px] tabular-nums text-ink-muted"
+        >
           {a.margeBrute != null ? euros(a.margeBrute) : "—"}
         </td>
       ),
       margeNette: (
         <td
           key="margeNette"
-          className={`px-3 py-3 text-right font-medium ${
-            a.margeNette != null && a.margeNette < 0
-              ? "text-error"
-              : "text-primary"
-          }`}
+          className={`px-3 py-[9px] text-right font-mono text-[12.5px] font-medium tabular-nums ${margeRowClass(
+            a.margeNette,
+          )}`}
         >
           {a.margeNette != null ? euros(a.margeNette) : "—"}
         </td>
       ),
       coefficient: (
-        <td key="coefficient" className="px-3 py-3 text-right">
+        <td
+          key="coefficient"
+          className="px-3 py-[9px] text-right font-mono text-[12.5px] font-bold tabular-nums"
+        >
           {sousObjectif ? (
             <span
-              className="inline-flex items-center gap-1 font-semibold"
+              className="inline-flex items-center gap-1"
               style={{ color: "#EA580C" }}
               title={`Objectif : x${a.coefObjectif}`}
             >
               ⚠️ {coef(coefEffectif)}
             </span>
           ) : (
-            <span className="text-ink-muted">{coef(a.coefficient)}</span>
+            <span className="text-[var(--ink2)]">{coef(a.coefficient)}</span>
           )}
         </td>
       ),
       dateVente: (
-        <td key="dateVente" className="px-2 py-3 text-ink-muted">
+        <td
+          key="dateVente"
+          className="px-2 py-[9px] font-mono text-[12px] tabular-nums text-ink-muted"
+        >
           <EditableCell
             value={a.dateVente ? a.dateVente.slice(0, 10) : null}
             display={
@@ -459,12 +528,12 @@ const ArticleRow = memo(
         </td>
       ),
       canal: (
-        <td key="canal" className="px-2 py-3">
+        <td key="canal" className="px-2 py-[9px]">
           <CanalBadge canal={a.canal} />
         </td>
       ),
       transporteur: (
-        <td key="transporteur" className="px-3 py-3 text-ink-muted">
+        <td key="transporteur" className="px-3 py-[9px] text-[12.5px] text-ink-muted">
           {a.transporteur ?? "—"}
         </td>
       ),
@@ -473,29 +542,32 @@ const ArticleRow = memo(
       <tr
         ref={ref}
         {...rest}
-        className={`border-b border-[var(--bg)] align-middle transition-[background-color,box-shadow] duration-150 hover:bg-[var(--tint)] hover:shadow-[inset_3px_0_0_#1B4332] ${
-          isSelected ? "bg-[#EAF3ED]" : ""
+        // Le survol ne pose plus de filet à gauche : le filet de statut porté
+        // par la colonne SKU occupe déjà ce registre, et deux filets à 40px
+        // d'écart brouillaient la lecture. Un simple fond suffit.
+        className={`border-b border-[var(--border)] align-middle transition-colors duration-150 hover:bg-[var(--tint)] ${
+          isSelected ? "bg-[var(--acc-soft)]" : ""
         }`}
       >
         {/* data-select-cell : point d'ancrage du glissement (cf. useDragSelect).
             La case est pointer-events-none → la délégation gère clic ET glissement,
             sans double-toggle ; onChange reste pour l'accessibilité clavier. */}
-        <td data-select-cell className="cursor-pointer select-none px-3 py-3">
+        <td data-select-cell className="cursor-pointer select-none px-3 py-[9px]">
           <input
             type="checkbox"
             aria-label={`Sélectionner ${a.sku}`}
-            className="pointer-events-none h-4 w-4 accent-[#1B4332]"
+            className="pointer-events-none h-4 w-4 accent-[var(--acc)]"
             checked={isSelected}
             onChange={() => onToggleSelect(a.id)}
           />
         </td>
         {shownColumns.map((c) => cells[c.key])}
-        <td className="px-3 py-3">
+        <td className="px-3 py-[9px]">
           <div className="flex items-center justify-end gap-2.5 text-[var(--faint-2)]">
             <button
               onClick={() => onShowDetail(a)}
-              className={`transition-colors hover:text-[#1B4332] ${
-                a.titreAnnonce ? "text-[#1B4332]" : ""
+              className={`transition-colors hover:text-[var(--acc)] ${
+                a.titreAnnonce ? "text-[var(--acc)]" : ""
               }`}
               title={a.titreAnnonce ? "Voir le détail (annonce générée)" : "Voir le détail"}
             >
@@ -535,15 +607,15 @@ const ArticleCard = memo(
     return (
       <div ref={ref} {...rest} className="pb-3">
         <div
-          className={`rounded-[18px] border bg-surface p-4 ${
-            isSelected ? "border-[#1B4332]" : "border-[var(--border)]"
+          className={`overflow-hidden rounded-[20px] border bg-surface p-4 ${
+            isSelected ? "border-[var(--acc)]" : "border-[var(--border)]"
           }`}
         >
           <div className="flex gap-3">
             <input
               type="checkbox"
               aria-label={`Sélectionner ${a.sku}`}
-              className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#1B4332]"
+              className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[var(--acc)]"
               checked={isSelected}
               onChange={() => onToggleSelect(a.id)}
             />
@@ -551,34 +623,35 @@ const ArticleCard = memo(
               className="min-w-0 flex-1 cursor-pointer"
               onClick={() => onShowDetail(a)}
             >
+              {/* Même filet de statut que sur la ligne desktop : une carte se
+                  reconnaît à son SKU, on lui donne le même point d'entrée. */}
               <div className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-grotesk font-bold text-[var(--ink)]">
+                <span
+                  aria-hidden="true"
+                  className="h-[17px] w-[3px] flex-none rounded-full"
+                  style={{ backgroundColor: statutMarker(a.statut) }}
+                />
+                <span className="truncate font-mono text-[13px] font-bold text-[var(--ink)]">
                   {a.sku}
                 </span>
                 {a.titreAnnonce && (
-                  <FileText className="h-4 w-4 text-[#1B4332]" strokeWidth={2} />
+                  <FileText className="h-4 w-4 text-[var(--acc)]" strokeWidth={2} />
                 )}
               </div>
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="truncate text-[var(--muted)]">{a.marque}</span>
+                <span className="truncate text-[13px] font-semibold text-[var(--ink2)]">
+                  {a.marque}
+                </span>
                 <CanalBadge canal={a.canal} />
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-body-md">
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12.5px] tabular-nums">
                 <span className="text-[var(--ink2)]">{euros(a.prixAchat)}</span>
                 <span className="text-[var(--faint-2)]">→</span>
                 <span className="text-[var(--ink2)]">
                   {a.prixVente != null ? euros(a.prixVente) : "—"}
                 </span>
-                <span className="text-[var(--faint-2)]">|</span>
-                <span
-                  className={`font-semibold ${
-                    a.margeNette != null && a.margeNette > 0
-                      ? "text-[#2D6A4F]"
-                      : a.margeNette != null && a.margeNette < 0
-                        ? "text-[#C2603F]"
-                        : "text-[var(--muted)]"
-                  }`}
-                >
+                <span className="text-[var(--faint-2)]">·</span>
+                <span className={`font-bold ${margeCardClass(a.margeNette)}`}>
                   {a.margeNette != null ? euros(a.margeNette) : "—"}
                 </span>
               </div>
@@ -587,28 +660,18 @@ const ArticleCard = memo(
 
           {/* Actions (parité avec les lignes du tableau) — touch targets 44px */}
           <div className="mt-3 flex items-center gap-2 border-t border-[var(--bg)] pt-3">
-            <select
+            <StatutPill
               value={a.statut}
-              aria-label={`Statut de ${a.sku}`}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => onStatutChange(a, e.target.value)}
-              style={{
-                backgroundColor: statutColor(a.statut).bg,
-                color: statutColor(a.statut).text,
-              }}
-              className="h-11 min-w-0 flex-1 cursor-pointer rounded-full border-0 px-4 text-[13px] font-medium outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              {STATUTS.map((s) => (
-                <option key={s} value={s} style={{ backgroundColor: "#ffffff", color: "#1a1c1c" }}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={(s) => onStatutChange(a, s)}
+              size="md"
+              ariaLabel={`Statut de ${a.sku}`}
+              className="min-w-0 flex-1"
+            />
             <button
               onClick={() => onShowDetail(a)}
               aria-label="Voir le détail"
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[var(--border)] transition-colors active:bg-[var(--tint)] ${
-                a.titreAnnonce ? "text-[#1B4332]" : "text-[var(--faint-2)]"
+                a.titreAnnonce ? "text-[var(--acc)]" : "text-[var(--faint-2)]"
               }`}
             >
               <FileText className="h-[18px] w-[18px]" strokeWidth={2} />
@@ -627,27 +690,27 @@ const ArticleCard = memo(
   }),
 );
 
-// Carte de la barre de stats (redesign). Variante `dark` = carte verte pleine.
-function StatCard({
-  icon: Icon,
-  iconBg,
-  iconColor,
+// Carte de KPI du bandeau de tête.
+//
+// L'icône a disparu par rapport à la version précédente : à quatre cartes
+// côte à côte, elle occupait un tiers de la largeur sans rien dire que le
+// libellé ne disait déjà. Le libellé passe donc en micro-capitales mono, et
+// le chiffre récupère toute la place — c'est lui qu'on vient chercher.
+// `dark` = carte pleine vert forêt, réservée à la valeur du stock.
+function KpiCard({
   value,
   label,
   dark,
 }: {
-  icon: typeof Package;
-  iconBg?: string;
-  iconColor?: string;
   value: string;
   label: string;
   dark?: boolean;
 }) {
   return (
     <div
-      className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-4 transition-[transform,box-shadow,border-color] duration-[260ms] hover:-translate-y-[3px] ${
+      className={`relative overflow-hidden rounded-[20px] border px-[18px] py-[15px] transition-[transform,box-shadow,border-color] duration-[260ms] hover:-translate-y-[3px] ${
         dark
-          ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_14px_30px_-20px_rgba(20,53,40,.7)] hover:shadow-[0_24px_44px_-22px_rgba(20,53,40,.85)]"
+          ? "border-[var(--acc)] bg-[var(--acc)] text-[var(--acc-ink)] shadow-[0_14px_30px_-20px_rgba(20,53,40,.7)] hover:shadow-[0_24px_44px_-22px_rgba(20,53,40,.85)]"
           : "border-[var(--border)] bg-surface hover:border-[var(--border-strong)] hover:shadow-[0_18px_34px_-24px_rgba(20,53,40,.55)]"
       }`}
     >
@@ -660,27 +723,50 @@ function StatCard({
         </svg>
       )}
       <div
-        className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
-        style={{
-          background: dark ? "rgba(255,255,255,.13)" : iconBg,
-          color: dark ? "#9FD4B5" : iconColor,
-        }}
+        className={`font-mono text-[9.5px] font-medium uppercase tracking-[0.16em] ${
+          dark ? "text-[var(--acc-dim)]" : "text-[var(--faint)]"
+        }`}
       >
-        <Icon className="h-5 w-5" strokeWidth={2} />
+        {label}
       </div>
-      <div className="relative min-w-0">
-        <div className="font-grotesk text-[23px] font-bold tracking-[-0.02em]">
-          {value}
-        </div>
-        <div
-          className={`text-[12px] font-semibold ${
-            dark ? "text-[#9FD4B5]" : "text-[var(--faint)]"
-          }`}
-        >
-          {label}
-        </div>
+      <div className="relative mt-1.5 font-grotesk text-[22px] font-bold tracking-[-0.03em] tabular-nums md:text-[27px]">
+        {value}
       </div>
     </div>
+  );
+}
+
+// Case à cocher du rang « Colonnes ». `locked` = colonne non masquable :
+// cochée d'office, désactivée, et sans effet au clic.
+function ColumnChip({
+  label,
+  checked,
+  locked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  locked?: boolean;
+  onToggle?: () => void;
+}) {
+  return (
+    <label
+      className={`inline-flex items-center gap-2 rounded-full bg-[var(--tint)] px-3 py-1.5 text-[12.5px] ${
+        locked
+          ? "cursor-default text-[var(--faint)]"
+          : "cursor-pointer text-[var(--ink2)]"
+      }`}
+    >
+      <input
+        type="checkbox"
+        className="h-3.5 w-3.5 accent-[var(--acc)] disabled:cursor-default"
+        checked={locked ? true : checked}
+        disabled={locked}
+        readOnly={locked}
+        onChange={locked ? undefined : onToggle}
+      />
+      {label}
+    </label>
   );
 }
 
@@ -746,6 +832,17 @@ function StockInner() {
     commande: commande || undefined,
   });
 
+  // Un seul passage sur la liste plutôt qu'un `filter` par chip : à 1 200
+  // articles et onze statuts, la version précédente relisait 13 000 lignes à
+  // chaque rendu — et le tableau virtualisé en déclenche beaucoup.
+  const statutCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const a of articlesTousStatuts) {
+      counts.set(a.statut, (counts.get(a.statut) ?? 0) + 1);
+    }
+    return counts;
+  }, [articlesTousStatuts]);
+
   const update = useUpdateArticle();
   const del = useDeleteArticle();
   const bulk = useBulkUpdateStatus();
@@ -759,7 +856,6 @@ function StockInner() {
     defaultColumnVisibility,
   );
   const [colsOpen, setColsOpen] = useState(false);
-  const colsRef = useRef<HTMLDivElement>(null);
 
   // Chargement des préférences au montage (client uniquement).
   useEffect(() => {
@@ -780,17 +876,10 @@ function StockInner() {
     }
   }, []);
 
-  // Fermeture du menu au clic extérieur.
-  useEffect(() => {
-    if (!colsOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (colsRef.current && !colsRef.current.contains(e.target as Node)) {
-        setColsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [colsOpen]);
+  // Le sélecteur de colonnes n'est plus un menu flottant mais un rang de cases
+  // qui pousse le tableau vers le bas dans le module : plus de fermeture au
+  // clic extérieur à gérer, et on voit le tableau se recomposer sous les yeux
+  // pendant qu'on coche.
 
   const toggleCol = (key: SortKey) => {
     const meta = COLUMN_META.find((c) => c.key === key);
@@ -871,12 +960,21 @@ function StockInner() {
   // --- Virtualisation : ne monte que les lignes/cartes visibles (+ overscan).
   // Une seule liste rendue à la fois selon le breakpoint (cf. useIsDesktop).
   const isDesktop = useIsDesktop();
-  const showRows = !isLoading && !isError && sorted.length > 0;
+  const loaded = !isLoading && !isError;
+  const showRows = loaded && sorted.length > 0;
+  const showEmpty = loaded && sorted.length === 0;
 
   const desktopWrapRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useWindowVirtualizer({
     count: sorted.length,
-    estimateSize: () => 49,
+    // 45px : la pastille de statut (32px) + 12px de `py-1.5` sur son <td>
+    // + 1px de bordure. C'est elle le contenu le plus haut de la ligne depuis
+    // le passage à la densité de la maquette (9px de padding ailleurs).
+    // Une estimation fausse dérive sur toute la hauteur du stock — elle était
+    // à 54 quand la ligne en faisait 45, soit ~11 000px d'écart sur 1 200
+    // articles. `measureElement` corrige au fil du défilement, mais seulement
+    // pour les lignes déjà montées.
+    estimateSize: () => 45,
     overscan: 8,
     scrollMargin: desktopWrapRef.current?.offsetTop ?? 0,
   });
@@ -889,23 +987,8 @@ function StockInner() {
     scrollMargin: mobileWrapRef.current?.offsetTop ?? 0,
   });
 
-  const dItems = rowVirtualizer.getVirtualItems();
-  const dPadTop = dItems.length
-    ? dItems[0].start - rowVirtualizer.options.scrollMargin
-    : 0;
-  const dPadBottom = dItems.length
-    ? rowVirtualizer.getTotalSize() -
-      (dItems[dItems.length - 1].end - rowVirtualizer.options.scrollMargin)
-    : 0;
-
-  const mItems = cardVirtualizer.getVirtualItems();
-  const mPadTop = mItems.length
-    ? mItems[0].start - cardVirtualizer.options.scrollMargin
-    : 0;
-  const mPadBottom = mItems.length
-    ? cardVirtualizer.getTotalSize() -
-      (mItems[mItems.length - 1].end - cardVirtualizer.options.scrollMargin)
-    : 0;
+  const rows = virtualWindow(rowVirtualizer);
+  const cards = virtualWindow(cardVirtualizer);
 
   const totals = useMemo(() => {
     let enStock = 0;
@@ -943,12 +1026,13 @@ function StockInner() {
       const c = commandes.find((x) => x.id === id);
       return c ? `${c.fournisseur} (${new Date(c.date).toLocaleDateString("fr-FR")})` : "";
     };
-    const cols = COLUMN_META.filter((c) => visibleCols[c.key]);
-    const headers = [...cols.map((c) => c.label), "Commande"];
-    const esc = (v: unknown) =>
-      `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const headers = [...shownColumns.map((c) => c.label), "Commande"];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = sorted.map((a) =>
-      [...cols.map((c) => CSV_VALUE[c.key](a)), commandeName(a.commandeId)]
+      [
+        ...shownColumns.map((c) => CSV_VALUE[c.key](a)),
+        commandeName(a.commandeId),
+      ]
         .map(esc)
         .join(";"),
     );
@@ -1029,7 +1113,46 @@ function StockInner() {
   };
 
   const sortIndicator = (key: SortKey) =>
-    key === sortKey ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+    key === sortKey ? (sortDir === "asc" ? " ↑" : " ↓") : "";
+
+  const hasFilters = !!(marque || lot || statut || qInput || commande);
+
+  const resetFilters = () => {
+    setMarque("");
+    setLot("");
+    setStatut("");
+    setQInput("");
+    setQ("");
+    setCommande("");
+    router.replace("/stock");
+  };
+
+  // Pied de liste : compte, rappel d'édition et agrégats de la vue filtrée.
+  // Rendu deux fois — dans le module en desktop, sous les cartes en mobile —
+  // d'où l'extraction plutôt qu'une duplication du balisage.
+  const summary = (
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 font-mono text-[11px] text-[var(--faint)]">
+      <span>
+        <span className="font-bold text-[var(--ink2)]">
+          {sorted.length.toLocaleString("fr-FR")}
+        </span>{" "}
+        ligne{sorted.length > 1 ? "s" : ""} affichée
+        {sorted.length > 1 ? "s" : ""}
+        <span className="hidden md:inline">
+          {" "}
+          — double-clic sur une cellule pour éditer
+        </span>
+      </span>
+      <span className="flex flex-wrap gap-x-4 gap-y-1">
+        <span>{totals.enStock.toLocaleString("fr-FR")} en stock</span>
+        <span>{totals.vendus.toLocaleString("fr-FR")} vendus</span>
+        <span>
+          marge nette{" "}
+          <span className="font-bold text-[var(--pos)]">{euros(totals.net)}</span>
+        </span>
+      </span>
+    </div>
+  );
 
   // Article « vivant » pour le modal détail : on relit depuis la liste chargée
   // pour que les valeurs dérivées (marge nette) reflètent immédiatement une
@@ -1039,411 +1162,370 @@ function StockInner() {
     : null;
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-[14.5px] font-medium text-[var(--muted)]">
-            Double-clic sur une cellule pour la modifier.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative hidden md:block" ref={colsRef}>
-            <button
-              onClick={() => setColsOpen((o) => !o)}
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
-            >
-              <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
-              Colonnes
-            </button>
-            {colsOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-60 rounded-2xl border border-[var(--border)] bg-surface p-2 shadow-[0_14px_30px_-18px_rgba(20,53,40,.5)]">
-                <p className="px-3 py-2 text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
-                  Colonnes affichées
-                </p>
-                {COLUMN_META.map((c) => (
-                  <label
-                    key={c.key}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] ${
-                      c.always
-                        ? "cursor-default text-[var(--faint)]"
-                        : "cursor-pointer text-[var(--ink2)] hover:bg-[var(--tint)]"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 cursor-pointer accent-[#1B4332] disabled:cursor-default"
-                      checked={!!visibleCols[c.key]}
-                      disabled={c.always}
-                      onChange={() => toggleCol(c.key)}
-                    />
-                    {c.label}
-                    {c.always && (
-                      <span className="ml-auto text-[11.5px] text-[var(--faint-2)]">
-                        toujours
-                      </span>
-                    )}
-                  </label>
-                ))}
-                <label className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-[var(--faint)]">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 cursor-default accent-[#1B4332]"
-                    checked
-                    disabled
-                    readOnly
-                  />
-                  Actions
-                  <span className="ml-auto text-[11.5px] text-[var(--faint-2)]">
-                    toujours
-                  </span>
-                </label>
-              </div>
-            )}
-          </div>
+    <main className="min-h-screen bg-[var(--bg)] px-4 py-5 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
+      {/* Bandeau de KPI — quatre chiffres, aucun ornement. */}
+      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard
+          value={totals.total.toLocaleString("fr-FR")}
+          label="Articles au total"
+        />
+        <KpiCard
+          value={totals.enVente.toLocaleString("fr-FR")}
+          label="En vente"
+        />
+        <KpiCard
+          value={totals.vendus.toLocaleString("fr-FR")}
+          label="Vendus"
+        />
+        <KpiCard dark value={euros(totals.stockValue)} label="Valeur du stock" />
+      </div>
+
+      {/* Module console : outils, filtres, chips, tableau et pied de liste ne
+          forment qu'un seul bloc. Avant, ces quatre zones flottaient
+          séparément sur le fond de page et chacune redemandait au regard de
+          se réorienter ; ici, tout ce qui agit sur la liste vit dans le même
+          conteneur que la liste. */}
+      <section className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-surface">
+        <div className="flex flex-col gap-2 p-3.5 md:flex-row md:flex-wrap md:items-center">
+          <label
+            className={`${CTRL} flex w-full items-center gap-2.5 px-4 md:min-w-[200px] md:flex-1`}
+          >
+            <Search
+              className="h-4 w-4 flex-none text-[var(--faint-2)]"
+              strokeWidth={2}
+            />
+            <input
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
+              placeholder="Rechercher un SKU…"
+              aria-label="Rechercher un SKU"
+              className="w-full bg-transparent font-mono text-[12.5px] text-[var(--ink)] outline-none placeholder:text-[var(--faint-2)]"
+            />
+          </label>
+          <select
+            value={marque}
+            onChange={(e) => setMarque(e.target.value)}
+            aria-label="Filtrer par marque"
+            className={`${CTRL_SELECT} w-full md:w-auto`}
+          >
+            <option value="">Toutes les marques</option>
+            {marqueOptions.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          {/* Filtre par lot d'achat : garde les libellés d'origine
+              (« Short Adidas », « Crazy Polaires »…) que la marque ne porte plus. */}
+          <select
+            value={lot}
+            onChange={(e) => setLot(e.target.value)}
+            aria-label="Filtrer par lot"
+            className={`${CTRL_SELECT} w-full md:w-auto`}
+          >
+            <option value="">Tous les lots</option>
+            {lotOptions.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <select
+            value={commande}
+            onChange={(e) => setCommande(e.target.value)}
+            aria-label="Filtrer par commande"
+            className={`${CTRL_SELECT} w-full md:w-auto`}
+          >
+            <option value="">Toutes les commandes</option>
+            {commandes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.fournisseur} — {new Date(c.date).toLocaleDateString("fr-FR")}
+              </option>
+            ))}
+          </select>
+          {/* Colonnes et export : sans objet sur la vue cartes. */}
+          <button
+            onClick={() => setColsOpen((o) => !o)}
+            aria-expanded={colsOpen}
+            className={`${CTRL_BTN} hidden md:inline-flex ${
+              colsOpen ? "border-[var(--border-strong)] bg-[var(--surface-2)]" : ""
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+            Colonnes
+          </button>
           <button
             onClick={exportCSV}
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+            className={`${CTRL_BTN} hidden md:inline-flex`}
           >
             <Download className="h-4 w-4" strokeWidth={2} />
-            Exporter CSV
+            Export CSV
           </button>
           <button
             onClick={() => setNewCommande(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--acc)] px-4 text-[13px] font-bold text-[var(--acc-ink)] shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[var(--acc-hover)] md:h-10 md:w-auto"
           >
             <Plus className="h-4 w-4" strokeWidth={2.3} />
             Nouvelle commande
           </button>
-        </div>
-      </header>
-
-      {/* Barre de stats */}
-      <div className="mb-5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <StatCard
-          icon={Package}
-          iconBg="#EAF3ED"
-          iconColor="#1B4332"
-          value={totals.total.toLocaleString("fr-FR")}
-          label="Articles au total"
-        />
-        <StatCard
-          icon={Tag}
-          iconBg="#E7F0FF"
-          iconColor="#3B6FD4"
-          value={totals.enVente.toLocaleString("fr-FR")}
-          label="En vente"
-        />
-        <StatCard
-          icon={Check}
-          iconBg="#E7F4EC"
-          iconColor="#2D6A4F"
-          value={totals.vendus.toLocaleString("fr-FR")}
-          label="Vendus"
-        />
-        <StatCard
-          icon={HandCoins}
-          dark
-          value={euros(totals.stockValue)}
-          label="Valeur du stock"
-        />
-      </div>
-
-      {/* Filtres */}
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:flex-wrap">
-        <div className="flex w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 md:flex-1">
-          <Search className="h-[17px] w-[17px] flex-shrink-0 text-[#9BA89F]" strokeWidth={2} />
-          <input
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            placeholder="Rechercher un SKU…"
-            className="w-full bg-transparent text-[13.5px] font-medium text-[var(--ink)] outline-none placeholder:text-[#9BA89F]"
-          />
-        </div>
-        <select
-          value={marque}
-          onChange={(e) => setMarque(e.target.value)}
-          className={`${inputCls} w-full md:w-auto`}
-        >
-          <option value="">Toutes les marques</option>
-          {marqueOptions.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        {/* Filtre par lot d'achat : garde les libellés d'origine
-            (« Short Adidas », « Crazy Polaires »…) que la marque ne porte plus. */}
-        <select
-          value={lot}
-          onChange={(e) => setLot(e.target.value)}
-          className={`${inputCls} w-full md:w-auto`}
-        >
-          <option value="">Tous les lots</option>
-          {lotOptions.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
-        {/* Statut select — mobile only ; desktop uses chips below */}
-        <select
-          value={statut}
-          onChange={(e) => setStatut(e.target.value)}
-          className={`${inputCls} w-full md:hidden`}
-        >
-          <option value="">Tous les statuts</option>
-          {STATUTS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          value={commande}
-          onChange={(e) => setCommande(e.target.value)}
-          className={`${inputCls} w-full md:w-auto`}
-        >
-          <option value="">Toutes les commandes</option>
-          {commandes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.fournisseur} — {new Date(c.date).toLocaleDateString("fr-FR")}
-            </option>
-          ))}
-        </select>
-        {(marque || lot || statut || qInput || commande) && (
-          <button
-            onClick={() => {
-              setMarque("");
-              setLot("");
-              setStatut("");
-              setQInput("");
-              setQ("");
-              setCommande("");
-              router.replace("/stock");
-            }}
-            className="w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-medium text-[var(--muted)] transition-colors hover:border-[var(--border-strong)] md:w-auto"
-          >
-            Réinitialiser
-          </button>
-        )}
-      </div>
-
-      {/* Chips statut — desktop uniquement */}
-      <div className="mb-4 hidden flex-wrap gap-2 md:flex">
-        {[{ label: "Tous", value: "" }, ...STATUTS.map((s) => ({ label: s, value: s }))].map((chip) => {
-          const active = statut === chip.value;
-          const cnt =
-            chip.value === ""
-              ? articlesTousStatuts.length
-              : articlesTousStatuts.filter((a) => a.statut === chip.value).length;
-          return (
+          {hasFilters && (
             <button
-              key={chip.value}
-              onClick={() => setStatut(chip.value)}
-              className={`inline-flex items-center gap-1.5 rounded-[11px] border px-3.5 py-2 text-[13px] font-bold transition-[border-color,background,box-shadow] duration-200 ${
-                active
-                  ? "border-[#1B4332] bg-[#1B4332] text-white shadow-[0_8px_20px_-12px_rgba(20,53,40,.8)]"
-                  : "border-[var(--border)] bg-surface text-[var(--ink2)] hover:border-[var(--border-strong)]"
-              }`}
+              onClick={resetFilters}
+              className={`${CTRL_BTN} w-full justify-center md:w-auto`}
             >
-              {chip.label}
-              <span
-                className={`rounded-full px-1.5 py-px text-[11px] font-bold ${
-                  active ? "bg-white/20 text-[#CFE6D8]" : "bg-[var(--tint)] text-[var(--faint)]"
+              Réinitialiser
+            </button>
+          )}
+        </div>
+
+        {colsOpen && (
+          <div className="hidden flex-wrap gap-2 px-3.5 pb-3 md:flex">
+            {COLUMN_META.map((c) => (
+              <ColumnChip
+                key={c.key}
+                label={c.label}
+                checked={!!visibleCols[c.key]}
+                locked={c.always}
+                onToggle={() => toggleCol(c.key)}
+              />
+            ))}
+            {/* La colonne Actions ne fait pas partie de COLUMN_META (elle n'est
+                ni triable ni exportable) mais reste listée ici pour que le rang
+                de cases décrive le tableau en entier. */}
+            <ColumnChip label="Actions" checked locked />
+          </div>
+        )}
+
+        {/* Chips de statut. Affichées à toutes les tailles (défilement
+            horizontal en mobile) : la pastille de couleur et le compteur
+            disent d'un coup d'œil ce qu'un <select> obligeait à ouvrir. */}
+        <div className="flex gap-2 overflow-x-auto px-3.5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {STATUT_CHIPS.map((chip) => {
+            const active = statut === chip.value;
+            const cnt =
+              chip.value === ""
+                ? articlesTousStatuts.length
+                : (statutCounts.get(chip.value) ?? 0);
+            return (
+              <button
+                key={chip.value}
+                onClick={() => setStatut(chip.value)}
+                aria-pressed={active}
+                className={`inline-flex min-h-[44px] flex-none items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-[12.5px] transition-colors duration-200 md:min-h-[36px] ${
+                  active
+                    ? "border-[var(--acc)] bg-[var(--acc)] font-bold text-[var(--acc-ink)]"
+                    : "border-[var(--border)] bg-[var(--tint)] font-medium text-[var(--ink2)] hover:border-[var(--border-strong)]"
                 }`}
               >
-                {cnt}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Vue cartes mobile (< md) — virtualisée */}
-      {!isDesktop && (
-        <div ref={mobileWrapRef} className="md:hidden">
-          {isLoading && <Loader label="Chargement du stock" />}
-          {isError && (
-            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-error shadow-card">
-              {(error as Error).message}
-            </p>
-          )}
-          {!isLoading && !isError && sorted.length === 0 && (
-            <p className="rounded-card border border-line bg-surface px-4 py-6 text-center text-ink-faint shadow-card">
-              Aucun article.
-            </p>
-          )}
-          {showRows && (
-            <>
-              {mPadTop > 0 && <div aria-hidden style={{ height: mPadTop }} />}
-              {mItems.map((vr) => {
-                const a = sorted[vr.index];
-                return (
-                  <ArticleCard
-                    key={a.id}
-                    data-index={vr.index}
-                    ref={cardVirtualizer.measureElement}
-                    a={a}
-                    isSelected={selected.has(a.id)}
-                    onToggleSelect={toggleOne}
-                    onStatutChange={handleStatutChange}
-                    onDelete={handleDelete}
-                    onShowDetail={handleShowDetail}
-                  />
-                );
-              })}
-              {mPadBottom > 0 && (
-                <div aria-hidden style={{ height: mPadBottom }} />
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Tableau (≥ md) — virtualisé */}
-      {isDesktop && (
-      <div
-        ref={desktopWrapRef}
-        onPointerDown={onSelectPointerDown}
-        className="hidden overflow-x-auto rounded-[20px] border border-[var(--border)] bg-surface md:block"
-      >
-        <table
-          style={{ minWidth: Math.max(640, colCount * 96) }}
-          className="w-full border-collapse text-body-md"
-        >
-          <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
-              <th
-                className="w-10 px-[22px] py-[15px]"
-                title="Astuce : glisse le long de cette colonne pour sélectionner plusieurs lignes"
-              >
-                <input
-                  type="checkbox"
-                  aria-label="Tout sélectionner"
-                  className="h-4 w-4 cursor-pointer accent-[#1B4332]"
-                  checked={
-                    sorted.length > 0 && sorted.every((a) => selected.has(a.id))
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelected(new Set(sorted.map((a) => a.id)));
-                    } else {
-                      clearSelection();
-                    }
+                <span
+                  aria-hidden="true"
+                  className="h-[7px] w-[7px] flex-none rounded-full"
+                  style={{
+                    backgroundColor:
+                      chip.value === ""
+                        ? "var(--faint-2)"
+                        : statutMarker(chip.value),
                   }}
                 />
-              </th>
-              {shownColumns.map((c) => (
+                {chip.label}
+                <span className="font-mono text-[10.5px] tabular-nums opacity-70">
+                  {cnt}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tableau (≥ md) — virtualisé, adossé au module (pas de rayon ni de
+            bordure propres : il en est la partie basse). */}
+        {isDesktop && (
+        <div
+          ref={desktopWrapRef}
+          onPointerDown={onSelectPointerDown}
+          className="hidden overflow-x-auto border-t border-[var(--border)] md:block"
+        >
+          <table
+            style={{ minWidth: Math.max(640, colCount * 96) }}
+            className="w-full border-collapse"
+          >
+            <thead>
+              <tr className={`${MICRO} border-b border-[var(--border)] bg-[var(--tint)] text-left`}>
                 <th
-                  key={c.key}
-                  onClick={() => toggleSort(c.key)}
-                  className={`cursor-pointer select-none whitespace-nowrap px-3 py-[15px] transition-colors hover:text-[var(--ink2)] ${
-                    c.align === "right" ? "text-right" : ""
-                  }`}
+                  className="w-10 px-[18px] py-2.5"
+                  title="Astuce : glisse le long de cette colonne pour sélectionner plusieurs lignes"
                 >
-                  {c.label}
-                  {sortIndicator(c.key)}
+                  <input
+                    type="checkbox"
+                    aria-label="Tout sélectionner"
+                    className="h-4 w-4 cursor-pointer accent-[var(--acc)]"
+                    checked={
+                      sorted.length > 0 && sorted.every((a) => selected.has(a.id))
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelected(new Set(sorted.map((a) => a.id)));
+                      } else {
+                        clearSelection();
+                      }
+                    }}
+                  />
                 </th>
-              ))}
-              <th className="px-[22px] py-[15px] text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={colCount + 1} className="py-12">
-                  <Loader label="Chargement du stock" />
-                </td>
+                {shownColumns.map((c) => (
+                  <th
+                    key={c.key}
+                    onClick={() => toggleSort(c.key)}
+                    className={`cursor-pointer select-none whitespace-nowrap px-2.5 py-2.5 transition-colors hover:text-[var(--ink)] ${
+                      c.align === "right" ? "text-right" : ""
+                    }`}
+                  >
+                    {c.label}
+                    {sortIndicator(c.key)}
+                  </th>
+                ))}
+                <th className="px-[18px] py-2.5 text-right">Actions</th>
               </tr>
-            )}
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={colCount + 1} className="py-12">
+                    <Loader label="Chargement du stock" />
+                  </td>
+                </tr>
+              )}
+              {isError && (
+                <tr>
+                  <td colSpan={colCount} className="px-3 py-10 text-center text-error">
+                    {(error as Error).message}
+                  </td>
+                </tr>
+              )}
+              {showEmpty && (
+                <tr>
+                  <td colSpan={colCount} className="px-3 py-10 text-center text-ink-faint">
+                    Aucun article.
+                  </td>
+                </tr>
+              )}
+              {showRows && (
+                <>
+                  {rows.padTop > 0 && (
+                    <tr aria-hidden>
+                      <td
+                        colSpan={colCount}
+                        style={{ height: rows.padTop, padding: 0, border: 0 }}
+                      />
+                    </tr>
+                  )}
+                  {rows.items.map((vr) => {
+                    const a = sorted[vr.index];
+                    return (
+                      <ArticleRow
+                        key={a.id}
+                        data-index={vr.index}
+                        ref={rowVirtualizer.measureElement}
+                        a={a}
+                        shownColumns={shownColumns}
+                        isSelected={selected.has(a.id)}
+                        onToggleSelect={toggleOne}
+                        onPatch={handlePatch}
+                        onStatutChange={handleStatutChange}
+                        onDelete={handleDelete}
+                        onShowDetail={handleShowDetail}
+                      />
+                    );
+                  })}
+                  {rows.padBottom > 0 && (
+                    <tr aria-hidden>
+                      <td
+                        colSpan={colCount}
+                        style={{ height: rows.padBottom, padding: 0, border: 0 }}
+                      />
+                    </tr>
+                  )}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+        )}
+
+        {isDesktop && (
+          <div className="hidden border-t border-[var(--border)] md:block">
+            {summary}
+          </div>
+        )}
+      </section>
+
+      {/* Vue cartes mobile (< md) — virtualisée. Hors du module : imbriquer des
+          cartes dans une carte donnerait deux niveaux de bordure à 390px. */}
+      {!isDesktop && (
+        <div className="md:hidden">
+          <div ref={mobileWrapRef} className="mt-3">
+            {isLoading && <Loader label="Chargement du stock" />}
             {isError && (
-              <tr>
-                <td colSpan={colCount} className="px-3 py-10 text-center text-error">
-                  {(error as Error).message}
-                </td>
-              </tr>
+              <p className="rounded-[20px] border border-line bg-surface px-4 py-6 text-center text-error">
+                {(error as Error).message}
+              </p>
             )}
-            {!isLoading && !isError && sorted.length === 0 && (
-              <tr>
-                <td colSpan={colCount} className="px-3 py-10 text-center text-ink-faint">
-                  Aucun article.
-                </td>
-              </tr>
+            {showEmpty && (
+              <p className="rounded-[20px] border border-line bg-surface px-4 py-6 text-center text-ink-faint">
+                Aucun article.
+              </p>
             )}
             {showRows && (
               <>
-                {dPadTop > 0 && (
-                  <tr aria-hidden>
-                    <td
-                      colSpan={colCount}
-                      style={{ height: dPadTop, padding: 0, border: 0 }}
-                    />
-                  </tr>
+                {cards.padTop > 0 && (
+                  <div aria-hidden style={{ height: cards.padTop }} />
                 )}
-                {dItems.map((vr) => {
+                {cards.items.map((vr) => {
                   const a = sorted[vr.index];
                   return (
-                    <ArticleRow
+                    <ArticleCard
                       key={a.id}
                       data-index={vr.index}
-                      ref={rowVirtualizer.measureElement}
+                      ref={cardVirtualizer.measureElement}
                       a={a}
-                      shownColumns={shownColumns}
                       isSelected={selected.has(a.id)}
                       onToggleSelect={toggleOne}
-                      onPatch={handlePatch}
                       onStatutChange={handleStatutChange}
                       onDelete={handleDelete}
                       onShowDetail={handleShowDetail}
                     />
                   );
                 })}
-                {dPadBottom > 0 && (
-                  <tr aria-hidden>
-                    <td
-                      colSpan={colCount}
-                      style={{ height: dPadBottom, padding: 0, border: 0 }}
-                    />
-                  </tr>
+                {cards.padBottom > 0 && (
+                  <div aria-hidden style={{ height: cards.padBottom }} />
                 )}
               </>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+          {showRows && (
+            <div className="rounded-[20px] border border-[var(--border)] bg-surface">
+              {summary}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Compteur */}
-      <div className="mt-5 flex flex-wrap gap-x-7 gap-y-1 text-[14px] text-[var(--muted)]">
-        <span>
-          <strong className="font-bold text-[var(--ink)]">{sorted.length.toLocaleString("fr-FR")}</strong> article(s) affiché(s)
-        </span>
-        <span>
-          <strong className="font-bold text-[var(--ink)]">{totals.enStock}</strong> en stock
-        </span>
-        <span>
-          <strong className="font-bold text-[var(--ink)]">{totals.vendus}</strong> vendus
-        </span>
-        <span>
-          Marge nette filtrée :{" "}
-          <strong className="font-bold text-[#2D6A4F]">{euros(totals.net)}</strong>
-        </span>
-      </div>
-
-      {/* Barre d'action flottante (sélection en masse) — pilule sombre, suit le
-          repli de la sidebar via --sidebar-w. */}
+      {/* Barre d'action flottante (sélection en masse) — suit le repli de la
+          sidebar via --sidebar-w.
+          Elle reste flottante et n'a pas rejoint le module comme dans la
+          maquette : la liste étant virtualisée sur plus de mille lignes, une
+          barre ancrée en haut du module serait hors écran au moment précis où
+          l'on vient de sélectionner à la souris tout en bas. */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-30 flex justify-center px-4 md:bottom-6 md:left-[var(--sidebar-w)]">
-          <div className="flex flex-wrap items-center gap-2.5 rounded-full bg-[#16261D] py-2 pl-5 pr-2 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,.6)] [animation:fadeUp_.25s_cubic-bezier(.22,1,.36,1)_both]">
-            <span className="font-grotesk text-[13.5px] font-bold">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-[18px] bg-[var(--acc)] py-2 pl-5 pr-2 text-[var(--acc-ink)] shadow-[0_18px_40px_-16px_rgba(0,0,0,.6)] [animation:fadeUp_.25s_cubic-bezier(.22,1,.36,1)_both]">
+            <span className="font-mono text-[12.5px] font-bold tabular-nums">
               {selected.size} sélectionné{selected.size > 1 ? "s" : ""}
             </span>
             <span className="h-4 w-px bg-white/20" />
-            <span className="text-[12px] font-medium text-[#9FB2A7]">Statut</span>
+            <span className="text-[12px] font-medium text-[var(--acc-dim)]">Statut</span>
             <select
               value={bulkStatut}
               onChange={(e) => setBulkStatut(e.target.value)}
-              className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[13.5px] font-semibold text-white outline-none [color-scheme:dark] focus:border-white/30"
+              className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[13px] font-semibold text-white outline-none [color-scheme:dark] focus:border-white/30"
             >
               {STATUTS.filter((s) => s !== STATUT_VENDU).map((s) => (
                 <option key={s} value={s}>
@@ -1454,14 +1536,14 @@ function StockInner() {
             <button
               onClick={applyBulk}
               disabled={bulk.isPending}
-              className="rounded-full bg-[#2D6A4F] px-4 py-1.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#35815F] disabled:opacity-60"
+              className="rounded-full bg-white px-4 py-1.5 text-[13px] font-bold text-[var(--acc)] transition-colors hover:bg-[var(--acc-soft)] disabled:opacity-60"
             >
               {bulk.isPending ? "…" : "Appliquer"}
             </button>
             <button
               onClick={clearSelection}
               aria-label="Annuler la sélection"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[#9FB2A7] transition-colors hover:bg-white/10 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--acc-dim)] transition-colors hover:bg-white/10 hover:text-white"
             >
               <X className="h-[17px] w-[17px]" strokeWidth={2.2} />
             </button>

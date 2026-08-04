@@ -21,6 +21,29 @@ import { fr } from "date-fns/locale";
 
 export const dynamic = "force-dynamic";
 
+// Borne basse de la période demandée ; null = tout l'historique.
+// Arithmétique native volontaire pour « 30j » et « 3m » : `subMonths` de
+// date-fns rabat les débordements de fin de mois (31 mai − 3 mois = 28 février),
+// là où `setMonth` déborde sur le mois suivant. C'est le comportement d'origine.
+function debutPeriode(periode: string, now: Date): Date | null {
+  switch (periode) {
+    case "month":
+      return startOfMonth(now);
+    case "30j": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 30);
+      return d;
+    }
+    case "3m": {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - 3);
+      return d;
+    }
+    default:
+      return null;
+  }
+}
+
 // GET /api/dashboard — KPIs + récap par marque + CA hebdomadaire
 export async function GET(request: Request) {
   try {
@@ -44,18 +67,9 @@ export async function GET(request: Request) {
 
     // Filtre par période
     const now = new Date();
-    let depuis: Date | null = null;
-    if (periode === "month") {
-      depuis = startOfMonth(now);
-    } else if (periode === "30j") {
-      depuis = new Date(now);
-      depuis.setDate(depuis.getDate() - 30);
-    } else if (periode === "3m") {
-      depuis = new Date(now);
-      depuis.setMonth(depuis.getMonth() - 3);
-    }
+    const depuis = debutPeriode(periode, now);
     const vendusList = depuis
-      ? allVendus.filter((a) => a.dateVente && a.dateVente >= depuis!)
+      ? allVendus.filter((a) => a.dateVente && a.dateVente >= depuis)
       : allVendus;
     const vendus = vendusList.length;
     const enStock = articles.filter((a) => a.statut === "En stock").length;
@@ -63,7 +77,7 @@ export async function GET(request: Request) {
     // de la période). Nouveaux au stock : créés dans la période sélectionnée.
     const enVente = articles.filter((a) => a.statut === "En vente").length;
     const nouveaux = depuis
-      ? articles.filter((a) => a.createdAt >= depuis!).length
+      ? articles.filter((a) => a.createdAt >= depuis).length
       : totalArticles;
 
     const caTotal = vendusList.reduce((s, a) => s + (a.prixVente ?? 0), 0);
@@ -122,25 +136,27 @@ export async function GET(request: Request) {
       .sort((x, y) => y.ca - x.ca || x.marque.localeCompare(y.marque));
 
     // --- CA par semaine (8 dernières semaines, lundi → dimanche) ---
+    // Une seule structure — libellé et cumul dans le même objet — plutôt qu'un
+    // tableau de libellés et une Map de montants tenus en parallèle par indice.
     const weekKey = (d: Date) =>
       format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd");
-    const buckets = new Map<string, number>();
-    const labels: WeekPoint[] = [];
-    for (let i = 7; i >= 0; i--) {
-      const ws = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
-      const key = format(ws, "yyyy-MM-dd");
-      buckets.set(key, 0);
-      labels.push({ semaine: format(ws, "d MMM", { locale: fr }), ca: 0 });
-    }
+    const semaines = Array.from({ length: 8 }, (_, i) => {
+      const debut = startOfWeek(subWeeks(now, 7 - i), { weekStartsOn: 1 });
+      return {
+        key: weekKey(debut),
+        semaine: format(debut, "d MMM", { locale: fr }),
+        ca: 0,
+      };
+    });
+    const parSemaine = new Map(semaines.map((s) => [s.key, s]));
     for (const a of vendusList) {
       if (!a.dateVente) continue;
-      const key = weekKey(a.dateVente);
-      if (buckets.has(key)) buckets.set(key, buckets.get(key)! + (a.prixVente ?? 0));
+      const bucket = parSemaine.get(weekKey(a.dateVente));
+      if (bucket) bucket.ca += a.prixVente ?? 0;
     }
-    const keys = Array.from(buckets.keys());
-    const caParSemaine: WeekPoint[] = labels.map((l, idx) => ({
-      semaine: l.semaine,
-      ca: buckets.get(keys[idx]) ?? 0,
+    const caParSemaine: WeekPoint[] = semaines.map(({ semaine, ca }) => ({
+      semaine,
+      ca,
     }));
 
     // --- CA par jour du mois EN COURS (pour la vue « Ce mois », calée calendrier) ---
@@ -158,13 +174,17 @@ export async function GET(request: Request) {
     const caParJour = jours.map((ca, i) => ({ jour: String(i + 1), ca }));
 
     // --- Évolution mois courant vs mois précédent (CA + marge nette) ---
+    // On repart de `allVendus`, jamais de `vendusList` : celle-ci est filtrée
+    // par la période, donc en vue « Ce mois » (la période d'atterrissage) le
+    // mois précédent en était exclu — `caMoisPrecedent` tombait à 0, `pct`
+    // à null, et le badge d'évolution du héros ne s'affichait jamais.
     const debutMoisCourant = startOfMonth(new Date());
     const debutMoisPrecedent = startOfMonth(subMonths(new Date(), 1));
     let caMoisCourant = 0;
     let caMoisPrecedent = 0;
     let margeMoisCourant = 0;
     let margeMoisPrecedent = 0;
-    for (const a of vendusList) {
+    for (const a of allVendus) {
       if (!a.dateVente) continue;
       const d = a.dateVente;
       if (d >= debutMoisCourant) {
@@ -193,6 +213,7 @@ export async function GET(request: Request) {
       parMarque,
       caParSemaine,
       caParJour,
+      caMoisPrecedent,
       caDelta: delta(caMoisCourant, caMoisPrecedent),
       margeDelta: delta(margeMoisCourant, margeMoisPrecedent),
     };
