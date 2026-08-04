@@ -59,6 +59,11 @@
   --pos-soft: #e4f3ea;
   --neg-soft: #fbeee7;
   --warn-soft: #fbf3e2;
+  /* Teinte d'accent appuyée, un cran au-dessus de --acc-soft. Sert au survol
+     d'une surface qui porte DÉJÀ --acc-soft (case du calendrier ayant des
+     ventes) : --raise n'y suffit pas, il n'en diffère que de trois valeurs
+     sur 255 en thème clair, et le survol devenait invisible. */
+  --acc-soft-strong: #cfe6d9;
   --shadow: 0 8px 24px rgba(14, 20, 18, 0.08);
 }
 
@@ -90,6 +95,7 @@
   --pos-soft: #16261d;
   --neg-soft: #2a1a18;
   --warn-soft: #262019;
+  --acc-soft-strong: #2f4227;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
 }

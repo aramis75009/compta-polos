@@ -69,7 +69,10 @@ const GRID_ANIM: Record<"init" | "next" | "prev", string> = {
 type CellState = { hovered: boolean; inMonth: boolean; hasSale: boolean; today: boolean };
 
 function cellBackground({ hovered, inMonth, hasSale }: CellState): string {
-  if (hovered) return "var(--raise)";
+  // Le survol doit rester lisible sur une case qui porte déjà --acc-soft
+  // (jour avec ventes), d'où la teinte appuyée plutôt qu'une élévation
+  // neutre : --raise n'en diffère que de trois valeurs sur 255 en clair.
+  if (hovered) return "var(--acc-soft-strong)";
   if (!inMonth) return "transparent";
   return hasSale ? "var(--acc-soft)" : "var(--surface)";
 }
