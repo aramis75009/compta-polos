@@ -138,7 +138,21 @@ export function coef(n: number | null | undefined): string {
   return `${n.toFixed(2)}x`;
 }
 
-/** Formate un pourcentage (0.42 -> "42%"). */
-export function pourcent(n: number): string {
-  return `${Math.round(n * 100)}%`;
+// ── Formats d'affichage « Direction C » ────────────────────────────────────
+// Virgule décimale et espace avant le signe, comme la maquette. Partagés par le
+// Dashboard et les Statistiques, qui affichent les mêmes grandeurs.
+
+/** Pourcentage entier (0.488 -> "49 %"). */
+export function pctInt(n: number): string {
+  return `${Math.round(n * 100)} %`;
+}
+
+/** Pourcentage à la décimale (0.406 -> "40,6 %"). */
+export function pct1(n: number): string {
+  return `${(n * 100).toFixed(1).replace(".", ",")} %`;
+}
+
+/** Coefficient façon maquette (2.86 -> "2,86×"). `digits` = décimales gardées. */
+export function coefLabel(n: number, digits = 2): string {
+  return `${n.toFixed(digits).replace(".", ",")}×`;
 }

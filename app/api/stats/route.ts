@@ -53,34 +53,39 @@ export async function GET(req: NextRequest) {
     const round = (n: number) => Math.round(n * 100) / 100;
 
     // --- Meilleur jour de la semaine (lundi=0 … dimanche=6) ---
-    const parJour = new Array(7).fill(0) as number[];
-    const caJour = new Array(7).fill(0) as number[];
-    const dateRecenteJour = new Array(7).fill(null) as (Date | null)[];
+    // Un accumulateur par jour plutôt que trois tableaux tenus en parallèle :
+    // c'est ce qui faisait passer `dateRecente` par deux assertions de type.
+    const semaine = JOURS.map(() => ({
+      vendus: 0,
+      ca: 0,
+      dateRecente: null as Date | null,
+    }));
     for (const a of vendus) {
       if (!a.dateVente) continue;
-      const js = (a.dateVente.getDay() + 6) % 7; // 0 = lundi
-      parJour[js] += 1;
-      caJour[js] += a.prixVente ?? 0;
+      const jour = semaine[(a.dateVente.getDay() + 6) % 7]; // 0 = lundi
+      jour.vendus += 1;
+      jour.ca += a.prixVente ?? 0;
       // En cas d'ex-aequo sur le même jour de semaine, on garde la plus récente.
-      if (!dateRecenteJour[js] || a.dateVente > (dateRecenteJour[js] as Date)) {
-        dateRecenteJour[js] = a.dateVente;
+      if (!jour.dateRecente || a.dateVente > jour.dateRecente) {
+        jour.dateRecente = a.dateVente;
       }
     }
     const parJourSemaine = JOURS.map((jour, i) => ({
       jour,
-      vendus: parJour[i],
-      ca: round(caJour[i]),
-      dateRecente: dateRecenteJour[i] ? dateRecenteJour[i]!.toISOString() : null,
+      vendus: semaine[i].vendus,
+      ca: round(semaine[i].ca),
+      dateRecente: semaine[i].dateRecente?.toISOString() ?? null,
     }));
 
     // --- Marques les plus rentables ---
     const brands = new Map<
       string,
-      { margeNette: number; coefs: number[]; vendus: number }
+      { ca: number; margeNette: number; coefs: number[]; vendus: number }
     >();
     for (const a of vendus) {
       const b =
-        brands.get(a.marque) ?? { margeNette: 0, coefs: [], vendus: 0 };
+        brands.get(a.marque) ?? { ca: 0, margeNette: 0, coefs: [], vendus: 0 };
+      b.ca += a.prixVente ?? 0;
       b.margeNette += a.margeNette ?? 0;
       if (a.coefficient != null) b.coefs.push(a.coefficient);
       b.vendus += 1;
@@ -89,6 +94,7 @@ export async function GET(req: NextRequest) {
     const marquesRentables = Array.from(brands.entries())
       .map(([marque, b]) => ({
         marque,
+        ca: round(b.ca),
         margeNette: round(b.margeNette),
         coefMoyen: round(moyenne(b.coefs)),
         vendus: b.vendus,

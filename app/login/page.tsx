@@ -53,13 +53,13 @@ function LoginForm() {
   }
 
   const inputCls =
-    "mb-4 w-full rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3 text-[14px] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--faint-2)] focus:border-[#1B4332] focus:bg-surface";
+    "mb-4 w-full rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-3 text-[14px] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--faint-2)] focus:border-[var(--acc)] focus:bg-surface";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-sm rounded-[22px] border border-[var(--border)] bg-surface p-8 shadow-[0_14px_40px_-20px_rgba(20,53,40,.2)]">
         <div className="mb-6 flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#1B4332] font-bold text-white text-lg">
+          <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[var(--acc)] font-bold text-[var(--acc-ink)] text-lg">
             M
           </span>
           <div>
@@ -102,7 +102,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-[#1B4332] py-3 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528] disabled:opacity-60"
+              className="w-full rounded-xl bg-[var(--acc)] py-3 text-[13.5px] font-bold text-[var(--acc-ink)] shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
             >
               {loading ? "Connexion…" : "Se connecter"}
             </button>
@@ -116,7 +116,7 @@ function LoginForm() {
           </form>
         ) : forgotDone ? (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[#E4F3EA] px-4 py-4 text-[14px] font-medium text-[#2D6A4F]">
+            <div className="rounded-xl bg-[#E4F3EA] px-4 py-4 text-[14px] font-medium text-[var(--pos)]">
               Si cet email est enregistré, un lien de réinitialisation a été envoyé.
             </div>
             <button
@@ -143,7 +143,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={forgotLoading}
-              className="w-full rounded-xl bg-[#1B4332] py-3 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528] disabled:opacity-60"
+              className="w-full rounded-xl bg-[var(--acc)] py-3 text-[13.5px] font-bold text-[var(--acc-ink)] shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
             >
               {forgotLoading ? "Envoi…" : "Envoyer le lien"}
             </button>

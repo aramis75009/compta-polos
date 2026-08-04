@@ -44,9 +44,11 @@ const config: Config = {
         card: "#ffffff",
       },
       fontFamily: {
+        // Direction C n'a qu'une police d'interface : Space Grotesk, des
+        // libellés aux chiffres héros.
         sans: [
-          "var(--font-jakarta)",
-          "Plus Jakarta Sans",
+          "var(--font-grotesk)",
+          "Space Grotesk",
           "system-ui",
           "sans-serif",
         ],
@@ -56,6 +58,13 @@ const config: Config = {
           "Space Grotesk",
           "system-ui",
           "sans-serif",
+        ],
+        // Chasse fixe du Stock : SKU, montants, coefficients, micro-labels.
+        mono: [
+          "var(--font-mono)",
+          "JetBrains Mono",
+          "ui-monospace",
+          "monospace",
         ],
       },
       fontSize: {

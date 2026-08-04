@@ -1,20 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk } from "next/font/google";
+import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import Providers from "./providers";
 import AppShell from "@/components/AppShell";
 
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-jakarta",
-});
-
-// Police d'affichage (chiffres, titres, KPI) du redesign — exposée en variable
-// CSS ; n'altère pas la police de corps (Plus Jakarta Sans) des autres pages.
+// Police d'interface de Direction C : Space Grotesk porte tout, des libellés
+// aux chiffres héros. Plus Jakarta Sans a été retirée une fois Calendrier et
+// Mise en vente convertis — c'était sa dernière dépendance.
 const grotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-grotesk",
+});
+
+// Police mono du Stock (SKU, montants, micro-labels d'en-tête). Sa chasse fixe
+// est ce qui aligne les colonnes de chiffres à l'œil sur 1 200 lignes ; les
+// autres pages ne la chargent pas tant qu'elles ne posent pas `font-mono`.
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -55,7 +59,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${jakarta.variable} ${grotesk.variable} ${jakarta.className} min-h-screen bg-bg text-ink antialiased`}
+        className={`${grotesk.variable} ${mono.variable} ${grotesk.className} min-h-screen bg-bg text-ink antialiased`}
       >
         {/* Applique le thème avant le premier paint pour éviter tout flash clair
             au chargement en mode sombre. Miroir de ThemeToggle (clé identique). */}

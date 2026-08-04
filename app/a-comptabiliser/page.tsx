@@ -11,33 +11,42 @@ import {
 } from "@/lib/hooks";
 import { euros, naturalSort, STATUT_A_COMPTABILISER } from "@/lib/calc";
 import Loader from "@/components/Loader";
-import type { ArticleDTO } from "@/lib/types";
+import type { ArticleDTO, CompteVente } from "@/lib/types";
 import SellDialog from "@/components/SellDialog";
 import StatutBadge from "@/components/StatutBadge";
 import { celebrateSale } from "@/lib/celebrate";
+import { CardTitle, Frame, Module } from "@/components/console";
 
-// Petite carte KPI du redesign.
-function KpiMini({
-  value,
+/**
+ * Module de tête. La maquette remplit d'accent celui qui porte le nombre
+ * d'articles en attente — c'est la seule valeur sur laquelle on agit, les
+ * deux autres ne font que situer.
+ */
+function Tete({
   label,
-  accent,
+  children,
+  accent = false,
 }: {
-  value: string;
   label: string;
+  children: React.ReactNode;
   accent?: boolean;
 }) {
   return (
-    <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
+    <div
+      className={`rounded-[22px] p-5 ${
+        accent
+          ? "bg-[var(--acc)] text-[var(--acc-ink)]"
+          : "border border-[var(--border)] bg-surface"
+      }`}
+    >
       <div
-        className={`font-grotesk text-[30px] font-bold tracking-[-0.02em] ${
-          accent ? "text-[#2D6A4F]" : "text-[var(--ink)]"
+        className={`font-mono text-[9.5px] uppercase tracking-[0.16em] ${
+          accent ? "opacity-70" : "text-[var(--faint)]"
         }`}
       >
-        {value}
-      </div>
-      <div className="mt-1 text-[12.5px] font-semibold text-[var(--faint)]">
         {label}
       </div>
+      {children}
     </div>
   );
 }
@@ -58,10 +67,15 @@ export default function AComptabiliserPage() {
   const [target, setTarget] = useState<ArticleDTO | null>(null);
   const [toDelete, setToDelete] = useState<ArticleDTO | null>(null);
 
-  const confirm = (prixVente: number, dateVenteISO: string, canal: string) => {
+  const confirm = (
+    prixVente: number,
+    dateVenteISO: string,
+    canal: string,
+    compteVente: CompteVente,
+  ) => {
     if (!target) return;
     valider.mutate(
-      { id: target.id, prixVente, dateVente: dateVenteISO, canal },
+      { id: target.id, prixVente, dateVente: dateVenteISO, canal, compteVente },
       {
         onSuccess: ({ article }) => {
           setTarget(null);
@@ -77,44 +91,52 @@ export default function AComptabiliserPage() {
     supprimer.mutate(toDelete.id, { onSuccess: () => setToDelete(null) });
   };
 
+  // Rendus deux fois (carte mobile, ligne de tableau) : une seule définition.
+  const remettre = (a: ArticleDTO) =>
+    remettreEnStock.mutate({ id: a.id, patch: { statut: "En stock" } });
+  const remiseEnCours = (a: ArticleDTO) =>
+    remettreEnStock.isPending && remettreEnStock.variables?.id === a.id;
+
   const showEmpty = !isLoading && !isError && articles.length === 0;
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <header className="mb-[22px]">
-        <p className="text-[14.5px] font-medium text-[var(--muted)]">
-          Les ventes en attente de saisie comptable.
-        </p>
-      </header>
-
-      {/* Mini stats */}
-      <div className="mb-[22px] grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiMini
-          value={String(articles.length)}
-          label="Ventes en attente"
-          accent={articles.length === 0}
-        />
-        <KpiMini
-          value={dashboard ? dashboard.vendus.toLocaleString("fr-FR") : "—"}
-          label="Ventes comptabilisées"
-        />
-        <KpiMini value="Temps réel" label="Synchronisation" />
-      </div>
+    <Frame>
+      {/* Le titre et le kicker « VENTES EN ATTENTE » sont posés par la TopBar. */}
+      <section className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-3">
+        <Tete label="Ventes en attente" accent>
+          <div className="mt-2 text-[34px] font-bold tabular-nums">
+            {articles.length}
+          </div>
+        </Tete>
+        <Tete label="Ventes comptabilisées">
+          <div className="mt-2 text-[34px] font-bold tabular-nums">
+            {dashboard ? dashboard.vendus.toLocaleString("fr-FR") : "—"}
+          </div>
+        </Tete>
+        <Tete label="Synchro">
+          <div className="mt-3 flex items-center gap-2.5">
+            <span className="inline-block h-[9px] w-[9px] flex-none rounded-full bg-[var(--pos)]" />
+            <span className="text-[15px] font-semibold">Temps réel</span>
+          </div>
+          <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--faint)]">
+            Trello · étiquette « à comptabiliser »
+          </div>
+        </Tete>
+      </section>
 
       {/* Empty state (synchro auto, pas de bouton) */}
       {showEmpty && (
-        <div className="rounded-[24px] border border-[var(--border)] bg-surface px-8 py-[70px] text-center">
+        <div className="rounded-[26px] border border-[var(--border)] bg-surface px-8 py-[70px] text-center">
           <div
-            className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full shadow-[0_16px_30px_-16px_rgba(45,106,79,.55)]"
+            className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full shadow-[var(--shadow)]"
             style={{
-              background:
-                "radial-gradient(circle at 30% 25%, #E4F3EA, #CDEAD9)",
+              background: "var(--acc-soft)",
               animation: "pop .6s cubic-bezier(.2,.8,.2,1) both",
             }}
           >
-            <Check className="h-12 w-12 text-[#1B4332]" strokeWidth={2.6} />
+            <Check className="h-12 w-12 text-[var(--acc)]" strokeWidth={2.6} />
           </div>
-          <h2 className="font-grotesk text-[24px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+          <h2 className="text-[24px] font-bold tracking-[-0.02em] text-[var(--ink)]">
             Tout est à jour !
           </h2>
           <p className="mx-auto mt-2.5 max-w-[400px] text-[14.5px] font-medium leading-[1.55] text-[var(--muted)]">
@@ -127,7 +149,7 @@ export default function AComptabiliserPage() {
       {/* États chargement / erreur */}
       {isLoading && <Loader />}
       {isError && (
-        <div className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-10 text-center text-[#C2603F]">
+        <div className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-10 text-center font-mono text-[12px] text-[var(--neg)]">
           {(error as Error).message}
         </div>
       )}
@@ -140,10 +162,10 @@ export default function AComptabiliserPage() {
             {sorted.map((a) => (
               <div
                 key={a.id}
-                className="rounded-[18px] border border-[var(--border)] bg-surface p-4"
+                className="rounded-[22px] border border-[var(--border)] bg-surface p-4"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-grotesk font-bold text-[var(--ink)]">
+                  <span className="truncate font-mono text-[12.5px] font-bold text-[var(--ink)]">
                     {a.sku}
                   </span>
                   <StatutBadge statut={a.statut} />
@@ -165,29 +187,21 @@ export default function AComptabiliserPage() {
                 <div className="mt-4 space-y-2">
                   <button
                     onClick={() => setTarget(a)}
-                    className="w-full rounded-xl bg-[#1B4332] px-4 py-3 text-[13.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+                    className="w-full rounded-xl bg-[var(--acc)] px-4 py-3 text-[13.5px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
                   >
                     Valider
                   </button>
                   <button
-                    onClick={() =>
-                      remettreEnStock.mutate({
-                        id: a.id,
-                        patch: { statut: "En stock" },
-                      })
-                    }
-                    disabled={
-                      remettreEnStock.isPending &&
-                      remettreEnStock.variables?.id === a.id
-                    }
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-surface px-4 py-3 text-[13.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
+                    onClick={() => remettre(a)}
+                    disabled={remiseEnCours(a)}
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-surface px-4 py-3 text-[13.5px] font-semibold text-[var(--acc)] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
                   >
                     <RotateCw className="h-4 w-4" strokeWidth={2} />
                     Remettre en stock
                   </button>
                   <button
                     onClick={() => setToDelete(a)}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#F3D9CC] bg-[#FBEEE7] px-4 py-3 text-[13.5px] font-semibold text-[#C2603F] transition-colors hover:bg-[#F6E1D6]"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-[13.5px] font-semibold text-[var(--neg)] transition-colors hover:border-[var(--neg)]"
                   >
                     <Trash2 className="h-4 w-4" strokeWidth={2} />
                     Supprimer
@@ -198,10 +212,17 @@ export default function AComptabiliserPage() {
           </div>
 
           {/* Tableau (≥ md) */}
-          <div className="hidden overflow-x-auto rounded-[20px] border border-[var(--border)] bg-surface md:block">
+          <Module className="hidden overflow-hidden md:block">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-3 pt-[18px]">
+              <CardTitle className="">File d&apos;attente comptable</CardTitle>
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--faint)]">
+                {articles.length} EN ATTENTE
+              </span>
+            </div>
+            <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] border-collapse text-[14px]">
               <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
+                <tr className="border-b border-[var(--border)] bg-[var(--tint)] text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--faint)]">
                   <th className="px-[22px] py-[15px]">SKU</th>
                   <th className="px-3 py-[15px]">Marque</th>
                   <th className="px-3 py-[15px]">Catégorie</th>
@@ -220,7 +241,7 @@ export default function AComptabiliserPage() {
                   >
                     <td className="px-[22px] py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-grotesk font-bold text-[var(--ink)]">
+                        <span className="font-mono text-[12.5px] font-bold text-[var(--ink)]">
                           {a.sku}
                         </span>
                         <StatutBadge statut={a.statut} />
@@ -246,22 +267,14 @@ export default function AComptabiliserPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setTarget(a)}
-                          className="rounded-full bg-[#1B4332] px-4 py-1.5 text-[12.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+                          className="rounded-full bg-[var(--acc)] px-4 py-1.5 text-[12.5px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
                         >
                           Valider
                         </button>
                         <button
-                          onClick={() =>
-                            remettreEnStock.mutate({
-                              id: a.id,
-                              patch: { statut: "En stock" },
-                            })
-                          }
-                          disabled={
-                            remettreEnStock.isPending &&
-                            remettreEnStock.variables?.id === a.id
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-[#1B4332] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
+                          onClick={() => remettre(a)}
+                          disabled={remiseEnCours(a)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-[var(--acc)] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
                           title="Remettre en stock"
                         >
                           <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
@@ -269,7 +282,7 @@ export default function AComptabiliserPage() {
                         </button>
                         <button
                           onClick={() => setToDelete(a)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-[#F3D9CC] bg-[#FBEEE7] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2603F] transition-colors hover:bg-[#F6E1D6]"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--neg)] transition-colors hover:border-[var(--neg)]"
                           title="Supprimer"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
@@ -281,7 +294,8 @@ export default function AComptabiliserPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </Module>
         </>
       )}
 
@@ -290,6 +304,7 @@ export default function AComptabiliserPage() {
         sku={target?.sku}
         defaultPrix={target?.prixVente}
         defaultCanal={target?.canal}
+        defaultCompteVente={target?.compteVente}
         pending={valider.isPending}
         error={valider.isError ? (valider.error as Error).message : null}
         onClose={() => setTarget(null)}
@@ -305,18 +320,18 @@ export default function AComptabiliserPage() {
             className="w-full max-w-md rounded-[20px] border border-[var(--border)] bg-surface p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="font-grotesk text-[20px] font-bold text-[var(--ink)]">
+            <h2 className="text-[17px] font-bold tracking-[-0.02em] text-[var(--ink)]">
               Supprimer l’article
             </h2>
             <p className="mt-2 text-[14px] text-[var(--muted)]">
               Supprimer l’article{" "}
-              <span className="font-grotesk font-bold text-[var(--ink)]">
+              <span className="font-mono text-[12.5px] font-bold text-[var(--ink)]">
                 {toDelete.sku}
               </span>{" "}
               ? Cette action est irréversible.
             </p>
             {supprimer.isError && (
-              <p className="mt-3 text-[13px] text-[#C2603F]">
+              <p className="mt-3 font-mono text-[12px] text-[var(--neg)]">
                 {(supprimer.error as Error).message}
               </p>
             )}
@@ -331,7 +346,7 @@ export default function AComptabiliserPage() {
               <button
                 onClick={confirmDelete}
                 disabled={supprimer.isPending}
-                className="rounded-full bg-[#C2603F] px-4 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-[#A84F31] disabled:opacity-50"
+                className="rounded-full bg-[var(--neg)] px-4 py-1.5 text-[13px] font-bold text-[var(--bg)] transition-colors hover:opacity-90 disabled:opacity-50"
               >
                 {supprimer.isPending ? "Suppression…" : "Supprimer"}
               </button>
@@ -339,6 +354,6 @@ export default function AComptabiliserPage() {
           </div>
         </div>
       )}
-    </main>
+    </Frame>
   );
 }

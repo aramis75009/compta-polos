@@ -43,3 +43,9 @@ next-env.d.ts
 # scripts one-shot
 scripts/seed-alex.mjs
 scripts/init-user.mjs
+
+# Sauvegarde locale Orbite (avant refonte visuelle) — ne pas committer
+.backup-orbite/
+
+# Brief de design Orbite — note de travail locale, hors dépôt
+orbite-pour-claude-design.md

@@ -27,6 +27,7 @@ export const articleSelect = {
   titreAnnonce: true,
   descriptionAnnonce: true,
   motsClesAnnonce: true,
+  compteVente: true,
   commande: {
     select: { coutTotal: true, nbArticles: true, coefObjectif: true, fournisseur: true },
   },
@@ -67,5 +68,6 @@ export function toDTO(a: ArticleForDTO): ArticleDTO {
     titreAnnonce: a.titreAnnonce,
     descriptionAnnonce: a.descriptionAnnonce,
     motsClesAnnonce: a.motsClesAnnonce,
+    compteVente: a.compteVente,
   };
 }

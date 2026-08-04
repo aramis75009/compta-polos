@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Plus, Check, SquarePen, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,9 +16,16 @@ import { euros } from "@/lib/calc";
 import { getObjectifMensuel, setObjectifMensuel } from "@/lib/objectif";
 import Modal from "@/components/Modal";
 import Loader from "@/components/Loader";
+import { CardTitle, Frame, Module } from "@/components/console";
 
 const inputCls =
-  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[var(--border-strong)]";
+  "min-h-[44px] w-full rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)] px-3.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[var(--acc)]";
+
+const labelCls =
+  "mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)]";
+
+// Prénom affiché, identique au Dashboard et à AccountMenu.
+const NOM = process.env.NEXT_PUBLIC_USER_NAME?.trim() || "";
 
 const TOUTES = "Toutes";
 
@@ -51,13 +59,12 @@ const CATEGORIES_LIST = [
   "Bermuda",
 ];
 
-function brandBadge(marque: string | null): { bg: string; text: string } {
-  const m = (marque ?? "").toLowerCase();
-  if (m.includes("tommy")) return { bg: "#E2F7F8", text: "#0892A0" };
-  if (m.includes("lacoste")) return { bg: "#ECEEF0", text: "#2B3942" };
-  if (m.includes("adidas")) return { bg: "#FBEEE7", text: "#B5613B" };
-  return { bg: "#EAF3ED", text: "#1B4332" };
-}
+// Jeton de marque. Direction C n'accorde de couleur qu'aux statuts et aux
+// canaux (cf. `lib/statutColors.ts`) ; les marques passent donc par le jeton
+// neutre de la maquette — le nom porte déjà l'information, la teinte ne
+// faisait que la répéter en trois palettes codées en dur.
+const chipCls =
+  "rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 font-mono text-[10.5px] text-[var(--ink2)]";
 
 type FormState = {
   nom: string;
@@ -97,17 +104,17 @@ function ObjectifMensuelCard() {
   };
 
   return (
-    <div className="mb-[26px] rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
+    <Module className="p-[22px]">
       <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--tint)] text-[#1B4332]">
+        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[12px] bg-[var(--surface-2)] text-[var(--acc)]">
           <Target className="h-[19px] w-[19px]" strokeWidth={2} />
         </span>
-        <div>
-          <div className="font-grotesk text-[15.5px] font-bold text-[var(--ink)]">
+        <div className="min-w-0">
+          <div className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--ink)]">
             Objectif de CA mensuel
           </div>
-          <div className="text-[12.5px] font-medium text-[var(--muted)]">
-            Affiché en anneau de progression sur le Dashboard (mois en cours).
+          <div className="mt-[3px] font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)]">
+            Anneau de progression du Dashboard · mois en cours
           </div>
         </div>
       </div>
@@ -121,29 +128,31 @@ function ObjectifMensuelCard() {
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && save()}
             placeholder="0"
-            className="w-44 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-4 py-2.5 pr-9 text-[15px] font-semibold text-[var(--ink)] outline-none transition-colors focus:border-[#1B4332] focus:bg-surface"
+            className="min-h-[44px] w-44 rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)] px-4 pr-9 text-[15px] font-semibold text-[var(--ink)] outline-none transition-colors focus:border-[var(--acc)]"
           />
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[14px] font-semibold text-[var(--faint)]">
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-[var(--faint)]">
             €
           </span>
         </div>
         <button
           onClick={save}
-          className="rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-[#143528]"
+          className="min-h-[44px] rounded-full bg-[var(--acc)] px-5 text-[12.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
         >
           Enregistrer
         </button>
         {saved != null && (
-          <span className="text-[13px] font-medium text-[var(--muted)]">
-            Actuel : <b className="text-[var(--ink)]">{euros(saved)}</b>
+          <span className="font-mono text-[12px] text-[var(--ink2)]">
+            Actuel · <b className="text-[var(--ink)]">{euros(saved)}</b>
           </span>
         )}
       </div>
-    </div>
+    </Module>
   );
 }
 
 export default function PromptsPage() {
+  const { data: session } = useSession();
+  const email = session?.user?.email ?? null;
   const { data: prompts = [], isLoading } = usePrompts();
   const create = useCreatePrompt();
   const update = useUpdatePrompt();
@@ -153,6 +162,7 @@ export default function PromptsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function openNew() {
     setEditId(null);
@@ -193,130 +203,182 @@ export default function PromptsPage() {
     }
   }
 
+  // Prompt affiché dans le panneau. `selected` se recale sur le premier
+  // modèle tant qu'aucun choix explicite n'a été fait — et après une
+  // suppression, où l'id retenu ne correspond plus à rien.
+  const selected =
+    prompts.find((p) => p.id === selectedId) ?? prompts[0] ?? null;
+
   const pending = create.isPending || update.isPending;
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[14.5px] font-medium text-[var(--muted)]">
-            Tes modèles de génération d&apos;annonces.
-          </p>
-        </div>
+    <Frame>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <button
           onClick={openNew}
-          className="inline-flex items-center gap-2 self-start rounded-xl bg-[#1B4332] px-4 py-2.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(20,53,40,.8)] transition-colors hover:bg-[#143528]"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[var(--acc)] px-5 text-[12.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
         >
           <Plus className="h-4 w-4" strokeWidth={2.3} />
           Nouveau prompt
         </button>
-      </header>
+      </div>
 
-      {/* Compte */}
-      <div className="mb-[26px] grid grid-cols-1 gap-[18px] md:grid-cols-[1.4fr_1fr_1fr]">
-        <div className="flex items-center gap-3.5 rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[18px] font-bold text-[#CFE6D8]">
-            A
+      <div className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-[1.4fr_1fr_1fr]">
+        {/* Carte compte. Le prénom vient de NEXT_PUBLIC_USER_NAME, comme dans
+            le Dashboard et AccountMenu ; l'e-mail vient de la session. Les
+            deux étaient écrits en dur dans le JSX. */}
+        <Module className="flex items-center gap-3.5 p-[20px]">
+          <span className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[var(--acc)] text-[18px] font-bold text-[var(--acc-ink)]">
+            {(NOM || email?.split("@")[0] || "·").slice(0, 1).toUpperCase()}
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[15.5px] font-bold text-[var(--ink)]">
+              {NOM || email?.split("@")[0] || "—"}
+            </span>
+            <span className="mt-0.5 block truncate font-mono text-[11px] text-[var(--faint)]">
+              {email ?? "—"}
+            </span>
+          </span>
+        </Module>
+        <Module className="p-[20px]">
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
+            MODÈLE IA
           </div>
-          <div>
-            <div className="text-[15.5px] font-bold text-[var(--ink)]">Aramis</div>
-            <div className="text-[13px] font-medium text-[var(--faint)]">
-              aramis.begnene@gmail.com
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
-          <div className="text-[12px] font-semibold text-[var(--faint)]">Modèle IA</div>
-          <div className="mt-1 font-grotesk text-[24px] font-bold tracking-[-0.02em]">
+          <div className="mt-2 text-[30px] font-bold tracking-[-0.02em]">
             Gemini Flash
           </div>
-        </div>
-        <div className="rounded-[18px] border border-[var(--border)] bg-surface px-[22px] py-5">
-          <div className="text-[12px] font-semibold text-[var(--faint)]">Modèles</div>
-          <div className="mt-1 font-grotesk text-[24px] font-bold tracking-[-0.02em]">
-            {prompts.length} prompt{prompts.length > 1 ? "s" : ""}
+        </Module>
+        <Module className="p-[20px]">
+          <div className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
+            MODÈLES ENREGISTRÉS
           </div>
-        </div>
+          <div className="mt-2 text-[30px] font-bold tracking-[-0.02em]">
+            {prompts.length}
+          </div>
+        </Module>
       </div>
 
       {/* Objectif mensuel (#15) — réglé ici, affiché en anneau sur le Dashboard */}
       <ObjectifMensuelCard />
 
-      <h2 className="mx-0.5 mb-4 font-grotesk text-[19px] font-bold text-[var(--ink)]">
-        Modèles de prompts
-      </h2>
+      {/* ── Maître-détail : colonne de sélection 300 px + panneau ────────
+          La maquette range les prompts en liste étroite plutôt qu'en grille
+          de cartes : à 15 modèles la grille obligeait à balayer la page pour
+          comparer deux libellés. L'édition reste dans la modale — le panneau
+          est en lecture, comme la maquette qui n'y pose aucun champ. */}
+      <section className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-[300px_1fr]">
 
-      {isLoading ? (
-        <Loader />
-      ) :prompts.length === 0 ? (
-        <p className="rounded-[20px] border border-[var(--border)] bg-surface px-6 py-12 text-center text-[var(--faint)]">
-          Aucun prompt.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
+        {/* Colonne de sélection */}
+        <Module className="p-[16px]">
+          <div className="mb-3 flex items-center justify-between">
+            <CardTitle className="">Prompts</CardTitle>
+            <button
+              onClick={openNew}
+              aria-label="Nouveau prompt"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[var(--acc)] text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+            </button>
+          </div>
+
+          {isLoading && <Loader size="sm" />}
+
+          {!isLoading && prompts.length === 0 && (
+            <p className="py-6 text-center font-mono text-[11px] text-[var(--faint)]">
+              Aucun prompt.
+            </p>
+          )}
+
           {prompts.map((p) => {
-            const badge = brandBadge(p.marque);
+            const actif = p.id === selected?.id;
             return (
-              <div
+              <button
                 key={p.id}
-                className="flex flex-col gap-3.5 rounded-[20px] border border-[var(--border)] bg-surface px-6 py-5 transition-all hover:border-[var(--border-strong)] hover:shadow-[0_14px_30px_-22px_rgba(20,53,40,.5)]"
+                onClick={() => setSelectedId(p.id)}
+                className={`mb-2 block min-h-[56px] w-full rounded-[16px] border px-3.5 py-3 text-left transition-colors ${
+                  actif
+                    ? "border-[var(--acc)] bg-[var(--acc)] text-[var(--acc-ink)]"
+                    : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink)] hover:border-[var(--border-strong)]"
+                }`}
               >
-                <div className="flex items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span
-                      className="rounded-full px-2.5 py-1 text-[12px] font-bold"
-                      style={{ background: badge.bg, color: badge.text }}
-                    >
-                      {p.marque ?? "Toutes marques"}
-                    </span>
-                    <span className="text-[12px] font-semibold text-[var(--faint-2)]">
-                      {p.categorie ?? "Toutes catégories"}
-                    </span>
-                  </div>
-                  {p.estDefaut && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F3EA] px-2.5 py-1 text-[11.5px] font-bold text-[#2D6A4F]">
-                      <Check className="h-3 w-3" strokeWidth={2.6} />
-                      Par défaut
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+                <span className="block truncate text-[13.5px] font-semibold">
                   {p.nom}
-                </div>
-                <p className="line-clamp-3 text-[13.5px] font-medium leading-[1.55] text-[var(--muted)]">
-                  {p.contenu}
-                </p>
-
-                <div className="mt-auto flex items-center justify-between border-t border-[var(--bg)] pt-3.5">
-                  <span className="text-[12px] font-semibold text-[var(--faint-2)]">
-                    Modifié le {new Date(p.updatedAt).toLocaleDateString("fr-FR")}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openEdit(p)}
-                      className="inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--tint)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[#E7EDE5]"
-                    >
-                      <SquarePen className="h-3.5 w-3.5" strokeWidth={2} />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Supprimer le prompt « ${p.nom} » ?`))
-                          del.mutate(p.id);
-                      }}
-                      aria-label="Supprimer"
-                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-[var(--tint)] text-[var(--faint-2)] transition-colors hover:bg-[#FBEEE7] hover:text-[#B5613B]"
-                    >
-                      <Trash2 className="h-[15px] w-[15px]" strokeWidth={2} />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                </span>
+                <span
+                  className={`mt-[3px] block truncate font-mono text-[9.5px] uppercase tracking-[0.1em] ${
+                    actif ? "opacity-70" : "text-[var(--faint)]"
+                  }`}
+                >
+                  {p.marque ?? "TOUTES MARQUES"} · {p.categorie ?? "TOUTES CATÉGORIES"}
+                  {p.estDefaut ? " · DÉFAUT" : ""}
+                </span>
+              </button>
             );
           })}
-        </div>
-      )}
+        </Module>
+
+        {/* Panneau de détail */}
+        <Module className="flex flex-col gap-[14px] p-[22px]">
+          {selected ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <span className="text-[17px] font-bold tracking-[-0.02em]">
+                  {selected.nom}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEdit(selected)}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-[12.5px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+                  >
+                    <SquarePen className="h-3.5 w-3.5" strokeWidth={2} />
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Supprimer le prompt « ${selected.nom} » ?`)) {
+                        del.mutate(selected.id);
+                        setSelectedId(null);
+                      }
+                    }}
+                    aria-label="Supprimer"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--faint)] transition-colors hover:border-[var(--neg)] hover:text-[var(--neg)]"
+                  >
+                    <Trash2 className="h-[15px] w-[15px]" strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Le corps du prompt : chasse fixe, interligne large — c'est du
+                  texte qu'on relit et qu'on ajuste, pas de la prose. */}
+              <div className="min-h-[220px] whitespace-pre-wrap rounded-[18px] border border-[var(--border)] bg-[var(--surface-2)] p-4 font-mono text-[12.5px] leading-[1.7] text-[var(--ink2)]">
+                {selected.contenu}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className={chipCls}>{selected.marque ?? "Toutes marques"}</span>
+                <span className={chipCls}>
+                  {selected.categorie ?? "Toutes catégories"}
+                </span>
+                {selected.estDefaut && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--acc)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--acc-ink)]">
+                    <Check className="h-3 w-3" strokeWidth={2.6} />
+                    Défaut
+                  </span>
+                )}
+                <span className="rounded-full border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--faint)]">
+                  Modifié le {new Date(selected.updatedAt).toLocaleDateString("fr-FR")}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="py-16 text-center font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--faint)]">
+              {prompts.length > 0
+                ? "Sélectionne un prompt"
+                : "Crée ton premier prompt"}
+            </p>
+          )}
+        </Module>
+      </section>
 
       <Modal
         open={open}
@@ -325,7 +387,7 @@ export default function PromptsPage() {
       >
         <div className="max-h-[70vh] space-y-4 overflow-y-auto">
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
+            <label className={labelCls}>
               Nom
             </label>
             <input
@@ -338,7 +400,7 @@ export default function PromptsPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
+              <label className={labelCls}>
                 Marque
               </label>
               <input
@@ -355,7 +417,7 @@ export default function PromptsPage() {
               </datalist>
             </div>
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
+              <label className={labelCls}>
                 Catégorie
               </label>
               <input
@@ -374,10 +436,10 @@ export default function PromptsPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-semibold text-[var(--muted)]">
+            <label className={labelCls}>
               Contenu du prompt
             </label>
-            <p className="mb-2 rounded-lg bg-[var(--tint)] px-3 py-2 text-[12px] text-[var(--muted)]">
+            <p className="mb-2 rounded-[12px] border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 font-mono text-[11px] leading-[1.7] text-[var(--ink2)]">
               Placeholders disponibles : <code>{"{marque}"}</code>,{" "}
               <code>{"{categorie}"}</code>, <code>{"{taille}"}</code>,{" "}
               <code>{"{etat}"}</code>, <code>{"{matiere}"}</code>,{" "}
@@ -398,31 +460,33 @@ export default function PromptsPage() {
               type="checkbox"
               checked={form.estDefaut}
               onChange={(e) => setForm({ ...form, estDefaut: e.target.checked })}
-              className="h-4 w-4 cursor-pointer accent-[#1B4332]"
+              className="h-4 w-4 cursor-pointer accent-[var(--acc)]"
             />
             Définir comme prompt par défaut
           </label>
 
-          {error && <p className="text-[13px] text-[#C2603F]">{error}</p>}
+          {error && (
+            <p className="font-mono text-[12px] text-[var(--neg)]">{error}</p>
+          )}
 
           <div className="flex justify-end gap-3 pt-1">
             <button
               onClick={() => setOpen(false)}
               disabled={pending}
-              className="rounded-full border border-[var(--border)] bg-surface px-4 py-2 text-[13px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--tint)] disabled:opacity-50"
+              className="min-h-[44px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-[12.5px] font-medium text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               onClick={submit}
               disabled={pending}
-              className="rounded-full bg-[#1B4332] px-5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[#143528] disabled:opacity-60"
+              className="min-h-[44px] rounded-full bg-[var(--acc)] px-5 text-[12.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
             >
               {pending ? "Enregistrement…" : "Enregistrer"}
             </button>
           </div>
         </div>
       </Modal>
-    </main>
+    </Frame>
   );
 }

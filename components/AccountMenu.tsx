@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { UserCircle, LogOut } from "lucide-react";
+import { useDismissOnOutside } from "@/lib/useDismiss";
 
 // Avatar utilisateur + menu compte, dans la barre supérieure (à droite du thème).
 // L'initiale est dérivée de NEXT_PUBLIC_USER_NAME (fallback « A »).
@@ -12,23 +13,7 @@ const INITIAL = (NAME.charAt(0) || "A").toUpperCase();
 
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const ref = useDismissOnOutside<HTMLDivElement>(open, () => setOpen(false));
 
   return (
     <div ref={ref} className="relative flex items-center">
@@ -36,7 +21,7 @@ export default function AccountMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Mon compte"
         aria-expanded={open}
-        className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[15px] font-bold text-[#CFE6D8] transition-transform hover:scale-105"
+        className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[var(--acc)] font-grotesk text-[15px] font-bold text-[var(--acc-dim)] transition-transform hover:scale-105"
       >
         {INITIAL}
       </button>
@@ -44,7 +29,7 @@ export default function AccountMenu() {
       {open && (
         <div className="absolute right-0 top-[calc(100%+10px)] w-[214px] overflow-hidden rounded-[16px] border border-line bg-surface py-1.5 shadow-[0_26px_60px_-24px_rgba(20,53,40,.5)] [animation:popIn_.16s_ease_both] [transform-origin:top_right]">
           <div className="flex items-center gap-3 border-b border-bg px-3.5 py-3">
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1B4332] font-grotesk text-[13.5px] font-bold text-[#CFE6D8]">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--acc)] font-grotesk text-[13.5px] font-bold text-[var(--acc-dim)]">
               {INITIAL}
             </span>
             <span className="min-w-0">

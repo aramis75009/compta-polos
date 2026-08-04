@@ -31,7 +31,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label={dark ? "Passer en thème clair" : "Passer en thème sombre"}
       title={dark ? "Thème clair" : "Thème sombre"}
-      className="flex h-10 w-10 items-center justify-center rounded-[11px] text-nav transition-colors hover:bg-tint hover:text-[#1B4332]"
+      className="flex h-10 w-10 items-center justify-center rounded-[11px] text-nav transition-colors hover:bg-tint hover:text-[var(--acc)]"
     >
       {dark ? (
         <Sun className="h-[17px] w-[17px]" strokeWidth={2} />

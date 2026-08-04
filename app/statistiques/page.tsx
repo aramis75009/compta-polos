@@ -1,37 +1,56 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, Check, ChevronDown, Zap, Clock } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useCommandes, useStats } from "@/lib/hooks";
-import { coef, euros } from "@/lib/calc";
+import { coefLabel, euros, pct1 } from "@/lib/calc";
 import type {
   CanalCA,
   CommandeDTO,
+  StatsBrandRow,
   StatutCount,
+  TopArticle,
   WeekdayPoint,
 } from "@/lib/types";
 import { statutColor } from "@/lib/statutColors";
+import { canalColor } from "@/lib/canalColors";
+import { CardTitle, Eyebrow, Frame } from "@/components/console";
 import Loader from "@/components/Loader";
 
-// "9 juin 2026" — date réelle du meilleur jour de la semaine.
-const formatDateLongue = (iso: string) =>
-  new Date(iso).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+// ─────────────────────────────────────────────────────────────────────────
+// Statistiques — langage visuel « Direction C — Console tactile ».
+//
+// Conventions héritées du Dashboard : valeurs arbitraires relevées sur la
+// maquette (la demi-pixellisation 10,5 / 12,5 / 9,5 n'existe pas dans
+// l'échelle Tailwind), bascule des grilles à `min-[900px]:` comme la maquette
+// et non à `md:`.
+//
+// ── Agencement ───────────────────────────────────────────────────────────
+// La page se lit en cinq bandes, du contexte vers le détail :
+//
+//   1. PÉRIMÈTRE   le sujet de la page : de quoi parlent tous les chiffres
+//   2. ARGENT      CA, vitesse, projection — trois cartes courtes
+//   3. FORME       meilleur jour, répartition des statuts — deux graphes
+//   4. MARQUES     le classement analytique, pleine largeur
+//   5. TOP 5       les meilleures ventes, cinq cartes
+//
+// Les bandes 4 et 5 sont en pleine largeur *par construction* : ce sont les
+// blocs dont la hauteur dépend du volume de données (10 marques ici, 6 dans
+// la maquette), et les mettre côte à côte garantissait un trou sous le plus
+// court. Les bandes 2 et 3 n'ont pas ce problème — hauteurs bornées.
+//
+// ── Écarts assumés vis-à-vis de la maquette ──────────────────────────────
+//   · le graphe « Meilleur jour » compte des VENTES, pas des euros : c'est ce
+//     que cette carte mesure depuis toujours ;
+//   · une ligne d'alerte s'ajoute sous la projection au-delà d'un an ;
+//   · les tableaux passent en cartes sous 900px (CLAUDE.md : jamais de
+//     tableau sur mobile) — la maquette, elle, les fait défiler.
+// ─────────────────────────────────────────────────────────────────────────
 
-const frNum = (n: number, d = 1) =>
-  n.toLocaleString("fr-FR", { maximumFractionDigits: d });
+const TOUT_HISTORIQUE = "Tout l’historique";
 
-
-function Frame({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-[var(--bg)] px-5 py-7 text-[var(--ink)] md:px-[38px] md:py-[30px] md:pb-[46px]">
-      {children}
-    </main>
-  );
-}
+// Le vide se dit d'une seule façon sur cet écran, quel que soit le bloc.
+const AUCUNE_VENTE = "AUCUNE VENTE SUR LE PÉRIMÈTRE";
 
 // « 10 juin 2026 »
 const dateLongue = (iso: string) =>
@@ -41,139 +60,190 @@ const dateLongue = (iso: string) =>
     year: "numeric",
   });
 
-const TOUT_HISTORIQUE = "Tout l’historique";
+const frNum = (n: number, d = 1) =>
+  n.toLocaleString("fr-FR", { maximumFractionDigits: d });
 
-// ── Sélecteur de périmètre : tout l'historique ou une commande ──
-// Cinq des sept commandes portent le même fournisseur : la date est le seul
-// discriminant, elle doit donc apparaître dans chaque entrée.
-function ScopePicker({
+// Pilule mono sur fond creusé — le jeton de fait de Direction C (cf. la carte
+// « TOTAL INVESTI » de l'écran Commandes : 14 COMMANDES, 1 243 PIÈCES…).
+function Fact({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="whitespace-nowrap rounded-full bg-[var(--surface-2)] px-[13px] py-[7px] font-mono text-[10.5px] text-[var(--ink2)]">
+      {children}
+    </span>
+  );
+}
+
+function Empty({ children = AUCUNE_VENTE }: { children?: string }) {
+  return (
+    <div className="py-[24px] text-center font-mono text-[11px] text-[var(--faint)]">
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Bande 1 — Périmètre
+//
+// C'est le sujet de la page : tout ce qui suit est « de » ce périmètre. Le
+// nom du périmètre EST le déclencheur du menu — il n'y a donc plus ni libellé
+// « Basé sur… » qui répétait le bouton, ni contrôle orphelin à l'autre bout
+// d'une ligne vide. Les jetons de droite disent ce que ce périmètre contient,
+// information qui manquait entièrement dès qu'on choisissait une commande.
+// ─────────────────────────────────────────────────────────────────────────
+
+function ScopeBar({
   commandes,
   commandeId,
-  label,
   onSelect,
+  facts,
 }: {
   commandes: CommandeDTO[];
   commandeId: string | null;
-  label: string;
   onSelect: (id: string | null) => void;
+  facts: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const selected = commandes.find((c) => c.id === commandeId) ?? null;
+  const nom = selected ? selected.fournisseur : TOUT_HISTORIQUE;
 
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <p className="text-[14.5px] font-medium text-[var(--muted)]">
-          {commandeId
-            ? "Analyse de la commande sélectionnée."
-            : "Analyse de la performance de ta revente."}
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="relative">
+    <section className="rounded-[26px] border border-[var(--border)] bg-surface p-[22px]">
+      <div className="flex flex-wrap items-end justify-between gap-x-[20px] gap-y-[14px]">
+        <div className="relative min-w-0">
+          <Eyebrow>PÉRIMÈTRE D’ANALYSE</Eyebrow>
           {open && (
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           )}
           <button
             onClick={() => setOpen(!open)}
-            className="relative z-20 flex max-w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            className="group relative z-20 mt-[4px] flex min-h-[44px] max-w-full items-center gap-[10px] text-left"
           >
-            <Calendar className="h-4 w-4 shrink-0" strokeWidth={2} />
-            <span className="truncate">{label}</span>
-            <ChevronDown
-              className={`h-[15px] w-[15px] shrink-0 opacity-55 transition-transform ${open ? "rotate-180" : ""}`}
-              strokeWidth={2}
-            />
+            <span className="truncate text-[24px] font-bold tracking-[-0.03em] text-[var(--ink)] transition-colors group-hover:text-[var(--acc)]">
+              {nom}
+            </span>
+            <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] transition-colors group-hover:border-[var(--border-strong)]">
+              <ChevronDown
+                className={`h-[14px] w-[14px] text-[var(--ink2)] transition-transform ${open ? "rotate-180" : ""}`}
+                strokeWidth={2}
+              />
+            </span>
           </button>
-          {/* Mobile : la topbar est en colonne, le bouton est calé à gauche —
-              un menu ancré à droite déborderait hors de l'écran. */}
+          {/* Sous-titre du périmètre : la date distingue les commandes d'un
+              même fournisseur, cinq d'entre elles portant le même nom. */}
+          <div className="mt-[2px] font-mono text-[10.5px] text-[var(--faint)]">
+            {selected
+              ? `${dateLongue(selected.date)} · ${frNum(selected.prixUnitaire, 2)} € LA PIÈCE`
+              : "TOUTES COMMANDES CONFONDUES"}
+          </div>
+
           {open && (
-            <div className="absolute left-0 top-full z-20 mt-1 max-h-[320px] w-[280px] overflow-y-auto rounded-[14px] border border-[var(--border)] bg-surface py-1 shadow-[0_10px_30px_-10px_rgba(0,0,0,.15)] sm:left-auto sm:right-0">
-              <button
+            <div
+              role="listbox"
+              className="absolute left-0 top-full z-20 mt-[8px] max-h-[340px] w-[300px] overflow-y-auto rounded-[20px] border border-[var(--border)] bg-surface py-[6px] shadow-[var(--shadow)]"
+            >
+              <ScopeOption
+                label={TOUT_HISTORIQUE}
+                sub="TOUTES COMMANDES CONFONDUES"
+                active={commandeId === null}
                 onClick={() => {
                   onSelect(null);
                   setOpen(false);
                 }}
-                className={`flex min-h-[44px] w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-[13.5px] font-semibold transition-colors hover:bg-[var(--tint)] ${
-                  commandeId === null ? "text-[#1B4332]" : "text-[var(--ink2)]"
-                }`}
-              >
-                {TOUT_HISTORIQUE}
-                {commandeId === null && (
-                  <Check
-                    className="h-[14px] w-[14px] shrink-0 text-[#1B4332]"
-                    strokeWidth={2.5}
-                  />
-                )}
-              </button>
+              />
               {commandes.map((c) => (
-                <button
+                <ScopeOption
                   key={c.id}
+                  label={c.fournisseur}
+                  sub={`${dateLongue(c.date)} · ${c.nbArticles} ART.`}
+                  active={commandeId === c.id}
                   onClick={() => {
                     onSelect(c.id);
                     setOpen(false);
                   }}
-                  className="flex min-h-[44px] w-full items-center justify-between gap-2 px-4 py-2 text-left transition-colors hover:bg-[var(--tint)]"
-                >
-                  <span className="min-w-0">
-                    <span
-                      className={`block truncate text-[13.5px] font-semibold ${
-                        commandeId === c.id
-                          ? "text-[#1B4332]"
-                          : "text-[var(--ink2)]"
-                      }`}
-                    >
-                      {c.fournisseur}
-                    </span>
-                    <span className="mt-0.5 block text-[12px] font-medium text-[var(--faint-2)]">
-                      {dateLongue(c.date)} · {c.nbArticles} art.
-                    </span>
-                  </span>
-                  {commandeId === c.id && (
-                    <Check
-                      className="h-[14px] w-[14px] shrink-0 text-[#1B4332]"
-                      strokeWidth={2.5}
-                    />
-                  )}
-                </button>
+                />
               ))}
             </div>
           )}
         </div>
+
+        <div className="flex flex-wrap gap-[8px]">
+          {facts.map((f) => (
+            <Fact key={f}>{f}</Fact>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
+
+function ScopeOption({
+  label,
+  sub,
+  active,
+  onClick,
+}: {
+  label: string;
+  sub: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      role="option"
+      aria-selected={active}
+      onClick={onClick}
+      className="flex min-h-[44px] w-full items-center justify-between gap-2 px-[16px] py-[7px] text-left transition-colors hover:bg-[var(--surface-2)]"
+    >
+      <span className="min-w-0">
+        <span
+          className={`block truncate text-[13px] font-semibold ${
+            active ? "text-[var(--acc)]" : "text-[var(--ink)]"
+          }`}
+        >
+          {label}
+        </span>
+        <span className="block truncate font-mono text-[10px] text-[var(--faint)]">
+          {sub}
+        </span>
+      </span>
+      {active && (
+        <Check
+          className="h-[14px] w-[14px] flex-none text-[var(--acc)]"
+          strokeWidth={2.5}
+        />
+      )}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────
 
 export default function StatistiquesPage() {
   // Périmètre des statistiques : null = tout l'historique, sinon une commande.
   const [commandeId, setCommandeId] = useState<string | null>(null);
   const { data: commandes = [] } = useCommandes();
   const { data, isLoading, isError, error } = useStats(commandeId);
-
   const selected = commandes.find((c) => c.id === commandeId) ?? null;
-  const commandeLabel = selected
-    ? `${selected.fournisseur} · ${dateLongue(selected.date)}`
-    : null;
-  const scopeLabel = commandeLabel ?? TOUT_HISTORIQUE;
-  // Formulation en milieu de phrase (« Basé sur … ») : minuscule sur le libellé
-  // générique, tel quel sur un nom de commande.
-  const sourceLabel = commandeLabel ?? "tout l’historique";
 
   // Le sélecteur reste affiché pendant le chargement et en cas d'erreur :
   // sinon on ne pourrait plus changer de commande depuis un lot en échec.
-  const picker = (
-    <ScopePicker
+  const scopeBar = (facts: string[]) => (
+    <ScopeBar
       commandes={commandes}
       commandeId={commandeId}
-      label={scopeLabel}
       onSelect={setCommandeId}
+      facts={facts}
     />
   );
 
   if (isLoading && !data) {
     return (
       <Frame>
-        {picker}
+        {scopeBar([])}
         <Loader label="Chargement des statistiques" />
       </Frame>
     );
@@ -181,8 +251,8 @@ export default function StatistiquesPage() {
   if (isError || !data) {
     return (
       <Frame>
-        {picker}
-        <p className="text-[#C2603F]">
+        {scopeBar([])}
+        <p className="text-[var(--neg)]">
           {error ? (error as Error).message : "Erreur de chargement."}
         </p>
       </Frame>
@@ -190,357 +260,206 @@ export default function StatistiquesPage() {
   }
 
   const totalArticles = data.repartitionStatuts.reduce((s, r) => s + r.count, 0);
-  const vendus = data.repartitionStatuts.find((r) => r.statut === "Vendu")?.count ?? 0;
+  const vendus =
+    data.repartitionStatuts.find((r) => r.statut === "Vendu")?.count ?? 0;
   const pctEcoule = totalArticles ? vendus / totalArticles : 0;
   const jours = data.projection.joursRestants;
-  const projectionLongue = jours != null && jours > 365;
+  const caTotal = data.caParCanal.reduce((s, c) => s + c.ca, 0);
+
+  const facts = [
+    `${totalArticles.toLocaleString("fr-FR")} ARTICLES`,
+    `${vendus.toLocaleString("fr-FR")} VENDUS`,
+    ...(selected ? [`${euros(selected.coutTotal)} INVESTIS`] : [`${pct1(pctEcoule)} ÉCOULÉ`]),
+  ];
 
   return (
     <Frame>
-      {picker}
+      {scopeBar(facts)}
 
-      {/* GRADIENT KPIs */}
-      <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Vitesse de vente */}
-        <div
-          className="relative overflow-hidden rounded-[22px] px-7 py-6 text-white"
-          style={{
-            background: "linear-gradient(135deg,#2D6A4F 0%, #1B4332 100%)",
-            boxShadow: "0 18px 40px -24px rgba(20,53,40,.7)",
-          }}
-        >
-          <div
-            className="pointer-events-none absolute -right-8 -top-12 h-52 w-52 rounded-full"
-            style={{ background: "radial-gradient(circle, rgba(124,224,168,.26), transparent 70%)" }}
-          />
-          <div className="relative flex items-center justify-between">
-            <span className="text-[12px] font-bold tracking-[0.08em] text-[#9FD4B5]">
-              VITESSE DE VENTE
-            </span>
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-white/[0.13]">
-              <Zap className="h-[22px] w-[22px] text-[#CFF0DC]" strokeWidth={2} />
-            </div>
-          </div>
-          <div className="relative mt-4 flex items-baseline gap-2.5">
-            <span className="font-grotesk text-[52px] font-bold leading-none tracking-[-0.03em]">
-              {frNum(data.vitesse.parJour7)}
-            </span>
-            <span className="text-[15px] font-semibold text-[#BFE3CE]">
+      {/* 2 — ARGENT */}
+      <section className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-3">
+        <CaCard total={caTotal} canaux={data.caParCanal} />
+
+        <div className="rounded-[26px] border border-[var(--border)] bg-surface p-[22px] shadow-[var(--shadow)]">
+          <Eyebrow>VITESSE DE VENTE</Eyebrow>
+          <div className="mt-[8px] whitespace-nowrap text-[38px] font-bold leading-none tracking-[-0.045em] tabular-nums text-[var(--ink)]">
+            {frNum(data.vitesse.parJour7)}
+            <span className="text-[15px] font-medium tracking-normal text-[var(--ink2)]">
+              {" "}
               ventes / jour
             </span>
           </div>
-          <div className="relative mt-5 flex gap-6 border-t border-white/[0.13] pt-4">
-            <div>
-              <div className="text-[12px] font-semibold text-[#9FD4B5]">Moyenne 7 j</div>
-              <div className="mt-0.5 font-grotesk text-[18px] font-bold">
-                {frNum(data.vitesse.parJour7)} / j
-              </div>
-            </div>
-            <div>
-              <div className="text-[12px] font-semibold text-[#9FD4B5]">Moyenne 30 j</div>
-              <div className="mt-0.5 font-grotesk text-[18px] font-bold">
-                {frNum(data.vitesse.parJour30)} / j
-              </div>
-            </div>
+          <div className="mt-[14px] flex flex-wrap gap-[8px]">
+            <Fact>MOY. 7 J — {frNum(data.vitesse.parJour7)}</Fact>
+            <Fact>MOY. 30 J — {frNum(data.vitesse.parJour30)}</Fact>
           </div>
         </div>
 
-        {/* Projection d'écoulement */}
-        <div
-          className="relative overflow-hidden rounded-[22px] px-7 py-6 text-white"
-          style={{
-            background: projectionLongue
-              ? "linear-gradient(135deg,#E0A06B 0%, #C2603F 100%)"
-              : "linear-gradient(135deg,#2D6A4F 0%, #1B4332 100%)",
-            boxShadow: projectionLongue
-              ? "0 18px 40px -24px rgba(150,72,42,.6)"
-              : "0 18px 40px -24px rgba(20,53,40,.7)",
-          }}
-        >
-          <div
-            className="pointer-events-none absolute -right-8 -top-12 h-52 w-52 rounded-full"
-            style={{
-              background: projectionLongue
-                ? "radial-gradient(circle, rgba(255,232,210,.3), transparent 70%)"
-                : "radial-gradient(circle, rgba(124,224,168,.26), transparent 70%)",
-            }}
-          />
-          <div className="relative flex items-center justify-between">
-            <span
-              className="text-[12px] font-bold tracking-[0.08em]"
-              style={{ color: projectionLongue ? "#FCE4D2" : "#9FD4B5" }}
-            >
-              PROJECTION D’ÉCOULEMENT
-            </span>
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-white/[0.16]">
-              <Clock className="h-[22px] w-[22px] text-[#FFF1E6]" strokeWidth={2} />
-            </div>
+        <div className="rounded-[26px] bg-[var(--acc)] p-[22px] text-[var(--acc-ink)] shadow-[var(--shadow)]">
+          <div className="font-mono text-[10.5px] tracking-[0.2em] opacity-70">
+            PROJECTION D’ÉCOULEMENT
           </div>
-          <div className="relative mt-4 flex items-baseline gap-2.5">
-            <span className="font-grotesk text-[52px] font-bold leading-none tracking-[-0.03em]">
-              {jours != null ? jours : "—"}
-            </span>
-            <span
-              className="text-[15px] font-semibold"
-              style={{ color: projectionLongue ? "#FCE4D2" : "#BFE3CE" }}
-            >
-              jours pour tout vendre
+          <div className="mt-[8px] whitespace-nowrap text-[38px] font-bold leading-none tracking-[-0.045em] tabular-nums">
+            {jours != null ? jours.toLocaleString("fr-FR") : "—"}
+            <span className="text-[15px] font-medium tracking-normal opacity-75">
+              {" "}
+              jours
             </span>
           </div>
-          <div className="relative mt-5">
+          <div className="mt-[14px] h-[10px] overflow-hidden rounded-full bg-black/[.16]">
             <div
-              className="mb-2 flex justify-between text-[12px] font-semibold"
-              style={{ color: projectionLongue ? "#FFEEDF" : "#CFEBDA" }}
-            >
-              <span>{Math.round(pctEcoule * 100)} % du stock écoulé</span>
-              <span>
-                {vendus} / {totalArticles}
-              </span>
-            </div>
-            <div className="h-[9px] overflow-hidden rounded-md bg-white/[0.22]">
-              <div
-                className="h-full rounded-md bg-surface"
-                style={{ width: `${Math.round(pctEcoule * 100)}%` }}
-              />
-            </div>
+              className="h-full rounded-full bg-[var(--acc-ink)]"
+              style={{ width: `${Math.round(pctEcoule * 100)}%` }}
+            />
           </div>
-        </div>
-      </div>
-
-      {/* Meilleur jour + Donut */}
-      <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.45fr_1fr]">
-        <WeekdayCard days={data.parJourSemaine} source={sourceLabel} />
-        <StatutDonut data={data.repartitionStatuts} total={totalArticles} />
-      </div>
-
-      {/* CA par canal */}
-      <CanalCard data={data.caParCanal} />
-
-      {/* Marques les plus rentables */}
-      <section className="mt-5">
-        {/* Cartes mobile (< md) */}
-        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[var(--ink)] md:hidden">
-          Marques les plus rentables
-        </h2>
-        <div className="space-y-3 md:hidden">
-          {data.marquesRentables.map((b) => (
-            <div key={b.marque} className="rounded-[18px] border border-[var(--border)] bg-surface p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-grotesk font-bold text-[var(--ink)]">{b.marque}</span>
-                <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(b.margeNette)}</span>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-[14px]">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--faint-2)]">Coef moyen</dt>
-                  <dd className="text-[var(--muted)]">{coef(b.coefMoyen)}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--faint-2)]">Vendus</dt>
-                  <dd className="text-[var(--ink)]">{b.vendus}</dd>
-                </div>
-              </dl>
+          <div className="mt-[7px] flex justify-between font-mono text-[10.5px] opacity-75">
+            <span>{vendus.toLocaleString("fr-FR")} ÉCOULÉS</span>
+            <span>{pct1(pctEcoule)} DU STOCK</span>
+          </div>
+          {/* Hors maquette : sans ce rappel, une cadence trop faible pour
+              écouler le stock en moins d'un an passerait inaperçue. */}
+          {(jours == null || jours > 365) && (
+            <div className="mt-[10px] rounded-full bg-black/[.16] px-[13px] py-[7px] text-center font-mono text-[10.5px] font-bold">
+              {jours == null
+                ? "CADENCE NULLE — PROJECTION IMPOSSIBLE"
+                : "PLUS D’UN AN AU RYTHME ACTUEL"}
             </div>
-          ))}
-          {data.marquesRentables.length === 0 && (
-            <p className="rounded-[18px] border border-[var(--border)] bg-surface px-4 py-8 text-center text-[var(--faint)]">
-              Aucune vente pour le moment.
-            </p>
           )}
-        </div>
-        {/* Tableau (≥ md) */}
-        <div className="hidden overflow-hidden rounded-[20px] border border-[var(--border)] bg-surface md:block">
-        <h2 className="border-b border-[var(--border)] px-6 py-4 font-grotesk text-[18px] font-bold text-[var(--ink)]">
-          Marques les plus rentables
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] border-collapse text-[14px]">
-            <thead>
-              <tr className="bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
-                <th className="px-6 py-3">Marque</th>
-                <th className="px-3 py-3 text-right">Marge nette totale</th>
-                <th className="px-3 py-3 text-right">Coef moyen</th>
-                <th className="px-6 py-3 text-right">Vendus</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.marquesRentables.map((b) => (
-                <tr key={b.marque} className="border-t border-[var(--bg)]">
-                  <td className="px-6 py-3 font-semibold text-[var(--ink)]">{b.marque}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-[#2D6A4F]">
-                    {euros(b.margeNette)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-[var(--muted)]">
-                    {coef(b.coefMoyen)}
-                  </td>
-                  <td className="px-6 py-3 text-right text-[var(--muted)]">{b.vendus}</td>
-                </tr>
-              ))}
-              {data.marquesRentables.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-[var(--faint)]">
-                    Aucune vente pour le moment.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
         </div>
       </section>
 
-      {/* Top 5 articles */}
-      <section className="mt-5">
-        {/* Cartes mobile (< md) */}
-        <h2 className="mb-3 font-grotesk text-[18px] font-bold text-[var(--ink)] md:hidden">
-          Top 5 articles (prix de vente)
-        </h2>
-        <div className="space-y-3 md:hidden">
-          {data.topArticles.map((a) => (
-            <div key={a.sku} className="rounded-[18px] border border-[var(--border)] bg-surface p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-grotesk font-bold text-[var(--ink)]">{a.sku}</span>
-                <span className="font-grotesk font-bold text-[#2D6A4F]">{euros(a.margeNette)}</span>
-              </div>
-              <dl className="mt-3 space-y-1.5 text-[14px]">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--faint-2)]">Marque</dt>
-                  <dd className="text-[var(--muted)]">{a.marque}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-[var(--faint-2)]">Prix vente</dt>
-                  <dd className="text-[var(--ink)]">{euros(a.prixVente)}</dd>
-                </div>
-              </dl>
-            </div>
-          ))}
-          {data.topArticles.length === 0 && (
-            <p className="rounded-[18px] border border-[var(--border)] bg-surface px-4 py-8 text-center text-[var(--faint)]">
-              Aucune vente pour le moment.
-            </p>
-          )}
-        </div>
-        {/* Tableau (≥ md) */}
-        <div className="hidden overflow-hidden rounded-[20px] border border-[var(--border)] bg-surface md:block">
-        <h2 className="border-b border-[var(--border)] px-6 py-4 font-grotesk text-[18px] font-bold text-[var(--ink)]">
-          Top 5 articles (prix de vente)
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] border-collapse text-[14px]">
-            <thead>
-              <tr className="bg-[var(--tint)] text-left text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
-                <th className="px-6 py-3">SKU</th>
-                <th className="px-3 py-3">Marque</th>
-                <th className="px-3 py-3 text-right">Prix vente</th>
-                <th className="px-6 py-3 text-right">Marge nette</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topArticles.map((a) => (
-                <tr key={a.sku} className="border-t border-[var(--bg)]">
-                  <td className="px-6 py-3 font-grotesk font-bold text-[var(--ink)]">
-                    {a.sku}
-                  </td>
-                  <td className="px-3 py-3 text-[var(--muted)]">{a.marque}</td>
-                  <td className="px-3 py-3 text-right font-semibold text-[var(--ink)]">
-                    {euros(a.prixVente)}
-                  </td>
-                  <td className="px-6 py-3 text-right font-semibold text-[#2D6A4F]">
-                    {euros(a.margeNette)}
-                  </td>
-                </tr>
-              ))}
-              {data.topArticles.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-[var(--faint)]">
-                    Aucune vente pour le moment.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        </div>
+      {/* 3 — FORME */}
+      <section className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-[1.1fr_1fr]">
+        <WeekdayCard days={data.parJourSemaine} />
+        <StatutDonut data={data.repartitionStatuts} />
       </section>
+
+      {/* 4 — MARQUES */}
+      <BrandTable rows={data.marquesRentables} caTotal={caTotal} />
+
+      {/* 5 — TOP 5 */}
+      <TopArticles rows={data.topArticles} />
     </Frame>
   );
 }
 
-// ── Meilleur jour de la semaine (barres custom + tooltip) ──
-function WeekdayCard({
-  days,
-  source,
-}: {
-  days: WeekdayPoint[];
-  source: string;
-}) {
-  const [hovered, setHovered] = useState(-1);
-  const max = Math.max(1, ...days.map((d) => d.vendus));
-  const allZero = days.length === 0 || days.every((d) => d.vendus === 0);
-  let bestIdx = 0;
-  days.forEach((d, i) => {
-    if (d.vendus > days[bestIdx].vendus) bestIdx = i;
-  });
-  const champion = days[bestIdx];
+// ─────────────────────────────────────────────────────────────────────────
+// CA du périmètre — chiffre + répartition par canal
+//
+// La barre segmentée remplace la carte « CA par canal », qui occupait une
+// colonne entière pour une seule ligne (toutes les ventes partent sur Vinted).
+// Même idiome que la carte « MARGE NETTE » de la maquette : libellé mono,
+// chiffre, barre, légende mono. Le total n'est plus enterré en pied de carte.
+// ─────────────────────────────────────────────────────────────────────────
 
+function CaCard({ total, canaux }: { total: number; canaux: CanalCA[] }) {
   return (
-    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
-            Meilleur jour de la semaine
-          </h2>
-          <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
-            Nombre de ventes par jour
-          </p>
-          <p className="mt-0.5 text-[12px] text-[var(--faint-2)]">
-            Basé sur {source}
-          </p>
-        </div>
-        {!allZero && champion && champion.vendus > 0 && (
-          <span className="rounded-full bg-[#EAF3ED] px-2.5 py-1.5 text-[12px] font-bold text-[#2D6A4F]">
-            🏆 {champion.jour}
-          </span>
-        )}
+    <div className="rounded-[26px] border border-[var(--border)] bg-surface p-[22px] shadow-[var(--shadow)]">
+      <Eyebrow>CA DU PÉRIMÈTRE</Eyebrow>
+      <div className="mt-[8px] whitespace-nowrap text-[38px] font-bold leading-none tracking-[-0.045em] tabular-nums text-[var(--ink)]">
+        {euros(total)}
       </div>
-      {allZero ? (
-        <div className="flex h-[200px] items-center justify-center">
-          <p className="text-[13.5px] font-medium text-[var(--faint-2)]">
-            Aucune vente enregistrée pour le moment.
-          </p>
+      {canaux.length === 0 ? (
+        <div className="mt-[14px] font-mono text-[10.5px] text-[var(--faint)]">
+          {AUCUNE_VENTE}
         </div>
       ) : (
-        <div className="relative mt-5 flex h-[200px] items-stretch gap-3 md:gap-4">
+        <>
+          <div className="mt-[14px] flex h-[10px] overflow-hidden rounded-full bg-[var(--surface-2)]">
+            {canaux.map((c) => (
+              <div
+                key={c.canal}
+                style={{
+                  width: `${total ? (c.ca / total) * 100 : 0}%`,
+                  background: canalColor(c.canal).bg,
+                }}
+              />
+            ))}
+          </div>
+          <div className="mt-[9px] flex flex-wrap gap-x-[12px] gap-y-[5px]">
+            {canaux.map((c) => (
+              <span
+                key={c.canal}
+                className="flex items-center gap-[6px] font-mono text-[10px] text-[var(--faint)]"
+              >
+                <span
+                  className="h-[7px] w-[7px] flex-none rounded-full"
+                  style={{ background: canalColor(c.canal).bg }}
+                />
+                <span className="uppercase text-[var(--ink2)]">{c.canal}</span>
+                {pct1(total ? c.ca / total : 0)}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Meilleur jour de la semaine
+// ─────────────────────────────────────────────────────────────────────────
+
+// Place prise par ce qui n'est PAS la barre dans une colonne : les deux
+// libellés mono (~12px chacun) et leurs deux gouttières de 6px.
+const BAR_CHROME = 36;
+
+function WeekdayCard({ days }: { days: WeekdayPoint[] }) {
+  const max = Math.max(1, ...days.map((d) => d.vendus));
+  const allZero = days.length === 0 || days.every((d) => d.vendus === 0);
+  const best = days.reduce<WeekdayPoint | null>(
+    (b, d) => (b == null || d.vendus > b.vendus ? d : b),
+    null,
+  );
+
+  return (
+    // `h-full` + `flex-1` sur la zone de barres : la carte prend la hauteur de
+    // sa voisine (le donut) et le graphe l'occupe entièrement. Les hauteurs de
+    // barres sont donc en %, plus en px — d'où `calc(x% - x·0,36px)`, qui vaut
+    // exactement x % de (hauteur disponible − BAR_CHROME) : la plus haute barre
+    // touche le plafond sans jamais pousser son libellé hors de la carte.
+    <div className="flex h-full flex-col rounded-[26px] border border-[var(--border)] bg-surface p-[22px]">
+      <CardTitle
+        aside={!allZero && best ? best.jour.toUpperCase() : undefined}
+      >
+        Meilleur jour de la semaine
+      </CardTitle>
+      {allZero ? (
+        <div className="flex min-h-[160px] flex-1 items-center justify-center font-mono text-[11px] text-[var(--faint)]">
+          {AUCUNE_VENTE}
+        </div>
+      ) : (
+        <div className="flex min-h-[160px] flex-1 items-end justify-center gap-[9px]">
           {days.map((d, i) => {
-            const isBest = i === bestIdx && d.vendus > 0;
-            const isHover = hovered === i;
-            const fill = isHover ? "#2D6A4F" : isBest ? "#1B4332" : "#B7D3C2";
+            const pct = (d.vendus / max) * 100;
             return (
               <div
                 key={i}
-                className="flex flex-1 flex-col items-center justify-end h-full"
-                onMouseEnter={() => setHovered(i)}
-                onMouseLeave={() => setHovered(-1)}
-                title={champion?.dateRecente && isBest ? formatDateLongue(champion.dateRecente) : undefined}
+                // `max-w` : sans plafond, sept barres réparties sur une carte
+                // large donnent des blocs de 170px qui ne se lisent plus.
+                className="flex h-full max-w-[64px] flex-1 flex-col items-center justify-end gap-[6px]"
+                title={
+                  d.dateRecente
+                    ? `Dernière vente un ${d.jour.toLowerCase()} : ${dateLongue(d.dateRecente)}`
+                    : undefined
+                }
               >
-                <div className="relative flex w-full items-end justify-center">
-                  {isHover && (
-                    <div
-                      className="absolute bottom-[calc(100%+4px)] left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] bg-[var(--ink)] px-2.5 py-1.5 font-grotesk text-[13px] font-bold text-white"
-                      style={{ boxShadow: "0 10px 22px -10px rgba(0,0,0,.5)" }}
-                    >
-                      {d.vendus} vente{d.vendus > 1 ? "s" : ""}
-                    </div>
-                  )}
-                  <div
-                    className="w-full max-w-[40px] cursor-pointer transition-colors duration-200"
-                    style={{
-                      height: `${Math.max(4, Math.round((d.vendus / max) * 180))}px`,
-                      background: fill,
-                      borderRadius: "8px 8px 4px 4px",
-                    }}
-                  />
-                </div>
-                <span className="mt-2.5 text-[12px] font-semibold text-[var(--faint)]">
+                <span className="font-mono text-[9.5px] tabular-nums text-[var(--ink2)]">
+                  {d.vendus}
+                </span>
+                <div
+                  className="w-full rounded-[8px]"
+                  style={{
+                    height: `calc(${pct.toFixed(2)}% - ${((pct * BAR_CHROME) / 100).toFixed(2)}px)`,
+                    minHeight: d.vendus > 0 ? 4 : 0,
+                    background:
+                      d.vendus === max ? "var(--acc)" : "var(--surface-2)",
+                    transformOrigin: "bottom",
+                    animation: `growBar .55s cubic-bezier(.22,1,.36,1) ${(i * 0.05).toFixed(2)}s both`,
+                  }}
+                />
+                <span className="font-mono text-[9.5px] uppercase text-[var(--faint)]">
                   {d.jour.slice(0, 3)}
                 </span>
               </div>
@@ -552,142 +471,263 @@ function WeekdayCard({
   );
 }
 
-// ── Donut répartition des statuts ──
-function StatutDonut({ data, total }: { data: StatutCount[]; total: number }) {
-  const r = 58;
-  const circ = 2 * Math.PI * r;
+// ─────────────────────────────────────────────────────────────────────────
+// Répartition des statuts — donut
+// ─────────────────────────────────────────────────────────────────────────
+
+// Longueur de référence du tracé, imposée par `pathLength` sur chaque arc :
+// les `stroke-dasharray` / `stroke-dashoffset` se lisent alors directement en
+// pourcentage, quelle que soit la géométrie réelle du cercle.
+//
+// ⚠️ Ne PAS revenir à la circonférence calculée (2π × 15,9 ≈ 99,9). Chrome
+// approxime le cercle par des courbes de Bézier et `getTotalLength()` y répond
+// 99,2589 : le pointillé se calant sur cette longueur-là, des segments
+// totalisant 99,9 débordaient de 0,64 unité (2,3°). Les statuts les plus
+// petits démarraient au-delà de la fin du tracé, le motif se répétait, et ils
+// se redessinaient par-dessus le premier segment au sommet de la roue.
+const DONUT_CIRC = 100;
+
+function StatutDonut({ data }: { data: StatutCount[] }) {
+  const total = data.reduce((s, r) => s + r.count, 0);
   let acc = 0;
   const segments = data.map((s) => {
     const frac = total ? s.count / total : 0;
+    const len = frac * DONUT_CIRC;
     const seg = {
-      color: statutColor(s.statut).text,
-      len: frac * circ,
-      offset: -acc,
       statut: s.statut,
       count: s.count,
-      pct: Math.round(frac * 100),
+      color: statutColor(s.statut).color,
+      len,
+      offset: -acc,
+      pct: pct1(frac),
     };
-    acc += frac * circ;
+    acc += len;
     return seg;
   });
 
   return (
-    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
-      <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
-        Répartition des statuts
-      </h2>
-      <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
-        {total.toLocaleString("fr-FR")} articles au total
-      </p>
-      <div className="mt-2 flex items-center gap-6">
-        <div className="relative h-[150px] w-[150px] flex-shrink-0">
-          <svg width="150" height="150" viewBox="0 0 150 150" style={{ transform: "rotate(-90deg)" }}>
-            <circle cx="75" cy="75" r={r} fill="none" stroke="#EEF2EC" strokeWidth="20" />
-            {segments.map((s, i) => (
-              <circle
-                key={i}
-                cx="75"
-                cy="75"
-                r={r}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="20"
-                strokeDasharray={`${s.len} ${circ - s.len}`}
-                strokeDashoffset={s.offset}
-              />
-            ))}
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-grotesk text-[26px] font-bold tracking-[-0.02em]">
-              {total.toLocaleString("fr-FR")}
+    <div className="flex flex-wrap items-center gap-[20px] rounded-[26px] border border-[var(--border)] bg-surface p-[22px]">
+      <svg
+        viewBox="0 0 42 42"
+        className="h-[150px] w-[150px] flex-none"
+        aria-label="Répartition des statuts"
+      >
+        <circle
+          cx="21"
+          cy="21"
+          r="15.9"
+          fill="none"
+          stroke="var(--surface-2)"
+          strokeWidth="6"
+        />
+        {segments.map((s, i) => (
+          <circle
+            key={i}
+            cx="21"
+            cy="21"
+            r="15.9"
+            fill="none"
+            stroke={s.color}
+            strokeWidth="6"
+            pathLength={DONUT_CIRC}
+            strokeDasharray={`${s.len.toFixed(3)} ${(DONUT_CIRC - s.len).toFixed(3)}`}
+            strokeDashoffset={s.offset.toFixed(3)}
+            transform="rotate(-90 21 21)"
+          />
+        ))}
+      </svg>
+      <div className="min-w-[160px] flex-1">
+        <CardTitle aside={`${data.length} STATUTS`}>
+          Répartition des statuts
+        </CardTitle>
+        {segments.map((s, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-[9px] border-b border-[var(--border)] py-[6px]"
+          >
+            <span
+              className="h-[8px] w-[8px] flex-none rounded-full"
+              style={{ background: s.color }}
+            />
+            <span className="flex-1 truncate text-[12.5px] text-[var(--ink)]">
+              {s.statut}
             </span>
-            <span className="text-[11px] font-semibold text-[var(--faint-2)]">articles</span>
+            <span className="font-mono text-[12px] tabular-nums text-[var(--ink)]">
+              {s.count.toLocaleString("fr-FR")}
+            </span>
+            <span className="w-[46px] text-right font-mono text-[10.5px] tabular-nums text-[var(--faint)]">
+              {s.pct}
+            </span>
           </div>
-        </div>
-        <div className="flex flex-1 flex-col gap-3.5">
-          {segments.map((s, i) => (
-            <div key={i} className="flex items-center gap-2.5">
-              <span
-                className="h-[11px] w-[11px] flex-shrink-0 rounded-[3px]"
-                style={{ background: s.color }}
-              />
-              <span className="flex-1 text-[13.5px] font-semibold text-[var(--ink2)]">
-                {s.statut}
-              </span>
-              <span className="font-grotesk text-[14px] font-bold">{s.count}</span>
-              <span className="w-[34px] text-right text-[12px] font-semibold text-[var(--faint-2)]">
-                {s.pct} %
-              </span>
-            </div>
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// ── CA par canal (barres horizontales) ──
-function canalInitials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return name.trim().slice(0, 1).toUpperCase();
-}
+// ─────────────────────────────────────────────────────────────────────────
+// Marques les plus rentables — pleine largeur
+//
+// Six colonnes, comme la grille « Par marque » de la maquette. La dernière
+// (part du CA) encode une information réelle qu'aucune autre colonne ne porte :
+// le poids de la marque dans le chiffre d'affaires du périmètre.
+// ─────────────────────────────────────────────────────────────────────────
 
-function canalStyle(name: string): { square: string; bar: string } {
-  if (name === "Vinted" || name === "Vinted Go")
-    return { square: "#0BBBC4", bar: "linear-gradient(90deg,#0BBBC4,#089AA2)" };
-  if (name.startsWith("Vestiaire"))
-    return { square: "var(--ink)", bar: "linear-gradient(90deg,var(--ink2),var(--ink))" };
-  return { square: "#2D6A4F", bar: "linear-gradient(90deg,#2D6A4F,#1B4332)" };
-}
+const TH =
+  "bg-[var(--surface-2)] py-[9px] font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--faint)]";
 
-function CanalCard({ data }: { data: CanalCA[] }) {
-  const total = data.reduce((s, c) => s + c.ca, 0);
+function BrandTable({
+  rows,
+  caTotal,
+}: {
+  rows: StatsBrandRow[];
+  caTotal: number;
+}) {
   return (
-    <div className="rounded-[22px] border border-[var(--border)] bg-surface px-6 py-6">
-      <div className="mb-5 flex items-start justify-between">
-        <div>
-          <h2 className="font-grotesk text-[18px] font-bold text-[var(--ink)]">
-            CA par canal
-          </h2>
-          <p className="mt-1 text-[13px] font-medium text-[var(--faint)]">
-            Répartition des ventes par plateforme
-          </p>
-        </div>
-        <span className="font-grotesk text-[18px] font-bold">{euros(total)}</span>
+    <div className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-surface">
+      <div className="px-[22px] pt-[22px]">
+        <CardTitle aside={`${rows.length} MARQUES`}>
+          Marques les plus rentables
+        </CardTitle>
       </div>
-      {data.length === 0 ? (
-        <p className="text-[14px] text-[var(--faint-2)]">Aucune vente pour le moment.</p>
-      ) : (
-        <div className="flex flex-col gap-[22px]">
-          {data.map((c) => {
-            const pct = total ? Math.round((c.ca / total) * 100) : 0;
-            const st = canalStyle(c.canal);
-            return (
-              <div key={c.canal}>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2.5 text-[14px] font-bold text-[var(--ink)]">
-                    <span
-                      className="flex h-[26px] w-[26px] items-center justify-center rounded-lg text-[13px] font-extrabold text-white"
-                      style={{ background: st.square }}
-                    >
-                      {canalInitials(c.canal)}
-                    </span>
-                    {c.canal}
-                  </span>
-                  <span className="text-[13.5px] font-semibold text-[var(--muted)]">
-                    <b className="font-grotesk text-[var(--ink)]">{euros(c.ca)}</b> · {pct} %
-                  </span>
-                </div>
-                <div className="h-[14px] overflow-hidden rounded-lg bg-[#EEF2EC]">
-                  <div
-                    className="h-full rounded-lg"
-                    style={{ width: `${pct}%`, background: st.bar }}
-                  />
-                </div>
+
+      {/* Cartes (< 900px) — CLAUDE.md interdit les tableaux sur mobile. */}
+      <div className="px-[22px] pb-[14px] min-[900px]:hidden">
+        {rows.length === 0 ? (
+          <Empty />
+        ) : (
+          rows.map((b) => (
+            <div
+              key={b.marque}
+              className="mb-[8px] rounded-[16px] bg-[var(--surface-2)] p-[12px]"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-[13px] font-semibold text-[var(--ink)]">
+                  {b.marque}
+                </span>
+                <span className="flex-none font-mono text-[11px] font-bold text-[var(--ink)]">
+                  {coefLabel(b.coefMoyen)}
+                </span>
               </div>
-            );
-          })}
+              <div className="mt-[8px] flex flex-wrap gap-x-[16px] gap-y-[4px] font-mono text-[12.5px] tabular-nums">
+                <span className="text-[var(--ink)]">{euros(b.ca)}</span>
+                <span className="text-[var(--pos)]">{euros(b.margeNette)}</span>
+                <span className="text-[var(--faint)]">{b.vendus} VENDUS</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tableau (≥ 900px) */}
+      <div className="hidden overflow-x-auto min-[900px]:block">
+        <table className="w-full min-w-[720px] border-collapse tabular-nums">
+          <thead>
+            <tr>
+              <th className={`${TH} px-[22px] text-left`}>Marque</th>
+              <th className={`${TH} px-[10px] text-right`}>Vendus</th>
+              <th className={`${TH} px-[10px] text-right`}>CA</th>
+              <th className={`${TH} px-[10px] text-right`}>Marge nette</th>
+              <th className={`${TH} px-[10px] text-right`}>Coef</th>
+              <th className={`${TH} w-[180px] px-[22px] text-right`}>
+                Part du CA
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b) => {
+              const part = caTotal ? b.ca / caTotal : 0;
+              return (
+                <tr
+                  key={b.marque}
+                  className="border-b border-[var(--border)] transition-colors hover:bg-[var(--surface-2)]"
+                >
+                  <td className="px-[22px] py-[11px] text-[13px] font-semibold text-[var(--ink)]">
+                    {b.marque}
+                  </td>
+                  <td className="px-[10px] py-[11px] text-right font-mono text-[12px] text-[var(--faint)]">
+                    {b.vendus}
+                  </td>
+                  <td className="px-[10px] py-[11px] text-right font-mono text-[12.5px] text-[var(--ink)]">
+                    {euros(b.ca)}
+                  </td>
+                  <td className="px-[10px] py-[11px] text-right font-mono text-[12.5px] text-[var(--pos)]">
+                    {euros(b.margeNette)}
+                  </td>
+                  <td className="px-[10px] py-[11px] text-right font-mono text-[12.5px] font-bold text-[var(--ink)]">
+                    {coefLabel(b.coefMoyen)}
+                  </td>
+                  <td className="px-[22px] py-[11px]">
+                    <span className="flex items-center gap-[9px]">
+                      <span className="h-[6px] flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                        <span
+                          className="block h-full rounded-full bg-[var(--ink2)]"
+                          style={{ width: `${Math.round(part * 100)}%` }}
+                        />
+                      </span>
+                      <span className="w-[46px] flex-none text-right font-mono text-[10px] tabular-nums text-[var(--faint)]">
+                        {pct1(part)}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={6}>
+                  <Empty />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Top 5 articles — cinq cartes
+//
+// Cinq lignes dans un tableau pleine largeur laissaient quatre colonnes
+// perdues dans le vide. En cartes, chaque vente occupe sa colonne et le rang
+// devient lisible d'un coup d'œil. Le numéro est ici une vraie information :
+// c'est un classement, l'ordre porte du sens.
+// ─────────────────────────────────────────────────────────────────────────
+
+function TopArticles({ rows }: { rows: TopArticle[] }) {
+  return (
+    <div className="rounded-[26px] border border-[var(--border)] bg-surface p-[22px]">
+      <CardTitle aside="PAR PRIX DE VENTE">Meilleures ventes</CardTitle>
+      {rows.length === 0 ? (
+        <Empty />
+      ) : (
+        <div className="grid grid-cols-2 gap-[10px] min-[900px]:grid-cols-5">
+          {rows.map((a, i) => (
+            <div
+              key={a.sku}
+              className="rounded-[18px] bg-[var(--surface-2)] p-[14px] transition-colors hover:bg-[var(--raise)]"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[9.5px] tracking-[0.16em] text-[var(--faint)]">
+                  N°{i + 1}
+                </span>
+                <span className="truncate font-mono text-[12px] font-bold text-[var(--ink)]">
+                  {a.sku}
+                </span>
+              </div>
+              <div className="mt-[10px] truncate text-[12.5px] text-[var(--ink2)]">
+                {a.marque}
+              </div>
+              <div className="mt-[6px] text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
+                {euros(a.prixVente)}
+              </div>
+              <div className="mt-[2px] font-mono text-[10.5px] tabular-nums text-[var(--pos)]">
+                {euros(a.margeNette)} de marge
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

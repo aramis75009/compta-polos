@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, Check, ChevronRight, Clock } from "lucide-react";
 import { useNotifications } from "@/lib/hooks";
+import { useDismissOnOutside } from "@/lib/useDismiss";
 
 // Accent + fond de pastille par sévérité (couleurs d'accent, littérales : elles
 // tiennent sur les deux thèmes).
@@ -17,26 +18,10 @@ const SEV = {
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const { data } = useNotifications();
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useDismissOnOutside<HTMLDivElement>(open, () => setOpen(false));
 
   const items = data?.items ?? [];
   const count = items.length;
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   return (
     <div ref={ref} className="relative flex items-center">
@@ -45,7 +30,7 @@ export default function NotificationBell() {
         aria-label={`Notifications${count > 0 ? ` (${count})` : ""}`}
         aria-expanded={open}
         className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] transition-colors ${
-          open ? "bg-tint text-[#1B4332]" : "text-nav hover:bg-tint hover:text-[#1B4332]"
+          open ? "bg-tint text-[var(--acc)]" : "text-nav hover:bg-tint hover:text-[var(--acc)]"
         }`}
       >
         <Bell className="h-5 w-5" strokeWidth={2} />
@@ -73,7 +58,7 @@ export default function NotificationBell() {
 
           {count === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 pb-10 pt-[38px] text-center">
-              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#E4F3EA] text-[#1B4332]">
+              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#E4F3EA] text-[var(--acc)]">
                 <Check className="h-[26px] w-[26px]" strokeWidth={2.6} />
               </span>
               <span className="text-[14px] font-semibold text-ink-muted">

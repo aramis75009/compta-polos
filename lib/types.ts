@@ -1,5 +1,11 @@
 // Types DTO échangés entre les API routes et le client.
 
+/** Compte sur lequel la vente a été encaissée. */
+export type CompteVente =
+  | "VINTED_PRO"
+  | "VINTED_SECOND"
+  | "VESTIAIRE_COLLECTIVE";
+
 export type ArticleDTO = {
   id: string;
   sku: string;
@@ -24,6 +30,7 @@ export type ArticleDTO = {
   descriptionAnnonce: string | null;
   motsClesAnnonce: string | null;
   commandeFournisseur: string | null;
+  compteVente: CompteVente | null;
 };
 
 export type PromptTemplateDTO = {
@@ -157,6 +164,7 @@ export type DashboardDTO = {
   parMarque: BrandRow[];
   caParSemaine: WeekPoint[];
   caParJour: { jour: string; ca: number }[]; // CA jour par jour du mois en cours
+  caMoisPrecedent: number; // CA du mois précédent, hors filtre de période
   caDelta: DashboardDelta; // CA mois courant vs mois précédent
   margeDelta: DashboardDelta; // marge nette mois courant vs mois précédent
 };
@@ -201,6 +209,7 @@ export type WeekdayPoint = {
 
 export type StatsBrandRow = {
   marque: string;
+  ca: number; // chiffre d'affaires cumulé de la marque sur le périmètre
   margeNette: number;
   coefMoyen: number;
   vendus: number;
