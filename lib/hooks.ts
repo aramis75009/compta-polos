@@ -17,7 +17,6 @@ import type {
   PromptTemplateDTO,
   StatsDTO,
 } from "./types";
-import type { OrbiteData } from "./orbite/types";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -54,7 +53,6 @@ function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ["commandes"] });
     qc.invalidateQueries({ queryKey: ["stats"] });
     qc.invalidateQueries({ queryKey: ["notifications"] });
-    qc.invalidateQueries({ queryKey: ["orbite"] });
   };
 }
 
@@ -290,15 +288,6 @@ export function useDashboard(periode: DashboardPeriode = "all") {
   return useQuery({
     queryKey: ["dashboard", periode],
     queryFn: () => jsonFetch<DashboardDTO>(`/api/dashboard?periode=${periode}`),
-  });
-}
-
-// ---------- Orbite ----------
-
-export function useOrbite() {
-  return useQuery({
-    queryKey: ["orbite"],
-    queryFn: () => jsonFetch<OrbiteData>("/api/orbite"),
   });
 }
 

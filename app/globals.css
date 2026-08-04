@@ -293,75 +293,7 @@ body {
   }
 }
 
-/* ── Orbite — item sidebar violet spatial ─────────────────────────────── */
-@keyframes orbite-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(168,85,247,.45); }
-  50%      { box-shadow: 0 0 26px rgba(168,85,247,.85); }
-}
-@keyframes orbite-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-2px); }
-}
-@keyframes orbite-shimmer {
-  0%   { left: -100%; }
-  100% { left: 100%; }
-}
-@keyframes orbite-ring-spin {
-  to { transform: rotate(360deg); }
-}
-
-.orbite-item {
-  background: linear-gradient(135deg, #7C3AED, #A855F7);
-  animation: orbite-glow 2.4s ease-in-out infinite, orbite-float 3.5s ease-in-out infinite;
-  transition: transform 200ms, box-shadow 200ms;
-  /* Contient le shimmer, qui balaie de -100% à +100% de la largeur du pill. */
-  overflow: hidden;
-}
-.orbite-item:hover {
-  transform: scale(1.04) !important;
-  box-shadow: 0 0 32px rgba(168,85,247,.9) !important;
-}
-.orbite-item::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 200ms;
-}
-.orbite-item:hover::after {
-  opacity: 1;
-  animation: orbite-shimmer 1.1s ease-in-out;
-}
-.orbite-item .orbite-ring {
-  /* fill-box : l'origine est le centre de l'anneau lui-même, pas celui du
-     viewport SVG — sans ça la rotation partirait en vrille. */
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform 300ms;
-}
-.orbite-item:hover .orbite-ring {
-  animation: orbite-ring-spin 3s linear infinite;
-}
-.orbite-item.orbite-active {
-  outline: 2px solid rgba(255,255,255,.35);
-  outline-offset: 2px;
-  box-shadow: 0 0 30px rgba(168,85,247,.8);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .orbite-item,
-  .orbite-item:hover,
-  .orbite-item::after,
-  .orbite-item:hover .orbite-ring {
-    animation: none !important;
-    transition: none !important;
-  }
 }
 
 /* Scrollbar discrète, cohérente avec l'esprit épuré du design system */

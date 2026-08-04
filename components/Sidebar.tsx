@@ -29,37 +29,6 @@ type NavItem = {
   badge?: boolean;
 };
 
-// Icône d'Orbite : planète + anneau. L'anneau est isolé dans un <g> pour que
-// `.orbite-item:hover .orbite-ring` (globals.css) puisse le faire tourner seul.
-function OrbiteIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="4.1" fill="currentColor" />
-      <g className="orbite-ring">
-        <ellipse
-          cx="12"
-          cy="12"
-          rx="10.2"
-          ry="4.3"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          transform="rotate(-28 12 12)"
-        />
-      </g>
-    </svg>
-  );
-}
-
-// `short` = code mono affiché sous l'icône dans le rail replié et dans le dock
-// mobile. Codes repris de la maquette Direction C, en capitales : ils sont là
-// pour être reconnus de loin, pas lus.
-//
-// Orbite n'y figure pas : son item a son propre habillage violet en desktop
 // (cf. plus bas) et n'existe pas du tout en mobile, la scène 3D étant une vue
 // desktop. Le lister ici obligerait les deux rendus à l'exclure au filtre.
 const NAV: NavItem[] = [
@@ -240,18 +209,6 @@ export default function Sidebar() {
             );
           })}
 
-          {/* Item Orbite — style violet spatial dédié, hors logique standard */}
-          <Link
-            href="/orbite"
-            title="Orbite"
-            data-active={isActive(pathname, "/orbite")}
-            className={`orbite-item sb-item relative z-10 flex min-h-[46px] items-center gap-[11px] rounded-[15px] px-3 font-bold text-white ${
-              isActive(pathname, "/orbite") ? "orbite-active" : ""
-            }`}
-          >
-            <OrbiteIcon className="h-[18px] w-[18px] flex-shrink-0" />
-            <ItemLabel label="Orbite" short="ORBITE" />
-          </Link>
         </nav>
 
         {/* Bas de sidebar : déconnexion + liens légaux */}
