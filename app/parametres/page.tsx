@@ -275,7 +275,7 @@ export default function PromptsPage() {
             <button
               onClick={openNew}
               aria-label="Nouveau prompt"
-              className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[12px] bg-[var(--acc)] text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] bg-[var(--acc)] text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
             >
               <Plus className="h-4 w-4" strokeWidth={2.4} />
             </button>
@@ -328,7 +328,7 @@ export default function PromptsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEdit(selected)}
-                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 text-[12.5px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-[12.5px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]"
                   >
                     <SquarePen className="h-3.5 w-3.5" strokeWidth={2} />
                     Modifier
@@ -341,7 +341,7 @@ export default function PromptsPage() {
                       }
                     }}
                     aria-label="Supprimer"
-                    className="flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--faint)] transition-colors hover:border-[var(--neg)] hover:text-[var(--neg)]"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--faint)] transition-colors hover:border-[var(--neg)] hover:text-[var(--neg)]"
                   >
                     <Trash2 className="h-[15px] w-[15px]" strokeWidth={2} />
                   </button>
@@ -473,14 +473,14 @@ export default function PromptsPage() {
             <button
               onClick={() => setOpen(false)}
               disabled={pending}
-              className="min-h-[38px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-[12.5px] font-medium text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
+              className="min-h-[44px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-[12.5px] font-medium text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
             >
               Annuler
             </button>
             <button
               onClick={submit}
               disabled={pending}
-              className="min-h-[38px] rounded-full bg-[var(--acc)] px-5 text-[12.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
+              className="min-h-[44px] rounded-full bg-[var(--acc)] px-5 text-[12.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60"
             >
               {pending ? "Enregistrement…" : "Enregistrer"}
             </button>
