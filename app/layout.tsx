@@ -24,7 +24,11 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "MyFlip — Pilotage de revente",
   description: "Suis tes achats, ventes et marges sur Vinted et Vestiaire.",
-  metadataBase: new URL("https://compta-polos.vercel.app"),
+  // Suit l'hôte de la vitrine dès qu'il est configuré : les métadonnées Open
+  // Graph d'une landing doivent pointer sur la landing, pas sur l'ancienne URL.
+  metadataBase: new URL(
+    `https://${process.env.NEXT_PUBLIC_LANDING_HOST?.trim().replace(/^https?:\/\//, "") || "compta-polos.vercel.app"}`,
+  ),
   icons: {
     icon: "/logo-atlas/myflip-favicon-32.png",
     apple: "/logo-atlas/myflip-icon-180.png",

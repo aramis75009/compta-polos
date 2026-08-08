@@ -32,6 +32,9 @@ async function main() {
       token,
       secret: null,
       boardId,
+      // Ce script vise explicitement TRELLO_BOARD_ID : le board est bien celui
+      // qu'on a choisi de cibler, il n'y a pas de repli silencieux ici.
+      boardDuCompte: true,
       labelId: null,
       comptabiliseLabelId: null,
     },

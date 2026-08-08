@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId, unauthorized } from "@/lib/apiAuth";
-import { apercuSecret, chiffrer, chiffrementDisponible, dechiffrerOuNull } from "@/lib/crypto";
+import {
+  apercuSecret,
+  chiffrer,
+  chiffrementDisponible,
+  dechiffrerOuNull,
+} from "@/lib/crypto";
 import { reglagesBruts, resoudreReglages } from "@/lib/settings";
 import type { UserSettingsDTO } from "@/lib/types";
 
@@ -25,8 +30,12 @@ const CLAIRS = [
   "modeleIA",
 ] as const;
 
-type Body = Partial<Record<(typeof SECRETS)[number] | (typeof CLAIRS)[number], string | null>> & {
+type Body = Partial<
+  Record<(typeof SECRETS)[number] | (typeof CLAIRS)[number], string | null>
+> & {
   objectifMensuel?: number | null;
+  onboardingEtape?: number;
+  onboardingTermine?: boolean;
 };
 
 /**
@@ -65,6 +74,8 @@ export async function GET() {
       trelloComptabiliseLabelId: s?.trelloComptabiliseLabelId ?? null,
       modeleIA: s?.modeleIA ?? null,
       objectifMensuel: s?.objectifMensuel ?? null,
+      onboardingEtape: s?.onboardingEtape ?? 1,
+      onboardingTermine: s?.onboardingTermine ?? false,
       // D'où vient la valeur réellement utilisée : du compte, ou de
       // l'application. C'est ce qui permet d'afficher « tu utilises la clé de
       // l'app » plutôt que de laisser croire que rien n'est configuré.
@@ -102,7 +113,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = (await req.json()) as Body;
-    const data: Record<string, string | number | null> = {};
+    const data: Record<string, string | number | boolean | null> = {};
 
     for (const champ of SECRETS) {
       if (!(champ in body)) continue;
@@ -116,6 +127,17 @@ export async function PUT(req: NextRequest) {
       data[champ] = valeur || null;
     }
 
+    if ("onboardingEtape" in body) {
+      const n = Number(body.onboardingEtape);
+      // Borné : une étape hors plage bloquerait le parcours sur un écran vide.
+      data.onboardingEtape = Number.isInteger(n)
+        ? Math.min(Math.max(n, 1), 4)
+        : 1;
+    }
+    if ("onboardingTermine" in body) {
+      data.onboardingTermine = Boolean(body.onboardingTermine);
+    }
+
     if ("objectifMensuel" in body) {
       const n = Number(body.objectifMensuel);
       data.objectifMensuel =
@@ -123,7 +145,10 @@ export async function PUT(req: NextRequest) {
     }
 
     if (Object.keys(data).length === 0) {
-      return NextResponse.json({ error: "Rien à enregistrer." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Rien à enregistrer." },
+        { status: 400 },
+      );
     }
 
     // `trelloBoardId` est unique : deux comptes ne peuvent pas revendiquer le

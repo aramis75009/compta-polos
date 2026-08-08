@@ -224,50 +224,46 @@ export function useSetObjectif() {
 
 // ---------- Commandes ----------
 
-/** Une pièce saisie individuellement, en mode DETAILLE. */
-export type LigneCommande = {
+/**
+ * Un lot d'achat à créer.
+ *
+ * Le mode de saisie est une propriété DU LOT, pas de la commande : un même
+ * achat peut mêler 50 polos saisis au forfait et 3 sacs saisis pièce par pièce.
+ *
+ * - LOT   : `quantite` + `prixTotal`, réparti uniformément dans le lot.
+ * - PIECE : une entrée par pièce avec son prix réel ; la quantité en découle.
+ *
+ * `prixTotal` et les prix des pièces sont HORS frais de livraison : le port
+ * vit sur la commande et se répartit au prorata sur toutes les pièces de tous
+ * les lots.
+ */
+export type LotInput = {
+  /** Libellé du lot. À défaut, le serveur reprend « catégorie + marque ». */
+  nom?: string;
   marque: string;
   categorie: string;
-  /** Prix payé pour CETTE pièce, hors frais de livraison. */
-  prixAchat: number;
-  /**
-   * Préfixe SKU de cette pièce. Un lot mixte porte plusieurs séries — des sacs
-   * Nike et des coques Rhodes n'ont pas la même numérotation.
-   */
+  /** Préfixe SKU du lot. À défaut, le serveur reprend la suggestion. */
   prefixeSku?: string;
-};
+} & (
+  | { modeSaisie: "LOT"; quantite: number; prixTotal: number }
+  | { modeSaisie: "PIECE"; pieces: { prixAchat: number }[] }
+);
 
 /**
- * Deux formes d'entrée pour une même route, distinguées par `modeSaisie` :
+ * Une commande : un fournisseur, une date, des frais de port, et N lots.
  *
- * - LISSE    : on saisit un coût total et un nombre d'articles, le prix est
- *              réparti uniformément. Mode historique.
- * - DETAILLE : on saisit une ligne par pièce avec son prix réel, plus les
- *              frais de livraison. `coutTotal` et `nbArticles` sont alors
- *              CALCULÉS par le serveur depuis les lignes — jamais envoyés,
- *              sinon les deux pourraient diverger.
+ * `coutTotal` et `nbArticles` ne sont jamais envoyés — le serveur les calcule
+ * depuis les lots, seule façon de garantir `Σ prixAchat = coutTotal`.
  */
 export type CommandeInput = {
   fournisseur: string;
   date: string;
-  marque: string;
-  categorie: string;
   grade?: string | null;
   coefObjectif?: number | null;
-  /** Préfixe SKU du lot. À défaut, le serveur reprend la suggestion. */
-  prefixeSku?: string;
-} & (
-  | {
-      modeSaisie?: "LISSE";
-      coutTotal: number;
-      nbArticles: number;
-    }
-  | {
-      modeSaisie: "DETAILLE";
-      fraisLivraison: number;
-      lignes: LigneCommande[];
-    }
-);
+  /** Frais de port de la commande, répartis sur les pièces de tous les lots. */
+  fraisLivraison: number;
+  lots: LotInput[];
+};
 
 export function useCreateCommande() {
   const invalidate = useInvalidateAll();

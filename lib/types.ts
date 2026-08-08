@@ -2,9 +2,7 @@
 
 /** Compte sur lequel la vente a été encaissée. */
 export type CompteVente =
-  | "VINTED_PRO"
-  | "VINTED_SECOND"
-  | "VESTIAIRE_COLLECTIVE";
+  "VINTED_PRO" | "VINTED_SECOND" | "VESTIAIRE_COLLECTIVE";
 
 export type ArticleDTO = {
   id: string;
@@ -69,6 +67,26 @@ export type CommandeDTO = {
   categorie: string | null;
   grade: string | null;
   coefObjectif: number | null;
+  /** Les lots de la commande, dans l'ordre de saisie. */
+  lots: LotDTO[];
+};
+
+/**
+ * Un lot d'achat à l'intérieur d'une commande.
+ *
+ * `prixTotal` est HORS frais de livraison : le port vit sur la commande et se
+ * répartit au prorata sur toutes les pièces de tous les lots.
+ */
+export type LotDTO = {
+  id: string;
+  nom: string;
+  marque: string;
+  categorie: string;
+  prefixeSku: string;
+  /** "LOT" (quantité + prix global) ou "PIECE" (un prix par pièce). */
+  modeSaisie: string;
+  quantite: number;
+  prixTotal: number;
 };
 
 export type CommandeStatsRow = {
@@ -306,6 +324,9 @@ export type UserSettingsDTO = {
   trelloComptabiliseLabelId: string | null;
   modeleIA: string | null;
   objectifMensuel: number | null;
+  /** Étape en cours du parcours de démarrage (1 à 4). */
+  onboardingEtape: number;
+  onboardingTermine: boolean;
   source: {
     gemini: SourceReglage;
     anthropic: SourceReglage;

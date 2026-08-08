@@ -33,6 +33,7 @@ model User {
 
   articles  Article[]
   commandes Commande[]
+  lots      Lot[]
   prompts   PromptTemplate[]
   settings  UserSettings?
 }
@@ -74,6 +75,12 @@ model UserSettings {
   // (`lib/objectif.ts`), donc perdu d'un appareil à l'autre.
   objectifMensuel Float?
 
+  // Avancement du parcours de démarrage (/demarrage). Stocké sur le compte et
+  // non dans le navigateur : le parcours doit survivre à un onglet fermé et se
+  // reprendre depuis un autre appareil.
+  onboardingEtape   Int     @default(1)
+  onboardingTermine Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -94,11 +101,15 @@ model Commande {
   fraisLivraison Float?
   // LISSE   : coût total ÷ nombre d'articles, le mode historique.
   // DETAILLE: un prix d'achat saisi par article (prix hétérogènes).
+  // ⚠️ Hérité. Le mode de saisie est désormais une propriété du LOT, pas de la
+  // commande : un même achat peut mêler un lot saisi au forfait et un lot saisi
+  // pièce par pièce. Conservé pour les commandes antérieures aux lots.
   modeSaisie  String    @default("LISSE")
   marque      String?
   categorie   String?
   grade       String?
   coefObjectif Float?   @default(2.5)
+  lots        Lot[]
   articles    Article[]
   createdAt   DateTime  @default(now())
 
@@ -106,6 +117,46 @@ model Commande {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Un lot d'achat à l'intérieur d'une commande.
+///
+/// Une commande chez un grossiste contient plusieurs sortes de pièces : 50
+/// polos Ralph Lauren et 30 t-shirts Ralph Lauren n'ont ni le même prix
+/// d'achat, ni la même série de SKU. Le modèle précédent ne savait représenter
+/// cela qu'en créant deux commandes fictives.
+///
+/// Chaque lot porte son propre mode de saisie : au forfait (quantité + prix
+/// global) ou pièce par pièce. Les frais de livraison restent au niveau de la
+/// commande et se répartissent au prorata sur toutes les pièces de tous les
+/// lots — c'est ce qui maintient `Σ Article.prixAchat = Commande.coutTotal`.
+model Lot {
+  id         String   @id @default(cuid())
+  commandeId String
+  commande   Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+
+  /// Libellé du lot (« Sacs à dos Nike »). Suggéré depuis catégorie + marque,
+  /// éditable. Recopié dans `Article.lot`, qui alimente le filtre du Stock.
+  nom        String
+  marque     String
+  categorie  String
+  prefixeSku String
+
+  /// LOT   : quantité + prix global, réparti uniformément dans le lot.
+  /// PIECE : un prix saisi par pièce.
+  modeSaisie String @default("LOT")
+  quantite   Int
+  /// Prix du lot HORS frais de livraison.
+  prixTotal  Float
+
+  articles  Article[]
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([commandeId])
 }
 
 model Article {
@@ -132,6 +183,10 @@ model Article {
   trelloCardId String?
   commandeId  String?
   commande    Commande? @relation(fields: [commandeId], references: [id], onDelete: SetNull)
+  // Nullable : les articles antérieurs aux lots n'en ont pas, et supprimer un
+  // lot ne doit pas emporter les articles déjà vendus qu'il contenait.
+  lotId       String?
+  lotRef      Lot?      @relation(fields: [lotId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
 
   // Annonce générée (Mise en vente)
@@ -152,6 +207,7 @@ model Article {
   @@index([trelloCardId])
   @@index([dateVente])
   @@index([commandeId])
+  @@index([lotId])
 }
 
 // Prompt personnalisable pour la génération d'annonces via Gemini.

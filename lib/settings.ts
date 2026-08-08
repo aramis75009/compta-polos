@@ -16,6 +16,16 @@ export type TrelloContexte = {
   /** Secret d'API, uniquement pour valider la signature des webhooks entrants. */
   secret: string | null;
   boardId: string | null;
+  /**
+   * Vrai seulement si le board vient des réglages DE CE COMPTE.
+   *
+   * ⚠️ Garde-fou indispensable pour toute ÉCRITURE sur Trello. Sans board
+   * choisi, la cascade retombe sur `TRELLO_BOARD_ID`, c'est-à-dire le board du
+   * propriétaire du déploiement : un compte neuf qui demande la création des
+   * colonnes les créerait sur le Trello de quelqu'un d'autre. Les lectures
+   * peuvent se contenter du repli ; les écritures, jamais.
+   */
+  boardDuCompte: boolean;
   /** Étiquette « À comptabiliser » : celle qui déclenche l'entrée en compta. */
   labelId: string | null;
   /** Étiquette « Comptabilisé » : posée après validation. */
@@ -38,7 +48,8 @@ export type ReglagesResolus = {
   };
 };
 
-const vide = (s: string | null | undefined) => (s && s.trim() ? s.trim() : null);
+const vide = (s: string | null | undefined) =>
+  s && s.trim() ? s.trim() : null;
 
 /** Ligne brute des réglages, secrets encore chiffrés. */
 export function reglagesBruts(userId: string): Promise<UserSettings | null> {
@@ -94,6 +105,7 @@ export async function resoudreReglages(
       token: trelloTokenCompte,
       secret: dechiffrerOuNull(s?.trelloSecret),
       boardId: vide(s?.trelloBoardId),
+      boardDuCompte: Boolean(vide(s?.trelloBoardId)),
       labelId: vide(s?.trelloLabelId),
       comptabiliseLabelId: vide(s?.trelloComptabiliseLabelId),
     };
@@ -110,6 +122,7 @@ export async function resoudreReglages(
         // Les ids du compte l'emportent même quand l'accès vient de l'app :
         // Aramis peut viser son board avec les clés du déploiement.
         boardId: vide(s?.trelloBoardId) ?? vide(process.env.TRELLO_BOARD_ID),
+        boardDuCompte: Boolean(vide(s?.trelloBoardId)),
         labelId: vide(s?.trelloLabelId) ?? vide(process.env.TRELLO_LABEL_ID),
         comptabiliseLabelId:
           vide(s?.trelloComptabiliseLabelId) ??

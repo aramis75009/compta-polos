@@ -16,6 +16,7 @@ import type { PromptTemplateDTO } from "@/lib/types";
 import { euros } from "@/lib/calc";
 import { useIdentite } from "@/lib/useIdentite";
 import Modal from "@/components/Modal";
+import MetaPrompt from "@/components/parametres/MetaPrompt";
 import Loader from "@/components/Loader";
 import { CardTitle, Frame, Module } from "@/components/console";
 
@@ -266,6 +267,11 @@ export default function PromptsPage() {
 
       {/* Objectif mensuel (#15) — réglé ici, affiché en anneau sur le Dashboard */}
       <ObjectifMensuelCard />
+
+      {/* Écrire un prompt qui respecte le contrat de l'application ne
+          s'improvise pas : on délègue la rédaction à un LLM externe, à qui on
+          fournit ce contrat. */}
+      <MetaPrompt />
 
       {/* ── Maître-détail : colonne de sélection 300 px + panneau ────────
           La maquette range les prompts en liste étroite plutôt qu'en grille

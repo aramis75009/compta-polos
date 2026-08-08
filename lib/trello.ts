@@ -32,10 +32,9 @@ export async function getCardName(
   ctx: TrelloContexte,
   cardId: string,
 ): Promise<string> {
-  const res = await fetch(
-    `${BASE}/cards/${cardId}?fields=name&${creds(ctx)}`,
-    { cache: "no-store" },
-  );
+  const res = await fetch(`${BASE}/cards/${cardId}?fields=name&${creds(ctx)}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error(`Trello getCardName ${res.status}`);
   const card = (await res.json()) as { name?: string };
   return card.name ?? "";
@@ -62,7 +61,8 @@ export async function removeComptabiliserLabel(
   ctx: TrelloContexte,
   cardId: string,
 ): Promise<void> {
-  if (!ctx.labelId) throw new Error("Étiquette « À comptabiliser » non configurée.");
+  if (!ctx.labelId)
+    throw new Error("Étiquette « À comptabiliser » non configurée.");
   const res = await fetch(
     `${BASE}/cards/${cardId}/idLabels/${ctx.labelId}?${creds(ctx)}`,
     { method: "DELETE" },
@@ -99,6 +99,50 @@ export async function listBoardLabels(
   });
   if (!res.ok) throw new Error(`Trello listBoardLabels ${res.status}`);
   return (await res.json()) as TrelloLabel[];
+}
+
+export type TrelloList = { id: string; name: string; closed?: boolean };
+
+/** Colonnes d'un board, archivées comprises (une colonne archivée existe encore). */
+export async function listBoardLists(
+  ctx: TrelloContexte,
+  boardId: string,
+): Promise<TrelloList[]> {
+  const res = await fetch(
+    `${BASE}/boards/${boardId}/lists?filter=all&fields=id,name,closed&${creds(ctx)}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`Trello listBoardLists ${res.status}`);
+  return (await res.json()) as TrelloList[];
+}
+
+/** Ajoute une colonne au board. */
+export async function createList(
+  ctx: TrelloContexte,
+  boardId: string,
+  name: string,
+): Promise<TrelloList> {
+  const res = await fetch(
+    `${BASE}/lists?name=${encodeURIComponent(name)}&idBoard=${boardId}&pos=bottom&${creds(ctx)}`,
+    { method: "POST" },
+  );
+  if (!res.ok) throw new Error(`Trello createList ${res.status}`);
+  return (await res.json()) as TrelloList;
+}
+
+/** Ajoute une étiquette au board. `color` peut être null (étiquette sans couleur). */
+export async function createLabel(
+  ctx: TrelloContexte,
+  boardId: string,
+  name: string,
+  color: string,
+): Promise<TrelloLabel> {
+  const res = await fetch(
+    `${BASE}/labels?name=${encodeURIComponent(name)}&color=${color}&idBoard=${boardId}&${creds(ctx)}`,
+    { method: "POST" },
+  );
+  if (!res.ok) throw new Error(`Trello createLabel ${res.status}`);
+  return (await res.json()) as TrelloLabel;
 }
 
 /** Enregistre un webhook Trello sur le board. Renvoie l'objet créé. */

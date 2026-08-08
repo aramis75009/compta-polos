@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import LandingNav from "./LandingNav";
 import SkuLifecycle from "./SkuLifecycle";
+import { lienApp } from "@/lib/hosts";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Primitives
@@ -281,13 +282,13 @@ export default function Landing() {
               <p className="mt-6 max-w-[52ch] text-[16.5px] leading-relaxed text-[var(--ink2)]">
                 Arrêtez de deviner. Le premier outil de gestion conçu pour les
                 professionnels Vinted et Vestiaire Collective qui achètent en
-                lots. Suivez vos achats fournisseurs, générez vos annonces par IA
-                et maîtrisez enfin votre rentabilité réelle.
+                lots. Suivez vos achats fournisseurs, générez vos annonces par
+                IA et maîtrisez enfin votre rentabilité réelle.
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
-                  href="/signup"
+                  href={lienApp("/signup")}
                   className="flex min-h-[48px] items-center justify-center rounded-full bg-[var(--acc)] px-7 text-[15px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
                 >
                   Créer mon compte
@@ -356,8 +357,8 @@ export default function Landing() {
                 <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-[var(--ink2)]">
                   Prenez vos photos, l’IA rédige le titre, la description et les
                   mots-clés. Titre saturé de mots-clés porteurs, description
-                  structurée, état et matière annoncés — prêt à coller dans votre
-                  annonce.
+                  structurée, état et matière annoncés — prêt à coller dans
+                  votre annonce.
                 </p>
               </div>
 
@@ -372,14 +373,16 @@ export default function Landing() {
                   Mots-clés
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {["ralph lauren", "polo vintage", "y2k", "preppy"].map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-md bg-[var(--tint)] px-2 py-0.5 font-mono text-[11px] text-[var(--ink2)]"
-                    >
-                      {t}
-                    </span>
-                  ))}
+                  {["ralph lauren", "polo vintage", "y2k", "preppy"].map(
+                    (t) => (
+                      <span
+                        key={t}
+                        className="rounded-md bg-[var(--tint)] px-2 py-0.5 font-mono text-[11px] text-[var(--ink2)]"
+                      >
+                        {t}
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -478,7 +481,10 @@ export default function Landing() {
 
                 <ul className="mt-6 flex flex-col gap-2.5 border-t border-line pt-6">
                   {o.lignes.map((l) => (
-                    <li key={l} className="flex gap-2.5 text-[14px] text-[var(--ink2)]">
+                    <li
+                      key={l}
+                      className="flex gap-2.5 text-[14px] text-[var(--ink2)]"
+                    >
                       <span
                         aria-hidden
                         className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-[var(--acc)]"
@@ -489,7 +495,7 @@ export default function Landing() {
                 </ul>
 
                 <Link
-                  href={`/signup?plan=${o.slug}`}
+                  href={lienApp(`/signup?plan=${o.slug}`)}
                   className={`mt-7 flex min-h-[48px] items-center justify-center rounded-full text-[14.5px] font-bold transition-colors ${
                     o.populaire
                       ? "bg-[var(--acc)] text-[var(--acc-ink)] hover:bg-[var(--acc-hover)]"
@@ -503,8 +509,8 @@ export default function Landing() {
           </div>
 
           <p className="mt-8 text-center text-[13.5px] text-[var(--ink2)]">
-            Un compte de vente supplémentaire sur n’importe quelle formule :
-            +6 €/mois TTC.
+            Un compte de vente supplémentaire sur n’importe quelle formule : +6
+            €/mois TTC.
           </p>
         </Section>
 
