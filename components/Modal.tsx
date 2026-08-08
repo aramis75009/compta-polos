@@ -1,50 +1,115 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 
+/**
+ * Modale de l'application.
+ *
+ * Trois zones en colonne : un en-tête figé, un corps qui défile, un pied
+ * optionnel qui porte les actions.
+ *
+ * Ce découpage corrige un défaut de fond : le panneau était simplement centré,
+ * sans hauteur maximale ni défilement. Dès qu'un formulaire dépassait la
+ * fenêtre, il débordait des DEUX côtés — le titre disparaissait en haut, le
+ * bouton de validation en bas, et aucun des deux n'était atteignable.
+ *
+ * ⚠️ La modale est montée dans un PORTAIL vers `document.body`, et ce n'est pas
+ * une commodité. Le `<main>` de l'application porte une animation d'entrée qui
+ * laisse un `transform` : un ancêtre transformé devient le bloc conteneur des
+ * descendants `position: fixed`. Rendue sur place, la modale se positionnait
+ * donc par rapport au `<main>` — décalée de la hauteur de l'en-tête et
+ * débordant d'autant sous l'écran. Le portail la sort de cette chaîne.
+ */
 export default function Modal({
   open,
   onClose,
   title,
   children,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Actions de la modale. Rendues dans un pied toujours visible. */
+  footer?: React.ReactNode;
 }) {
+  const titreId = useId();
+  // `document` n'existe pas au rendu serveur : le portail n'est monté qu'après.
+  const [monte, setMonte] = useState(false);
+  useEffect(() => setMonte(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+
+    // Verrou de défilement : sans lui, le doigt qui atteint le bas du corps
+    // continue sur la page derrière, et on perd la modale de vue sur mobile.
+    const precedent = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = precedent;
+    };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !monte) return null;
 
-  return (
+  return createPortal(
+    // z-[60] : la bulle du chat est en z-50 et passait devant la modale.
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 px-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-ink/30 backdrop-blur-sm"
       onMouseDown={onClose}
     >
       <div
-        className="w-full max-w-md rounded-card border border-line bg-surface p-6 shadow-card-hover"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="flex min-h-full items-start justify-center p-4 sm:items-center"
+        style={{
+          paddingTop: "max(1rem, env(safe-area-inset-top))",
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+        }}
       >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-title-sm font-semibold text-ink">{title}</h2>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-faint transition-colors hover:bg-surface-container hover:text-ink"
-            aria-label="Fermer"
-          >
-            ✕
-          </button>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titreId}
+          onMouseDown={(e) => e.stopPropagation()}
+          // `dvh` suit la barre d'adresse rétractable des navigateurs mobiles ;
+          // `vh` ne la connaît pas et laisse le pied sous l'écran. Repli en
+          // `vh` pour Safari antérieur à 15.4, qui ignore `dvh`.
+          className="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card-hover supports-[height:100dvh]:max-h-[calc(100dvh-2rem)]"
+        >
+          <header className="flex flex-none items-center justify-between gap-3 border-b border-line px-6 py-4">
+            <h2 id={titreId} className="text-title-sm font-semibold text-ink">
+              {title}
+            </h2>
+            <button
+              onClick={onClose}
+              className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-ink-faint transition-colors hover:bg-surface-container hover:text-ink"
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
+          </header>
+
+          {/* `min-h-0` est indispensable : sans lui, un enfant flex refuse de
+              rétrécir sous sa taille de contenu et le défilement ne prend pas. */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            {children}
+          </div>
+
+          {footer ? (
+            <footer className="flex-none border-t border-line bg-surface px-6 py-4">
+              {footer}
+            </footer>
+          ) : null}
         </div>
-        {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

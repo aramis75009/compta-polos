@@ -7,7 +7,7 @@
 // laissé vide ne modifie rien. C'est ce qui permet d'enregistrer le board sans
 // avoir à ressaisir la clé à chaque fois.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound, SquareKanban } from "lucide-react";
 import { toast } from "sonner";
 import { CardTitle, Module } from "@/components/console";
@@ -32,8 +32,8 @@ const boutonSecondaireCls =
 function Origine({ source }: { source: SourceReglage }) {
   const libelle = {
     utilisateur: "Ta clé",
-    app: "Clé de l'application",
-    absente: "Aucune clé",
+    app: "Tu utilises celle de MyFlip",
+    absente: "Aucune clé : la génération échouera",
   }[source];
   const couleur = {
     utilisateur: "text-[var(--pos)]",
@@ -41,7 +41,9 @@ function Origine({ source }: { source: SourceReglage }) {
     absente: "text-[var(--faint)]",
   }[source];
   return (
-    <span className={`font-mono text-[10px] uppercase tracking-[0.12em] ${couleur}`}>
+    <span
+      className={`font-mono text-[10px] uppercase tracking-[0.12em] ${couleur}`}
+    >
       {libelle}
     </span>
   );
@@ -86,9 +88,78 @@ function ChampSecret({
       />
       <p className="text-[12px] leading-snug text-[var(--faint)]">{aide}</p>
       {testable && onTest ? (
-        <button type="button" onClick={onTest} className={`${boutonSecondaireCls} self-start`}>
+        <button
+          type="button"
+          onClick={onTest}
+          className={`${boutonSecondaireCls} self-start`}
+        >
           Tester
         </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Choix d'un identifiant Trello (board ou étiquette).
+ *
+ * Menu déroulant dès que la liste est disponible, champ de saisie sinon. Le
+ * champ existe dans les deux cas : un réglage qu'on ne peut pas relire est un
+ * réglage qu'on croit absent.
+ */
+function ChampChoix({
+  id,
+  titre,
+  aide,
+  valeur,
+  onChange,
+  options,
+  placeholder,
+}: {
+  id: string;
+  titre: string;
+  aide?: string;
+  valeur: string;
+  onChange: (v: string) => void;
+  options: { id: string; name: string }[] | null;
+  placeholder: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className={labelCls} htmlFor={id}>
+        {titre}
+      </label>
+      {options ? (
+        <select
+          id={id}
+          value={valeur}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputCls}
+        >
+          <option value="">— choisir —</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+          {/* Valeur enregistrée absente de la liste (board d'un autre compte,
+              étiquette supprimée) : on la garde plutôt que de l'effacer en
+              silence au premier enregistrement. */}
+          {valeur && !options.some((o) => o.id === valeur) ? (
+            <option value={valeur}>Enregistré ({valeur.slice(-6)})</option>
+          ) : null}
+        </select>
+      ) : (
+        <input
+          id={id}
+          value={valeur}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`${inputCls} font-mono`}
+        />
+      )}
+      {aide ? (
+        <p className="text-[12px] leading-snug text-[var(--faint)]">{aide}</p>
       ) : null}
     </div>
   );
@@ -152,9 +223,12 @@ export default function Integrations() {
   }
 
   async function tester(fournisseur: string) {
-    const res = await fetch(`/api/user/settings/test?fournisseur=${fournisseur}`, {
-      method: "POST",
-    });
+    const res = await fetch(
+      `/api/user/settings/test?fournisseur=${fournisseur}`,
+      {
+        method: "POST",
+      },
+    );
     const json = await res.json();
     if (json.ok) toast.success(json.message);
     else toast.error(json.message ?? json.error ?? "Test échoué.");
@@ -183,6 +257,18 @@ export default function Integrations() {
     if (res.ok) setLabels(json.labels);
   }, []);
 
+  // Les étiquettes du board déjà enregistré sont chargées au montage. Sans
+  // cela, il fallait repasser par « lister mes boards » à chaque visite pour
+  // seulement RELIRE son réglage : les deux champs de comptabilité étaient
+  // invisibles au rechargement de la page.
+  const boardCharge = useRef<string | null>(null);
+  useEffect(() => {
+    const id = dto?.trelloBoardId;
+    if (!id || boardCharge.current === id) return;
+    boardCharge.current = id;
+    chargerLabels(id);
+  }, [dto?.trelloBoardId, chargerLabels]);
+
   async function connecterWebhook() {
     setEnCours(true);
     try {
@@ -202,10 +288,45 @@ export default function Integrations() {
 
   if (!dto) return null;
 
+  // Une étiquette Trello peut n'avoir aucun nom : seule sa couleur la
+  // distingue alors, et c'est ce qu'on affiche à la place.
+  const optionsEtiquettes =
+    labels?.map((l) => ({
+      id: l.id,
+      name: l.name || `(sans nom · ${l.color ?? "couleur inconnue"})`,
+    })) ?? null;
+
   const secretsIA = [
-    { cle: "geminiKey", titre: "Clé Gemini", valeur: gemini, set: setGemini, etat: dto.gemini, source: dto.source.gemini, test: "gemini", aide: "Génération des annonces. À créer sur aistudio.google.com/apikey." },
-    { cle: "anthropicKey", titre: "Clé Anthropic", valeur: anthropic, set: setAnthropic, etat: dto.anthropic, source: dto.source.anthropic, test: "anthropic", aide: "Assistant de l'application. À créer sur console.anthropic.com." },
-    { cle: "openrouterKey", titre: "Clé OpenRouter", valeur: openrouter, set: setOpenrouter, etat: dto.openrouter, source: dto.source.openrouter, test: "openrouter", aide: "Facultative : ouvre le choix d'autres modèles pour les annonces." },
+    {
+      cle: "geminiKey",
+      titre: "Clé Google Gemini",
+      valeur: gemini,
+      set: setGemini,
+      etat: dto.gemini,
+      source: dto.source.gemini,
+      test: "gemini",
+      aide: "Elle rédige tes annonces à partir des photos. Où la trouver : aistudio.google.com/apikey, bouton « Create API key ».",
+    },
+    {
+      cle: "anthropicKey",
+      titre: "Clé Anthropic",
+      valeur: anthropic,
+      set: setAnthropic,
+      etat: dto.anthropic,
+      source: dto.source.anthropic,
+      test: "anthropic",
+      aide: "Elle fait tourner l'assistant, la bulle en bas à droite. Où la trouver : console.anthropic.com, section API keys.",
+    },
+    {
+      cle: "openrouterKey",
+      titre: "Clé OpenRouter",
+      valeur: openrouter,
+      set: setOpenrouter,
+      etat: dto.openrouter,
+      source: dto.source.openrouter,
+      test: "openrouter",
+      aide: "Facultative aujourd'hui : elle servira à choisir un autre modèle que Gemini quand ce sera disponible. Tu peux la laisser vide.",
+    },
   ] as const;
 
   return (
@@ -213,7 +334,10 @@ export default function Integrations() {
       {/* Clés IA */}
       <Module className="p-[24px]">
         <div className="mb-[14px] flex items-center gap-2.5">
-          <KeyRound className="h-[18px] w-[18px] text-[var(--acc)]" strokeWidth={2} />
+          <KeyRound
+            className="h-[18px] w-[18px] text-[var(--acc)]"
+            strokeWidth={2}
+          />
           <CardTitle>Mes clés IA</CardTitle>
         </div>
 
@@ -225,8 +349,10 @@ export default function Integrations() {
         )}
 
         <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--faint)]">
-          Sans clé de ta part, l&apos;application utilise la sienne. Tes clés sont
-          chiffrées et ne sont jamais réaffichées.
+          Tant que tu ne mets pas ta clé, tes annonces sont générées avec celle
+          de MyFlip, et donc sur son quota. Une fois enregistrée, ta clé est
+          chiffrée et ne peut plus être réaffichée — seuls ses quatre derniers
+          caractères restent visibles.
         </p>
 
         <div className="flex flex-col gap-4">
@@ -271,20 +397,24 @@ export default function Integrations() {
       {/* Trello */}
       <Module className="p-[24px]">
         <div className="mb-[14px] flex items-center gap-2.5">
-          <SquareKanban className="h-[18px] w-[18px] text-[var(--acc)]" strokeWidth={2} />
+          <SquareKanban
+            className="h-[18px] w-[18px] text-[var(--acc)]"
+            strokeWidth={2}
+          />
           <CardTitle>Mon Trello</CardTitle>
         </div>
 
         <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--faint)]">
-          Clé, token et secret se récupèrent sur trello.com/app-key. L&apos;étiquette
-          « À comptabiliser » posée sur une carte fait basculer les articles dont
-          le SKU figure dans son titre.
+          Les trois se récupèrent sur trello.com/app-key. Une fois connecté,
+          poser l&apos;étiquette « À comptabiliser » sur une carte fait basculer
+          les articles dont le SKU figure dans son titre — c&apos;est ce qui
+          alimente ta page À comptabiliser.
         </p>
 
         <div className="flex flex-col gap-4">
           <ChampSecret
             titre="Clé d'API"
-            aide="Le champ « Key » de trello.com/app-key."
+            aide="Le champ « Key » en haut de trello.com/app-key."
             etat={dto.trelloKey}
             source={dto.source.trello}
             valeur={trelloKey}
@@ -293,7 +423,7 @@ export default function Integrations() {
           />
           <ChampSecret
             titre="Token"
-            aide="Généré depuis le lien « Token » de la même page."
+            aide="Sur la même page, clique sur le lien « Token » puis autorise l'accès. C'est lui qui donne à MyFlip le droit de lire et modifier tes cartes."
             etat={dto.trelloToken}
             valeur={trelloToken}
             onChange={setTrelloToken}
@@ -301,7 +431,7 @@ export default function Integrations() {
           />
           <ChampSecret
             titre="Secret d'API"
-            aide="Sert à vérifier que les appels reçus viennent bien de Trello. Sans lui, l'application accepte les événements sans les authentifier."
+            aide="Il authentifie les messages que Trello envoie à MyFlip. Sans lui, quelqu'un qui connaît l'identifiant de ton board peut faire basculer tes articles en « à comptabiliser »."
             etat={dto.trelloSecret}
             valeur={trelloSecret}
             onChange={setTrelloSecret}
@@ -316,7 +446,8 @@ export default function Integrations() {
                 const patch: Record<string, string> = {};
                 if (trelloKey.trim()) patch.trelloKey = trelloKey.trim();
                 if (trelloToken.trim()) patch.trelloToken = trelloToken.trim();
-                if (trelloSecret.trim()) patch.trelloSecret = trelloSecret.trim();
+                if (trelloSecret.trim())
+                  patch.trelloSecret = trelloSecret.trim();
                 if (Object.keys(patch).length === 0) {
                   toast.error("Aucun identifiant saisi.");
                   return;
@@ -341,81 +472,49 @@ export default function Integrations() {
             </button>
           </div>
 
-          {/* Le board et les étiquettes se choisissent dans des menus : aucun
-              identifiant n'est recopié à la main. */}
-          {(boards ?? (dto.trelloBoardId ? [] : null)) && (
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls} htmlFor="board">
-                Board
-              </label>
-              <select
-                id="board"
-                value={boardId}
-                onChange={(e) => {
-                  setBoardId(e.target.value);
-                  setLabels(null);
-                  chargerLabels(e.target.value);
-                }}
-                className={inputCls}
-              >
-                <option value="">— choisir —</option>
-                {(boards ?? []).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-                {/* Board déjà enregistré mais liste non chargée : on garde
-                    l'option courante pour ne pas l'effacer par inadvertance. */}
-                {dto.trelloBoardId &&
-                  !(boards ?? []).some((b) => b.id === dto.trelloBoardId) && (
-                    <option value={dto.trelloBoardId}>
-                      Board enregistré ({dto.trelloBoardId.slice(-6)})
-                    </option>
-                  )}
-              </select>
-            </div>
-          )}
+          {/* Ces trois champs sont rendus en permanence, jamais sous condition.
+              Ils ne l'étaient qu'une fois la liste des boards chargée : au
+              rechargement de la page, les deux étiquettes de comptabilité
+              disparaissaient, et on ne pouvait plus relire son propre réglage.
+              Sans liste disponible, on retombe sur la saisie de l'identifiant —
+              moins agréable, mais jamais invisible. */}
+          <ChampChoix
+            id="board"
+            titre="Board surveillé"
+            valeur={boardId}
+            onChange={(v) => {
+              setBoardId(v);
+              setLabels(null);
+              chargerLabels(v);
+            }}
+            options={boards}
+            placeholder="Identifiant du board"
+            aide={
+              boards
+                ? "Le tableau que MyFlip surveille."
+                : "Enregistre ta clé et ton token, puis « Tester et lister mes boards » pour choisir dans une liste."
+            }
+          />
 
-          {labels && (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls} htmlFor="label-compta">
-                  Étiquette « À comptabiliser »
-                </label>
-                <select
-                  id="label-compta"
-                  value={labelId}
-                  onChange={(e) => setLabelId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">— choisir —</option>
-                  {labels.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name || `(sans nom, ${l.color ?? "?"})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls} htmlFor="label-comptabilise">
-                  Étiquette « Comptabilisé »
-                </label>
-                <select
-                  id="label-comptabilise"
-                  value={comptaLabelId}
-                  onChange={(e) => setComptaLabelId(e.target.value)}
-                  className={inputCls}
-                >
-                  <option value="">— choisir —</option>
-                  {labels.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name || `(sans nom, ${l.color ?? "?"})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
+          <ChampChoix
+            id="label-compta"
+            titre="Étiquette « À comptabiliser »"
+            valeur={labelId}
+            onChange={setLabelId}
+            options={optionsEtiquettes}
+            placeholder="Identifiant de l'étiquette"
+            aide="Quand tu la poses sur une carte, les articles dont le SKU figure dans le titre passent en « À comptabiliser »."
+          />
+
+          <ChampChoix
+            id="label-comptabilise"
+            titre="Étiquette « Comptabilisé »"
+            valeur={comptaLabelId}
+            onChange={setComptaLabelId}
+            options={optionsEtiquettes}
+            placeholder="Identifiant de l'étiquette"
+            aide="MyFlip la pose lui-même sur la carte quand tu valides la vente."
+          />
 
           <div className="flex flex-wrap gap-2">
             <button

@@ -6,7 +6,7 @@ import { ChevronDown, FileSpreadsheet, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useCommandeStats, useCommandes, useDeleteCommande } from "@/lib/hooks";
 import { coef, euros } from "@/lib/calc";
-import type { CommandeDTO } from "@/lib/types";
+import type { CommandeDTO, LotDTO } from "@/lib/types";
 import Loader from "@/components/Loader";
 import NewCommandeModal from "@/components/NewCommandeModal";
 import { CardTitle, Eyebrow, Frame, Module } from "@/components/console";
@@ -175,10 +175,12 @@ function CommandeDetailPanel({
   commandeId,
   coutTotal,
   coefObjectif,
+  lots,
 }: {
   commandeId: string;
   coutTotal: number;
   coefObjectif: number | null;
+  lots: LotDTO[];
 }) {
   const { data: stats, isLoading } = useCommandeStats(commandeId);
 
@@ -213,6 +215,38 @@ function CommandeDetailPanel({
 
   return (
     <div>
+      {/* Composition : ce que contient réellement la commande. Affichée en
+          premier — c'est la question qu'on se pose avant la rentabilité, et
+          c'est ce qui explique deux prix d'achat différents dans un même
+          achat. Masquée quand il n'y a qu'un lot : elle n'apprendrait rien. */}
+      {lots.length > 1 && (
+        <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface)", padding: "16px 18px", marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+            {lots.length} lots
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {lots.map((l) => (
+              <div key={l.id} style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, fontSize: 13.5 }}>
+                <span style={{ minWidth: 0 }}>
+                  <strong style={{ color: "var(--ink)" }}>{l.nom}</strong>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11.5, color: "var(--faint-2)", marginLeft: 8 }}>
+                    {l.prefixeSku} · {l.modeSaisie === "PIECE" ? "pièce par pièce" : "au lot"}
+                  </span>
+                </span>
+                <span style={{ flex: "none", fontFamily: "var(--font-mono, monospace)", color: "var(--muted)" }}>
+                  {l.quantite} × {euros(l.quantite > 0 ? l.prixTotal / l.quantite : 0)}
+                  <strong style={{ color: "var(--ink)", marginLeft: 10 }}>{euros(l.prixTotal)}</strong>
+                </span>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--faint-2)" }}>
+            Prix hors livraison. Les frais de port sont répartis au prorata sur
+            les pièces de tous les lots.
+          </p>
+        </div>
+      )}
+
       {/* Rentabilité card */}
       <div style={{ borderRadius: 14, border: "1px solid var(--border)", background: "var(--tint)", padding: "16px 18px", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
@@ -563,6 +597,7 @@ function CommandeTableRow({
               commandeId={c.id}
               coutTotal={c.coutTotal}
               coefObjectif={c.coefObjectif}
+              lots={c.lots}
             />
           </td>
         </tr>
@@ -625,6 +660,7 @@ function CommandeCarte({
             commandeId={c.id}
             coutTotal={c.coutTotal}
             coefObjectif={c.coefObjectif}
+            lots={c.lots}
           />
         </div>
       )}

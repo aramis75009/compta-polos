@@ -15,7 +15,10 @@ type PatchBody = {
 // Si coutTotal ou nbArticles change, le prix unitaire est recalculé et propagé
 // au prix d'achat de tous les articles de la commande (et les marges des
 // articles vendus sont recalculées en conséquence).
-export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  req: NextRequest,
+  props: { params: Promise<{ id: string }> },
+) {
   const params = await props.params;
   const userId = await getUserId();
   if (!userId) return unauthorized();
@@ -25,6 +28,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
     const existing = await prisma.commande.findFirst({
       where: { id: params.id, userId },
+      include: { lots: { orderBy: { createdAt: "asc" } } },
     });
     if (!existing) return notFound("Commande");
 
@@ -41,7 +45,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const date = body.date !== undefined ? new Date(body.date) : existing.date;
 
     const coutTotal =
-      body.coutTotal !== undefined ? Number(body.coutTotal) : existing.coutTotal;
+      body.coutTotal !== undefined
+        ? Number(body.coutTotal)
+        : existing.coutTotal;
     if (!Number.isFinite(coutTotal) || coutTotal <= 0)
       return NextResponse.json(
         { error: "Coût total invalide." },
@@ -62,17 +68,26 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const coutChanged =
       coutTotal !== existing.coutTotal || nbArticles !== existing.nbArticles;
 
-    // ⚠️ La propagation n'a de sens qu'en mode LISSE, où tous les articles
-    // partagent par définition le même prix. En mode DETAILLE, chaque pièce
-    // porte un prix saisi à la main : l'`updateMany` ci-dessous les écraserait
-    // tous par la moyenne et détruirait la saisie sans aucun avertissement.
-    const propage = coutChanged && existing.modeSaisie === "LISSE";
+    // ⚠️ Propager un prix unique n'a de sens que sur une commande à UN SEUL lot
+    // saisi au forfait, où toutes les pièces partagent par définition le même
+    // prix. Dès qu'il y a plusieurs lots, ou un lot saisi pièce par pièce,
+    // l'`updateMany` ci-dessous écraserait par une moyenne des prix qui ne le
+    // sont pas — les 30 t-shirts prendraient le prix des 50 polos, en silence.
+    const lotUnique = existing.lots.length <= 1;
+    const auForfait = existing.lots.every((l) => l.modeSaisie === "LOT");
+    const propage =
+      coutChanged &&
+      lotUnique &&
+      auForfait &&
+      // Commandes antérieures aux lots : on retombe sur l'ancien critère.
+      (existing.lots.length > 0 || existing.modeSaisie === "LISSE");
 
     if (coutChanged && !propage) {
       return NextResponse.json(
         {
-          error:
-            "Cette commande est en saisie détaillée : son coût total découle des prix saisis article par article. Modifie les prix depuis le Stock.",
+          error: !lotUnique
+            ? "Cette commande contient plusieurs lots, à des prix d'achat différents. Modifie le prix depuis le lot concerné, ou article par article dans le Stock."
+            : "Ce lot est saisi pièce par pièce : son coût total découle des prix saisis. Modifie les prix depuis le Stock.",
         },
         { status: 409 },
       );
@@ -85,6 +100,21 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       });
 
       if (propage) {
+        // Le lot suit : sans cela, son prixTotal et sa quantité contrediraient
+        // ceux de la commande dès la première modification.
+        if (existing.lots.length === 1) {
+          await tx.lot.update({
+            where: { id: existing.lots[0].id },
+            data: {
+              quantite: nbArticles,
+              prixTotal: Math.max(
+                coutTotal - (existing.fraisLivraison ?? 0),
+                0,
+              ),
+            },
+          });
+        }
+
         // Propage le nouveau prix d'achat à tous les articles (1 requête).
         await tx.article.updateMany({
           where: { commandeId: params.id },
@@ -127,6 +157,18 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       categorie: existing.categorie,
       grade: existing.grade,
       coefObjectif: existing.coefObjectif,
+      lots: existing.lots.map((l) => ({
+        id: l.id,
+        nom: l.nom,
+        marque: l.marque,
+        categorie: l.categorie,
+        prefixeSku: l.prefixeSku,
+        modeSaisie: l.modeSaisie,
+        quantite: propage ? nbArticles : l.quantite,
+        prixTotal: propage
+          ? Math.max(coutTotal - (existing.fraisLivraison ?? 0), 0)
+          : l.prixTotal,
+      })),
     };
     return NextResponse.json(dto);
   } catch (err) {
@@ -139,7 +181,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 }
 
 // DELETE /api/commandes/[id] — supprime la commande et ses articles
-export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  _req: NextRequest,
+  props: { params: Promise<{ id: string }> },
+) {
   const params = await props.params;
   const userId = await getUserId();
   if (!userId) return unauthorized();

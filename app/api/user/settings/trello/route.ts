@@ -36,7 +36,10 @@ export async function GET(req: NextRequest) {
     }
 
     const boards = await listBoards(ctx);
-    const dto: TrelloBoardDTO[] = boards.map((b) => ({ id: b.id, name: b.name }));
+    const dto: TrelloBoardDTO[] = boards.map((b) => ({
+      id: b.id,
+      name: b.name,
+    }));
     return NextResponse.json({ boards: dto });
   } catch (err) {
     console.error("GET /api/user/settings/trello", err);
@@ -58,7 +61,10 @@ export async function POST() {
 
   try {
     const ctx = await contexteTrello(userId);
-    if (!ctx?.boardId) {
+    // Même garde-fou que la préparation du board : enregistrer un webhook est
+    // une écriture, et sans board choisi la cascade viserait celui du
+    // déploiement.
+    if (!ctx?.boardId || !ctx.boardDuCompte) {
       return NextResponse.json(
         { error: "Choisis d'abord ton board Trello." },
         { status: 400 },

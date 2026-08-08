@@ -31,7 +31,7 @@ import { useIdentite } from "@/lib/useIdentite";
 import type { BrandRow, DashboardDelta } from "@/lib/types";
 import { CardTitle, Eyebrow, Frame } from "@/components/console";
 import Loader from "@/components/Loader";
-import WelcomeModal from "@/components/WelcomeModal";
+import DemarrageCard from "@/components/DemarrageCard";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Dashboard — structure « Direction C — Console tactile », au pixel.
@@ -156,7 +156,10 @@ export default function DashboardPage() {
 
   return (
     <Frame>
-      <WelcomeModal />
+      {/* Reste visible tant que la configuration Trello n'est pas terminée,
+          puis s'efface. Remplace la modale de bienvenue, qui s'affichait une
+          fois et ne revenait jamais, même sans rien configurer. */}
+      <DemarrageCard />
 
       {/* SALUTATION + PÉRIODE */}
       <div className="flex flex-wrap items-center justify-between gap-3">

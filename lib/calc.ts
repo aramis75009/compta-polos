@@ -103,6 +103,28 @@ export function skuPrefix(marque: string, categorie?: string): string {
   return (propre + secours).slice(0, 3) || "ART";
 }
 
+/**
+ * SUGGÈRE le libellé d'un lot à partir de sa catégorie et de sa marque.
+ *
+ * « Sac à dos » + « Nike » → « Sac à dos Nike ». C'est ce libellé qui est
+ * recopié dans `Article.lot` et qui alimente le filtre « Tous les lots » du
+ * Stock : le capter automatiquement évite d'avoir à le retaper à chaque lot.
+ * Comme le préfixe SKU, ce n'est qu'une proposition — le champ reste éditable.
+ */
+export function libelleLot(marque: string, categorie: string): string {
+  const m = marque.trim();
+  const c = categorie.trim();
+  if (!m && !c) return "";
+  // Un libellé collectif (« Mix » en marque ET en catégorie) ne gagne rien à
+  // être doublé.
+  if (!c || m.toLowerCase() === c.toLowerCase()) return m || c;
+  if (!m) return c;
+  // La marque est déjà dans la catégorie (« Polo Ralph Lauren » + « Polo ») :
+  // concaténer donnerait « Polo Polo Ralph Lauren ».
+  if (m.toLowerCase().includes(c.toLowerCase())) return m;
+  return `${c} ${m}`;
+}
+
 /** Normalise un préfixe saisi à la main : lettres uniquement, 3 au maximum. */
 export function normaliserPrefixe(saisi: string): string {
   return saisi

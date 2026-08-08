@@ -1,13 +1,39 @@
+import { NextResponse } from "next/server";
 import type { NextAuthConfig } from "next-auth";
+import { HOTE_APP, HOTES_SEPARES, estRouteVitrine } from "@/lib/hosts";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [],
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
+    authorized({ auth, request }) {
+      const { nextUrl } = request;
       const isLoggedIn = !!auth?.user;
       const { pathname } = nextUrl;
+
+      // ── Aiguillage par domaine ──
+      //
+      // Sans les deux variables d'hôte, ce bloc est inerte : tout continue
+      // d'être servi sur un seul domaine. Une fois configuré, la vitrine ne
+      // sert que la landing et les pages légales, et tout le reste — y compris
+      // /login et /signup, qui posent le cookie de session — bascule sur
+      // l'hôte de l'application.
+      const hote = request.headers.get("host")?.toLowerCase().split(":")[0];
+      if (HOTES_SEPARES && hote) {
+        if (hote !== HOTE_APP && !estRouteVitrine(pathname)) {
+          return NextResponse.redirect(
+            new URL(`${pathname}${nextUrl.search}`, `https://${HOTE_APP}`),
+          );
+        }
+        // Sur l'hôte de l'app, la racine n'a rien à montrer : la vitrine vit
+        // ailleurs.
+        if (hote === HOTE_APP && pathname === "/") {
+          return NextResponse.redirect(
+            new URL(isLoggedIn ? "/dashboard" : "/login", nextUrl),
+          );
+        }
+      }
 
       // `/` sert la landing publique (elle redirige elle-même vers /dashboard
       // quand une session existe). `/legal/*` était protégé alors que CLAUDE.md

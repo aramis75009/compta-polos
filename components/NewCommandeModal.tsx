@@ -1,49 +1,73 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import Modal from "./Modal";
-import { useCreateCommande, type LigneCommande } from "@/lib/hooks";
+import { useCreateCommande, type LotInput } from "@/lib/hooks";
 import {
   euros,
+  libelleLot,
   normaliserPrefixe,
-  prixUnitaire,
   repartirFrais,
   skuPrefix,
 } from "@/lib/calc";
 
 const MARQUES = ["Polo Ralph Lauren", "Lacoste", "Tommy Hilfiger"];
 
-type Mode = "LISSE" | "DETAILLE";
+/** Une pièce saisie individuellement. Le prix reste une chaîne tant qu'on tape. */
+type PieceForm = { id: number; prix: string };
 
 /**
- * Une ligne en cours de saisie : les prix restent des chaînes tant qu'on tape.
- * `prefixe` vide = « suivre la suggestion », même convention que le serveur.
+ * Un lot en cours de saisie.
+ *
+ * `nom` et `prefixe` vides = « suivre la suggestion », même convention que le
+ * serveur : l'utilisateur voit une proposition en filigrane, pas une valeur à
+ * effacer avant d'écrire la sienne.
  */
-type LigneForm = {
+type LotForm = {
   id: number;
+  nom: string;
   marque: string;
   categorie: string;
-  prix: string;
   prefixe: string;
+  mode: "LOT" | "PIECE";
+  quantite: string;
+  prixTotal: string;
+  pieces: PieceForm[];
 };
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-let compteurId = 0;
-const nouvelleLigne = (
-  marque: string,
-  categorie: string,
-  prefixe = "",
-): LigneForm => ({
-  id: ++compteurId,
+let compteur = 0;
+const nouveauLot = (marque = MARQUES[0], categorie = "Polo"): LotForm => ({
+  id: ++compteur,
+  nom: "",
   marque,
   categorie,
-  prix: "",
-  prefixe,
+  prefixe: "",
+  mode: "LOT",
+  quantite: "",
+  prixTotal: "",
+  pieces: [{ id: ++compteur, prix: "" }],
 });
+
+/** Prix bruts (hors port) d'un lot, ou null si la saisie n'est pas exploitable. */
+function prixDuLot(l: LotForm): number[] | null {
+  if (l.mode === "PIECE") {
+    const prix = l.pieces.map((p) => Number(p.prix));
+    if (l.pieces.length === 0) return null;
+    // Un prix nul est légitime : pièce offerte dans le lot.
+    if (prix.some((p) => !Number.isFinite(p) || p < 0)) return null;
+    return prix;
+  }
+  const q = Number(l.quantite);
+  const t = Number(l.prixTotal);
+  if (!Number.isInteger(q) || q <= 0) return null;
+  if (!Number.isFinite(t) || t < 0) return null;
+  return Array.from({ length: q }, () => t / q);
+}
 
 export default function NewCommandeModal({
   open,
@@ -53,189 +77,182 @@ export default function NewCommandeModal({
   onClose: () => void;
 }) {
   const create = useCreateCommande();
+  const formId = useId();
 
-  const [mode, setMode] = useState<Mode>("LISSE");
   const [fournisseur, setFournisseur] = useState("");
   const [date, setDate] = useState(todayISO());
-  const [marque, setMarque] = useState(MARQUES[0]);
-  const [categorie, setCategorie] = useState("Polo");
   const [grade, setGrade] = useState("");
   const [coefObjectif, setCoefObjectif] = useState("2.5");
-  // Vide = on suit la suggestion. Les abréviations d'Aramis (SDN, HZT, ETH…)
-  // ne se déduisent d'aucune règle : la suggestion n'est qu'un point de départ.
-  const [prefixe, setPrefixe] = useState("");
-
-  // Mode lissé
-  const [coutTotal, setCoutTotal] = useState("");
-  const [nbArticles, setNbArticles] = useState("");
-
-  // Mode détaillé
   const [fraisLivraison, setFraisLivraison] = useState("");
-  const [lignes, setLignes] = useState<LigneForm[]>([
-    nouvelleLigne(MARQUES[0], "Polo"),
-  ]);
 
-  const cout = Number(coutTotal);
-  const nb = Number(nbArticles);
-  const puLisse =
-    Number.isFinite(cout) && Number.isInteger(nb) && nb > 0
-      ? prixUnitaire(cout, nb)
-      : null;
+  const [lots, setLots] = useState<LotForm[]>([nouveauLot()]);
+  // Un seul lot ouvert à la fois : c'est ce qui rend une commande à trois lots
+  // lisible sur un téléphone.
+  const [ouvert, setOuvert] = useState<number | null>(lots[0].id);
 
-  // Aperçu du mode détaillé. Utilise `repartirFrais`, la même fonction que le
-  // serveur : ce que l'utilisateur voit est ce qui sera enregistré.
+  const majLot = (id: number, patch: Partial<LotForm>) =>
+    setLots((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+
+  const nomEffectif = (l: LotForm) =>
+    l.nom.trim() || libelleLot(l.marque, l.categorie);
+  const prefixeEffectif = (l: LotForm) =>
+    normaliserPrefixe(l.prefixe) || skuPrefix(l.marque, l.categorie.trim());
+
+  // Aperçu. Utilise `repartirFrais`, la même fonction que le serveur, sur la
+  // liste aplatie de toutes les pièces de tous les lots : ce que l'utilisateur
+  // voit est exactement ce qui sera enregistré.
   const apercu = useMemo(() => {
-    const prix = lignes.map((l) => Number(l.prix));
-    const valides = prix.every((p) => Number.isFinite(p) && p >= 0);
-    if (!valides || prix.length === 0) return null;
+    const parLot = lots.map(prixDuLot);
+    if (parLot.some((p) => p === null)) return null;
 
     const frais = Number(fraisLivraison || 0);
     if (!Number.isFinite(frais) || frais < 0) return null;
 
-    const avecFrais = repartirFrais(prix, frais);
+    const bruts = parLot.flat() as number[];
+    if (bruts.length === 0) return null;
+
+    const avecFrais = repartirFrais(bruts, frais);
     const total = avecFrais.reduce((s, p) => s + p, 0);
-    return {
-      sommeArticles: prix.reduce((s, p) => s + p, 0),
-      frais,
-      total,
-      moyen: total / prix.length,
-      nb: prix.length,
-    };
-  }, [lignes, fraisLivraison]);
 
-  // Préfixe SKU. Un champ vide suit la suggestion — même convention que le
-  // serveur quand `prefixeSku` est absent, donc aucune valeur imposée dans
-  // l'input : l'utilisateur voit une proposition, pas une saisie à effacer.
-  const prefixeSuggere = skuPrefix(marque, categorie.trim());
-  const prefixeLot = normaliserPrefixe(prefixe) || prefixeSuggere;
+    let curseur = 0;
+    const lignes = lots.map((l, i) => {
+      const prix = parLot[i] as number[];
+      const tranche = avecFrais.slice(curseur, curseur + prix.length);
+      curseur += prix.length;
+      return {
+        id: l.id,
+        nom: nomEffectif(l) || `Lot ${i + 1}`,
+        nb: prix.length,
+        somme: prix.reduce((s, p) => s + p, 0),
+        avecFrais: tranche.reduce((s, p) => s + p, 0),
+      };
+    });
 
-  /** Préfixe retenu pour une pièce : le sien, sinon celui déduit de sa marque. */
-  const prefixeDeLigne = (l: LigneForm) =>
-    normaliserPrefixe(l.prefixe) ||
-    skuPrefix(
-      l.marque.trim() || marque,
-      l.categorie.trim() || categorie.trim(),
-    );
-
-  // Un lot détaillé peut mêler plusieurs séries : on les annonce toutes.
-  const series = [...new Set(lignes.map(prefixeDeLigne))];
+    return { lignes, frais, total, nb: bruts.length };
+  }, [lots, fraisLivraison]);
 
   const reset = () => {
-    setMode("LISSE");
     setFournisseur("");
     setDate(todayISO());
-    setCoutTotal("");
-    setNbArticles("");
-    setFraisLivraison("");
-    setMarque(MARQUES[0]);
-    setCategorie("Polo");
     setGrade("");
     setCoefObjectif("2.5");
-    setPrefixe("");
-    setLignes([nouvelleLigne(MARQUES[0], "Polo")]);
+    setFraisLivraison("");
+    const l = nouveauLot();
+    setLots([l]);
+    setOuvert(l.id);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const coefObj = Number(coefObjectif);
-    const commun = {
+
+    const payload: LotInput[] = lots.map((l) => {
+      const commun = {
+        nom: nomEffectif(l),
+        marque: l.marque.trim(),
+        categorie: l.categorie.trim(),
+        // Envoyé résolu, jamais brut : le serveur retomberait sinon sur sa
+        // propre suggestion, et les SKU annoncés ne seraient pas ceux créés.
+        prefixeSku: prefixeEffectif(l),
+      };
+      return l.mode === "PIECE"
+        ? {
+            ...commun,
+            modeSaisie: "PIECE",
+            pieces: l.pieces.map((p) => ({ prixAchat: Number(p.prix) })),
+          }
+        : {
+            ...commun,
+            modeSaisie: "LOT",
+            quantite: Number(l.quantite),
+            prixTotal: Number(l.prixTotal),
+          };
+    });
+
+    await create.mutateAsync({
       fournisseur: fournisseur.trim(),
       date: new Date(date).toISOString(),
-      marque,
-      categorie: categorie.trim(),
       grade: grade.trim() || null,
       coefObjectif: Number.isFinite(coefObj) && coefObj > 0 ? coefObj : null,
-      // Envoyé résolu, jamais brut : le serveur retomberait sinon sur sa propre
-      // suggestion, et les SKU annoncés sous le formulaire ne seraient pas ceux
-      // enregistrés.
-      prefixeSku: prefixeLot,
-    };
-
-    if (mode === "DETAILLE") {
-      const payload: LigneCommande[] = lignes.map((l) => ({
-        marque: l.marque.trim() || marque,
-        categorie: l.categorie.trim() || categorie.trim(),
-        prixAchat: Number(l.prix),
-        prefixeSku: prefixeDeLigne(l),
-      }));
-      // `coutTotal` et `nbArticles` ne sont pas envoyés : le serveur les calcule
-      // depuis les lignes, seule façon de garantir Σ prixAchat = coutTotal.
-      await create.mutateAsync({
-        ...commun,
-        modeSaisie: "DETAILLE",
-        fraisLivraison: Number(fraisLivraison || 0),
-        lignes: payload,
-      });
-    } else {
-      await create.mutateAsync({
-        ...commun,
-        modeSaisie: "LISSE",
-        coutTotal: cout,
-        nbArticles: nb,
-      });
-    }
+      fraisLivraison: Number(fraisLivraison || 0),
+      lots: payload,
+    });
 
     reset();
     onClose();
   };
 
   const field =
-    "w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
+    "w-full rounded-md border border-line bg-surface px-3 py-2.5 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15";
   const label = "mb-1.5 block text-label-sm text-ink-muted";
 
   const prêt =
-    mode === "LISSE"
-      ? puLisse != null
-      : apercu != null && apercu.total > 0 && apercu.nb > 0;
+    apercu != null &&
+    apercu.total > 0 &&
+    lots.every((l) => l.marque.trim() && l.categorie.trim());
 
   return (
-    <Modal open={open} onClose={onClose} title="Nouvelle commande">
-      <form onSubmit={submit} className="space-y-3">
-        {/* Bascule de mode. Placée en tête : elle change ce qu'on saisit
-            ensuite, pas seulement la façon de l'afficher. */}
-        <div
-          role="radiogroup"
-          aria-label="Mode de saisie"
-          className="grid grid-cols-2 gap-1 rounded-lg bg-surface-soft p-1"
-        >
-          {(
-            [
-              ["LISSE", "Lissé", "Un prix moyen pour tout le lot"],
-              ["DETAILLE", "Détaillé", "Un prix par pièce"],
-            ] as const
-          ).map(([v, titre, aide]) => (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nouvelle commande"
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          {/* Masqué sur mobile : le total figure déjà dans le récapitulatif
+              juste au-dessus, et à 390 px il passait sur deux lignes. */}
+          <span className="hidden text-label-sm text-ink-faint sm:inline">
+            {apercu ? (
+              <>
+                {apercu.nb} pièce{apercu.nb > 1 ? "s" : ""} ·{" "}
+                <b className="font-mono text-ink">{euros(apercu.total)}</b>
+              </>
+            ) : (
+              "Saisie incomplète"
+            )}
+          </span>
+          <div className="flex flex-1 justify-end gap-2 sm:flex-none">
             <button
-              key={v}
               type="button"
-              role="radio"
-              aria-checked={mode === v}
-              onClick={() => setMode(v)}
-              className={`min-h-[44px] rounded-md px-3 py-1.5 text-left transition-colors ${
-                mode === v
-                  ? "bg-surface shadow-card"
-                  : "text-ink-muted hover:bg-surface/60"
-              }`}
+              onClick={onClose}
+              className="min-h-[44px] rounded-full border border-line px-5 text-body-md font-medium text-ink-muted transition-colors hover:bg-surface-container"
             >
-              <span className="block text-body-md font-semibold">{titre}</span>
-              <span className="block text-label-sm text-ink-faint">{aide}</span>
+              Annuler
             </button>
-          ))}
+            <button
+              type="submit"
+              form={formId}
+              disabled={create.isPending || !prêt}
+              className="min-h-[44px] rounded-full bg-primary px-5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
+            >
+              {create.isPending ? "Création…" : "Créer"}
+            </button>
+          </div>
         </div>
-
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-4">
+        {/* ── Ce qui vaut pour toute la commande ── */}
         <div>
-          <label className={label}>Fournisseur</label>
+          <label className={label} htmlFor="fournisseur">
+            Fournisseur
+          </label>
           <input
+            id="fournisseur"
             required
             value={fournisseur}
             onChange={(e) => setFournisseur(e.target.value)}
+            placeholder="Nom du grossiste"
             className={field}
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className={label}>Date</label>
+            <label className={label} htmlFor="date">
+              Date
+            </label>
             <input
+              id="date"
               type="date"
               required
               value={date}
@@ -244,257 +261,353 @@ export default function NewCommandeModal({
             />
           </div>
           <div>
-            <label className={label}>Grade</label>
+            <label className={label} htmlFor="frais">
+              Frais de livraison (€)
+            </label>
             <input
+              id="frais"
+              type="number"
+              step="any"
+              min="0"
+              value={fraisLivraison}
+              onChange={(e) => setFraisLivraison(e.target.value)}
+              placeholder="0"
+              aria-describedby="aide-frais"
+              className={field}
+            />
+          </div>
+        </div>
+        <p id="aide-frais" className="-mt-2 text-label-sm text-ink-faint">
+          Répartis au prorata du prix de chaque pièce, tous lots confondus. Un
+          lot cher en absorbe davantage.
+        </p>
+
+        {/* ── Les lots ── */}
+        <fieldset className="space-y-2">
+          <legend className={label}>Lots de la commande</legend>
+
+          {lots.map((l, i) => {
+            const estOuvert = ouvert === l.id;
+            const ligne = apercu?.lignes.find((x) => x.id === l.id);
+            return (
+              <div
+                key={l.id}
+                className="overflow-hidden rounded-md border border-line"
+              >
+                {/* Repliée, une carte tient sur une ligne. */}
+                <div className="flex items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => setOuvert(estOuvert ? null : l.id)}
+                    aria-expanded={estOuvert}
+                    className="flex min-h-[52px] flex-1 items-center gap-2 px-3 text-left transition-colors hover:bg-surface-soft"
+                  >
+                    <ChevronDown
+                      className={`h-4 w-4 flex-none text-ink-faint transition-transform ${estOuvert ? "rotate-180" : ""}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-body-md font-semibold text-ink">
+                        {nomEffectif(l) || `Lot ${i + 1}`}
+                      </span>
+                      <span className="block font-mono text-label-sm text-ink-faint">
+                        {ligne
+                          ? `${prefixeEffectif(l)} · ${ligne.nb} pièce${ligne.nb > 1 ? "s" : ""} · ${euros(ligne.somme)}`
+                          : `${prefixeEffectif(l)} · à compléter`}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLots((ls) =>
+                        ls.length > 1 ? ls.filter((x) => x.id !== l.id) : ls,
+                      )
+                    }
+                    disabled={lots.length === 1}
+                    aria-label={`Supprimer le lot ${i + 1}`}
+                    className="flex w-12 flex-none items-center justify-center text-ink-faint transition-colors hover:bg-surface-container hover:text-error disabled:opacity-30"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {estOuvert && (
+                  // Un champ par ligne sur mobile : quatre champs côte à côte à
+                  // 390 px tronquaient « Sac à dos » en « sac a c ».
+                  <div className="space-y-3 border-t border-line bg-surface-soft p-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className={label} htmlFor={`marque-${l.id}`}>
+                          Marque
+                        </label>
+                        <input
+                          id={`marque-${l.id}`}
+                          list={`marques-${l.id}`}
+                          value={l.marque}
+                          onChange={(e) =>
+                            majLot(l.id, { marque: e.target.value })
+                          }
+                          placeholder="Nike"
+                          className={field}
+                        />
+                        <datalist id={`marques-${l.id}`}>
+                          {MARQUES.map((m) => (
+                            <option key={m} value={m} />
+                          ))}
+                        </datalist>
+                      </div>
+                      <div>
+                        <label className={label} htmlFor={`categorie-${l.id}`}>
+                          Catégorie
+                        </label>
+                        <input
+                          id={`categorie-${l.id}`}
+                          value={l.categorie}
+                          onChange={(e) =>
+                            majLot(l.id, { categorie: e.target.value })
+                          }
+                          placeholder="Sac à dos"
+                          className={field}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className={label} htmlFor={`nom-${l.id}`}>
+                          Nom du lot
+                        </label>
+                        <input
+                          id={`nom-${l.id}`}
+                          value={l.nom}
+                          onChange={(e) =>
+                            majLot(l.id, { nom: e.target.value })
+                          }
+                          placeholder={libelleLot(l.marque, l.categorie)}
+                          className={field}
+                        />
+                      </div>
+                      <div>
+                        <label className={label} htmlFor={`prefixe-${l.id}`}>
+                          Préfixe SKU
+                        </label>
+                        <input
+                          id={`prefixe-${l.id}`}
+                          value={l.prefixe}
+                          onChange={(e) =>
+                            majLot(l.id, {
+                              prefixe: normaliserPrefixe(e.target.value),
+                            })
+                          }
+                          placeholder={skuPrefix(l.marque, l.categorie.trim())}
+                          className={`${field} font-mono`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Le mode de saisie appartient au LOT : une commande peut
+                        mêler un lot au forfait et un lot pièce par pièce. */}
+                    <div
+                      role="radiogroup"
+                      aria-label={`Mode de saisie du lot ${i + 1}`}
+                      className="grid grid-cols-2 gap-1 rounded-lg bg-surface p-1"
+                    >
+                      {(
+                        [
+                          ["LOT", "Au lot", "Un prix pour l'ensemble"],
+                          ["PIECE", "Pièce par pièce", "Un prix par article"],
+                        ] as const
+                      ).map(([v, titre, aide]) => (
+                        <button
+                          key={v}
+                          type="button"
+                          role="radio"
+                          aria-checked={l.mode === v}
+                          onClick={() => majLot(l.id, { mode: v })}
+                          className={`min-h-[44px] rounded-md px-3 py-1.5 text-left transition-colors ${
+                            l.mode === v
+                              ? "bg-surface-soft shadow-card"
+                              : "text-ink-muted hover:bg-surface-soft/60"
+                          }`}
+                        >
+                          <span className="block text-body-md font-semibold">
+                            {titre}
+                          </span>
+                          <span className="block text-label-sm text-ink-faint">
+                            {aide}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {l.mode === "LOT" ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className={label} htmlFor={`qte-${l.id}`}>
+                            Nombre de pièces
+                          </label>
+                          <input
+                            id={`qte-${l.id}`}
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={l.quantite}
+                            onChange={(e) =>
+                              majLot(l.id, { quantite: e.target.value })
+                            }
+                            placeholder="50"
+                            className={field}
+                          />
+                        </div>
+                        <div>
+                          <label className={label} htmlFor={`prix-${l.id}`}>
+                            Prix du lot (€)
+                          </label>
+                          <input
+                            id={`prix-${l.id}`}
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={l.prixTotal}
+                            onChange={(e) =>
+                              majLot(l.id, { prixTotal: e.target.value })
+                            }
+                            placeholder="250"
+                            className={field}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {l.pieces.map((p, j) => (
+                          <div key={p.id} className="flex items-center gap-2">
+                            <span className="w-7 flex-none text-right font-mono text-label-sm text-ink-faint">
+                              {j + 1}.
+                            </span>
+                            <input
+                              aria-label={`Prix de la pièce ${j + 1} du lot ${i + 1}`}
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={p.prix}
+                              onChange={(e) =>
+                                majLot(l.id, {
+                                  pieces: l.pieces.map((x) =>
+                                    x.id === p.id
+                                      ? { ...x, prix: e.target.value }
+                                      : x,
+                                  ),
+                                })
+                              }
+                              placeholder="Prix €"
+                              className={`${field} flex-1 text-right font-mono`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                majLot(l.id, {
+                                  pieces:
+                                    l.pieces.length > 1
+                                      ? l.pieces.filter((x) => x.id !== p.id)
+                                      : l.pieces,
+                                })
+                              }
+                              disabled={l.pieces.length === 1}
+                              aria-label={`Supprimer la pièce ${j + 1}`}
+                              className="flex h-11 w-11 flex-none items-center justify-center rounded-md text-ink-faint transition-colors hover:bg-surface-container hover:text-error disabled:opacity-30"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            majLot(l.id, {
+                              pieces: [
+                                ...l.pieces,
+                                { id: ++compteur, prix: "" },
+                              ],
+                            })
+                          }
+                          className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line text-body-md font-medium text-ink-muted transition-colors hover:border-primary hover:text-primary"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Ajouter une pièce
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => {
+              const l = nouveauLot();
+              setLots((ls) => [...ls, l]);
+              setOuvert(l.id);
+            }}
+            className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line text-body-md font-medium text-ink-muted transition-colors hover:border-primary hover:text-primary"
+          >
+            <Plus className="h-4 w-4" />
+            Ajouter un lot
+          </button>
+        </fieldset>
+
+        {/* Récapitulatif : le garde-fou de saisie. Le coût total n'est pas un
+            champ, il découle des lots — impossible de le contredire. */}
+        <div className="rounded-md border border-line bg-surface-soft px-3 py-2.5 text-body-md">
+          {apercu ? (
+            <dl className="space-y-1">
+              {apercu.lignes.map((ligne) => (
+                <div key={ligne.id} className="flex justify-between gap-3">
+                  <dt className="min-w-0 truncate text-ink-muted">
+                    {ligne.nom}{" "}
+                    <span className="text-ink-faint">× {ligne.nb}</span>
+                  </dt>
+                  <dd className="flex-none font-mono">{euros(ligne.somme)}</dd>
+                </div>
+              ))}
+              <div className="flex justify-between">
+                <dt className="text-ink-muted">Frais de livraison</dt>
+                <dd className="font-mono">{euros(apercu.frais)}</dd>
+              </div>
+              <div className="flex justify-between border-t border-line pt-1 font-semibold">
+                <dt>Total de la commande</dt>
+                <dd className="font-mono text-primary">
+                  {euros(apercu.total)}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <span className="text-ink-faint">
+              Complète les lots pour voir le total.
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className={label} htmlFor="grade">
+              Grade
+            </label>
+            <input
+              id="grade"
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               placeholder="(optionnel)"
               className={field}
             />
           </div>
-        </div>
-
-        {mode === "LISSE" ? (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={label}>Coût total (€)</label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  required
-                  value={coutTotal}
-                  onChange={(e) => setCoutTotal(e.target.value)}
-                  className={field}
-                />
-              </div>
-              <div>
-                <label className={label}>Nombre d&apos;articles</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  required
-                  value={nbArticles}
-                  onChange={(e) => setNbArticles(e.target.value)}
-                  className={field}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-md border border-line bg-surface-soft px-3 py-2.5 text-body-md">
-              <span className="text-ink-muted">Prix unitaire calculé : </span>
-              <span className="font-semibold text-primary">
-                {puLisse != null ? euros(puLisse) : "—"}
-              </span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <label className={label}>Frais de livraison (€)</label>
-              <input
-                type="number"
-                step="any"
-                min="0"
-                value={fraisLivraison}
-                onChange={(e) => setFraisLivraison(e.target.value)}
-                placeholder="0"
-                aria-describedby="aide-frais"
-                className={field}
-              />
-              <p id="aide-frais" className="mt-1 text-label-sm text-ink-faint">
-                Répartis au prorata du prix de chaque pièce, pas à parts égales.
-              </p>
-            </div>
-
-            <fieldset className="space-y-2">
-              <legend className={label}>Pièces du lot</legend>
-
-              {lignes.map((l, i) => (
-                <div
-                  key={l.id}
-                  className="grid grid-cols-2 gap-2 rounded-md border border-line p-2 md:grid-cols-[1fr_1fr_76px_104px_44px] md:items-center md:border-0 md:p-0"
-                >
-                  <input
-                    aria-label={`Marque, pièce ${i + 1}`}
-                    value={l.marque}
-                    onChange={(e) =>
-                      setLignes((ls) =>
-                        ls.map((x) =>
-                          x.id === l.id ? { ...x, marque: e.target.value } : x,
-                        ),
-                      )
-                    }
-                    placeholder="Marque"
-                    className={field}
-                  />
-                  <input
-                    aria-label={`Catégorie, pièce ${i + 1}`}
-                    value={l.categorie}
-                    onChange={(e) =>
-                      setLignes((ls) =>
-                        ls.map((x) =>
-                          x.id === l.id
-                            ? { ...x, categorie: e.target.value }
-                            : x,
-                        ),
-                      )
-                    }
-                    placeholder="Catégorie"
-                    className={field}
-                  />
-                  <input
-                    aria-label={`Préfixe SKU, pièce ${i + 1}`}
-                    value={l.prefixe}
-                    onChange={(e) =>
-                      setLignes((ls) =>
-                        ls.map((x) =>
-                          x.id === l.id
-                            ? {
-                                ...x,
-                                prefixe: normaliserPrefixe(e.target.value),
-                              }
-                            : x,
-                        ),
-                      )
-                    }
-                    // Le placeholder porte la suggestion propre à CETTE pièce :
-                    // un lot mixte n'a pas de préfixe unique.
-                    placeholder={prefixeDeLigne({ ...l, prefixe: "" })}
-                    className={`${field} text-center font-mono`}
-                  />
-                  {/* Sur mobile, prix et corbeille partagent une cellule pour
-                      tenir la ligne en deux rangées. `md:contents` dissout le
-                      conteneur en desktop : la grille à 5 colonnes reprend. */}
-                  <div className="flex items-center gap-2 md:contents">
-                    <input
-                      aria-label={`Prix d'achat, pièce ${i + 1}`}
-                      type="number"
-                      step="any"
-                      min="0"
-                      required
-                      value={l.prix}
-                      onChange={(e) =>
-                        setLignes((ls) =>
-                          ls.map((x) =>
-                            x.id === l.id ? { ...x, prix: e.target.value } : x,
-                          ),
-                        )
-                      }
-                      placeholder="Prix €"
-                      className={`${field} min-w-0 flex-1 text-right font-mono`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLignes((ls) =>
-                          ls.length > 1 ? ls.filter((x) => x.id !== l.id) : ls,
-                        )
-                      }
-                      disabled={lignes.length === 1}
-                      aria-label={`Supprimer la pièce ${i + 1}`}
-                      className="flex h-11 w-11 flex-none items-center justify-center justify-self-end rounded-md text-ink-faint transition-colors hover:bg-surface-container hover:text-error disabled:opacity-30"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setLignes((ls) => [
-                    ...ls,
-                    nouvelleLigne(
-                      ls[ls.length - 1]?.marque ?? marque,
-                      ls[ls.length - 1]?.categorie ?? categorie,
-                      // Un préfixe saisi à la main vaut pour les pièces
-                      // suivantes du même type : on ne le retape pas.
-                      ls[ls.length - 1]?.prefixe ?? "",
-                    ),
-                  ])
-                }
-                className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line text-body-md font-medium text-ink-muted transition-colors hover:border-primary hover:text-primary"
-              >
-                <Plus className="h-4 w-4" />
-                Ajouter une pièce
-              </button>
-            </fieldset>
-
-            {/* Récapitulatif : le garde-fou de saisie. Le coût total n'est pas
-                un champ, il découle des lignes — impossible de le contredire. */}
-            <div className="rounded-md border border-line bg-surface-soft px-3 py-2.5 text-body-md">
-              {apercu ? (
-                <dl className="space-y-1">
-                  <div className="flex justify-between">
-                    <dt className="text-ink-muted">
-                      {apercu.nb} pièce{apercu.nb > 1 ? "s" : ""}
-                    </dt>
-                    <dd className="font-mono">{euros(apercu.sommeArticles)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-ink-muted">Frais de livraison</dt>
-                    <dd className="font-mono">{euros(apercu.frais)}</dd>
-                  </div>
-                  <div className="flex justify-between border-t border-line pt-1 font-semibold">
-                    <dt>Coût total du lot</dt>
-                    <dd className="font-mono text-primary">
-                      {euros(apercu.total)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-ink-faint">P.U. moyen</dt>
-                    <dd className="font-mono text-ink-faint">
-                      {euros(apercu.moyen)}
-                    </dd>
-                  </div>
-                </dl>
-              ) : (
-                <span className="text-ink-faint">
-                  Renseigne les prix pour voir le total.
-                </span>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={label}>
-              Marque{mode === "DETAILLE" ? " du lot" : ""}
-            </label>
-            <select
-              value={marque}
-              onChange={(e) => setMarque(e.target.value)}
-              className={field}
-            >
-              {MARQUES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={label}>
-              Catégorie{mode === "DETAILLE" ? " du lot" : ""}
+            <label className={label} htmlFor="coef">
+              Objectif coef (x)
             </label>
             <input
-              required
-              value={categorie}
-              onChange={(e) => setCategorie(e.target.value)}
-              className={field}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={label}>Objectif coef (x)</label>
-            <input
+              id="coef"
               type="number"
               step="0.1"
               min="0"
@@ -504,32 +617,14 @@ export default function NewCommandeModal({
               className={field}
             />
           </div>
-          {/* En détaillé, le préfixe se saisit par pièce : pas de champ de lot,
-              qui n'aurait aucun effet. */}
-          {mode === "LISSE" && (
-            <div>
-              <label className={label} htmlFor="prefixe-sku">
-                Préfixe SKU
-              </label>
-              <input
-                id="prefixe-sku"
-                value={prefixe}
-                onChange={(e) => setPrefixe(normaliserPrefixe(e.target.value))}
-                placeholder={prefixeSuggere}
-                aria-describedby="aide-prefixe"
-                className={`${field} font-mono`}
-              />
-            </div>
-          )}
         </div>
 
-        <p id="aide-prefixe" className="text-label-sm text-ink-faint">
+        <p className="text-label-sm text-ink-faint">
           {/* Pas d'exemple numéroté : les SKU ne repartent pas de 1, ils
-              continuent la série. Annoncer « PRL1 » quand la base est à PRL256
-              serait faux. */}
-          {mode === "LISSE"
-            ? `Préfixe ${prefixeLot} — les SKU continuent la série existante (${prefixeLot}1 si elle est vide).`
-            : `Série${series.length > 1 ? "s" : ""} : ${series.join(", ")}. Un compteur par préfixe, modifiable pièce par pièce.`}
+              continuent la série existante de chaque préfixe. */}
+          Série{lots.length > 1 ? "s" : ""} :{" "}
+          {[...new Set(lots.map(prefixeEffectif))].join(", ")}. Un compteur par
+          préfixe, qui reprend après le dernier SKU existant.
         </p>
 
         {create.isError && (
@@ -537,23 +632,6 @@ export default function NewCommandeModal({
             {(create.error as Error).message}
           </p>
         )}
-
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-[44px] rounded-full border border-line px-5 text-body-md font-medium text-ink-muted transition-colors hover:bg-surface-container"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={create.isPending || !prêt}
-            className="min-h-[44px] rounded-full bg-primary px-5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
-          >
-            {create.isPending ? "Création…" : "Créer la commande"}
-          </button>
-        </div>
       </form>
     </Modal>
   );

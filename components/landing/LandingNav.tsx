@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { lienApp } from "@/lib/hosts";
 
 const LIENS = [
   { href: "#probleme", label: "Le problème" },
@@ -50,13 +51,13 @@ export default function LandingNav() {
 
         <div className="hidden items-center gap-3 lg:flex">
           <Link
-            href="/login"
+            href={lienApp("/login")}
             className="px-3 py-2 text-[14px] font-semibold text-[var(--ink2)] transition-colors hover:text-[var(--ink)]"
           >
             Connexion
           </Link>
           <Link
-            href="/signup"
+            href={lienApp("/signup")}
             className="rounded-full bg-[var(--acc)] px-5 py-2.5 text-[14px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)]"
           >
             Créer mon compte
@@ -95,14 +96,14 @@ export default function LandingNav() {
           </ul>
           <div className="mt-5 flex flex-col gap-2.5 border-t border-line pt-5">
             <Link
-              href="/login"
+              href={lienApp("/login")}
               onClick={() => setOuvert(false)}
               className="flex min-h-[44px] items-center justify-center rounded-xl border border-line text-[14px] font-semibold text-[var(--ink)]"
             >
               Connexion
             </Link>
             <Link
-              href="/signup"
+              href={lienApp("/signup")}
               onClick={() => setOuvert(false)}
               className="flex min-h-[44px] items-center justify-center rounded-xl bg-[var(--acc)] text-[14px] font-bold text-[var(--acc-ink)]"
             >
