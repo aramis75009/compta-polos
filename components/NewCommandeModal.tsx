@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import { useCreateCommande, type LigneCommande } from "@/lib/hooks";
@@ -53,6 +53,7 @@ export default function NewCommandeModal({
   onClose: () => void;
 }) {
   const create = useCreateCommande();
+  const formId = useId();
 
   const [mode, setMode] = useState<Mode>("LISSE");
   const [fournisseur, setFournisseur] = useState("");
@@ -189,8 +190,35 @@ export default function NewCommandeModal({
       : apercu != null && apercu.total > 0 && apercu.nb > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="Nouvelle commande">
-      <form onSubmit={submit} className="space-y-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nouvelle commande"
+      // Les actions vivent dans le pied figé de la modale, hors du <form>.
+      // L'attribut `form` les y rattache : c'est du HTML natif, aucun state à
+      // câbler, et le bouton de validation reste visible quelle que soit la
+      // longueur du formulaire.
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-[44px] rounded-full border border-line px-5 text-body-md font-medium text-ink-muted transition-colors hover:bg-surface-container"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={create.isPending || !prêt}
+            className="min-h-[44px] rounded-full bg-primary px-5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
+          >
+            {create.isPending ? "Création…" : "Créer la commande"}
+          </button>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={submit} className="space-y-3">
         {/* Bascule de mode. Placée en tête : elle change ce qu'on saisit
             ensuite, pas seulement la façon de l'afficher. */}
         <div
@@ -537,23 +565,6 @@ export default function NewCommandeModal({
             {(create.error as Error).message}
           </p>
         )}
-
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-[44px] rounded-full border border-line px-5 text-body-md font-medium text-ink-muted transition-colors hover:bg-surface-container"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={create.isPending || !prêt}
-            className="min-h-[44px] rounded-full bg-primary px-5 text-body-md font-medium text-on-primary transition-colors hover:bg-primary-dark disabled:opacity-60"
-          >
-            {create.isPending ? "Création…" : "Créer la commande"}
-          </button>
-        </div>
       </form>
     </Modal>
   );
