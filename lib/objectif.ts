@@ -1,22 +1,25 @@
-// Objectif de CA mensuel — réglé par l'utilisateur dans Paramètres, lu par le
-// Dashboard (anneau de progression). Stocké en localStorage : outil mono-
-// utilisateur, aucune dépendance base de données (le déploiement ne touche
-// pas la base). Renvoie null si non défini ou invalide.
+// Objectif de CA mensuel — réglé dans Paramètres, lu par le Dashboard (anneau
+// de progression).
+//
+// Il vit maintenant sur le compte (`UserSettings.objectifMensuel`), plus dans le
+// localStorage : un réglage rangé dans le navigateur ne suit pas l'utilisateur
+// d'un appareil à l'autre, et deux comptes partageant un poste voyaient le même
+// objectif. Les hooks sont dans `lib/hooks.ts`.
+//
+// Ce qui reste ici est la reprise de l'ancienne valeur, une seule fois.
 
 const KEY = "myflip-objectif-mensuel";
 
-export function getObjectifMensuel(): number | null {
+/** Ancienne valeur laissée dans ce navigateur, s'il y en a une. */
+export function objectifLegacy(): number | null {
   if (typeof window === "undefined") return null;
   const v = window.localStorage.getItem(KEY);
   const n = v ? Number(v) : NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export function setObjectifMensuel(n: number | null): void {
+/** Efface l'ancienne valeur, une fois reprise sur le compte. */
+export function oublierObjectifLegacy(): void {
   if (typeof window === "undefined") return;
-  if (n && Number.isFinite(n) && n > 0) {
-    window.localStorage.setItem(KEY, String(Math.round(n)));
-  } else {
-    window.localStorage.removeItem(KEY);
-  }
+  window.localStorage.removeItem(KEY);
 }

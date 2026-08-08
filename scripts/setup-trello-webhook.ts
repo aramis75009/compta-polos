@@ -9,6 +9,8 @@ loadEnvConfig(process.cwd());
 async function main() {
   const base = process.env.NEXTAUTH_URL;
   const boardId = process.env.TRELLO_BOARD_ID;
+  const key = process.env.TRELLO_API_KEY;
+  const token = process.env.TRELLO_TOKEN;
 
   if (!base || base.includes("localhost")) {
     throw new Error(
@@ -16,13 +18,26 @@ async function main() {
     );
   }
   if (!boardId) throw new Error("TRELLO_BOARD_ID manquant.");
+  if (!key || !token) throw new Error("TRELLO_API_KEY / TRELLO_TOKEN manquants.");
 
   const callbackURL = `${base.replace(/\/$/, "")}/api/webhooks/trello`;
   console.log(`Création du webhook Trello → ${callbackURL}`);
 
-  const webhook = (await createWebhook(callbackURL, boardId)) as {
-    id: string;
-  };
+  // Ce script reste l'outil du board de l'app. Chaque utilisateur passe
+  // désormais par le bouton « Connecter mon Trello » de /compte, qui fait le
+  // même appel avec ses propres identifiants.
+  const webhook = (await createWebhook(
+    {
+      key,
+      token,
+      secret: null,
+      boardId,
+      labelId: null,
+      comptabiliseLabelId: null,
+    },
+    callbackURL,
+    boardId,
+  )) as { id: string };
   console.log(`✅ Webhook créé. ID : ${webhook.id}`);
 }
 

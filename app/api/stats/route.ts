@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { moyenne, STATUT_VENDU } from "@/lib/calc";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
+import { moyenneCoefs, STATUT_VENDU } from "@/lib/calc";
 import type { StatsDTO } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +20,16 @@ const JOURS = [
 // Sans paramètre : tout l'historique. Avec `commande` : les statistiques sont
 // recalculées sur les seuls articles de ce lot (même DTO, même page).
 export async function GET(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const commandeId = req.nextUrl.searchParams.get("commande");
+    // `userId` est toujours posé ; le filtre par commande ne fait que le
+    // restreindre. Un id de commande d'un autre compte ne renvoie donc rien,
+    // au lieu d'exposer ses statistiques.
     const articles = await prisma.article.findMany({
-      where: commandeId ? { commandeId } : undefined,
+      where: commandeId ? { userId, commandeId } : { userId },
       select: {
         sku: true,
         marque: true,
@@ -96,7 +103,8 @@ export async function GET(req: NextRequest) {
         marque,
         ca: round(b.ca),
         margeNette: round(b.margeNette),
-        coefMoyen: round(moyenne(b.coefs)),
+        // Exclut les pièces offertes (coef 0), cf. lib/calc.ts.
+        coefMoyen: round(moyenneCoefs(b.coefs)),
         vendus: b.vendus,
       }))
       .sort((x, y) => y.margeNette - x.margeNette);

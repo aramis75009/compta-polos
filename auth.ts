@@ -23,7 +23,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
 
-        return { id: user.id, email: user.email };
+        // `prenom` remonte jusqu'au JWT via le callback `jwt` d'auth.config.ts :
+        // c'est ce qui remplace NEXT_PUBLIC_USER_NAME, inlinée au build et donc
+        // identique pour tous les comptes.
+        return { id: user.id, email: user.email, prenom: user.prenom };
       },
     }),
   ],

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { STATUT_A_COMPTABILISER } from "@/lib/calc";
 import type { NotificationItem, NotificationsDTO } from "@/lib/types";
 
@@ -8,8 +9,12 @@ export const dynamic = "force-dynamic";
 // GET /api/notifications — rappels d'actions à mener, dérivés du stock.
 // Une seule requête, agrégée en mémoire (volume faible, cf. dashboard).
 export async function GET() {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const articles = await prisma.article.findMany({
+      where: { userId },
       select: { statut: true, titreAnnonce: true },
     });
 

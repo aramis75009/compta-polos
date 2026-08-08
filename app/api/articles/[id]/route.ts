@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
 import { deriveVente, STATUT_VENDU, STATUTS } from "@/lib/calc";
 import { toDTO } from "@/lib/serialize";
 
@@ -21,18 +22,18 @@ type PatchBody = {
 // PATCH /api/articles/[id] — édition inline + transitions de statut
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const body = (await req.json()) as PatchBody;
 
-    const existing = await prisma.article.findUnique({
-      where: { id: params.id },
+    // findFirst et non findUnique : le userId fait partie du critère, donc
+    // l'article d'un autre compte est indiscernable d'un id inexistant.
+    const existing = await prisma.article.findFirst({
+      where: { id: params.id, userId },
     });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Article introuvable." },
-        { status: 404 },
-      );
-    }
+    if (!existing) return notFound("Article");
 
     // Champs « texte » directement éditables.
     const data: Record<string, unknown> = {};
@@ -112,6 +113,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     data.margeNette = derived.margeNette;
     data.coefficient = derived.coefficient;
 
+    // L'appartenance vient d'être vérifiée par le findFirst ci-dessus, donc
+    // cibler par id seul est sûr — et `update` exige un critère unique.
     const updated = await prisma.article.update({
       where: { id: params.id },
       data,
@@ -143,8 +146,18 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 // DELETE /api/articles/[id]
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
-    await prisma.article.delete({ where: { id: params.id } });
+    // deleteMany plutôt que delete : le userId entre dans le critère, donc la
+    // vérification d'appartenance et la suppression sont une seule opération
+    // atomique. `count` à 0 = id inconnu ou appartenant à un autre compte.
+    const res = await prisma.article.deleteMany({
+      where: { id: params.id, userId },
+    });
+    if (res.count === 0) return notFound("Article");
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/articles/[id]", err);

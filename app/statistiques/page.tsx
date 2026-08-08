@@ -134,7 +134,7 @@ function ScopeBar({
               même fournisseur, cinq d'entre elles portant le même nom. */}
           <div className="mt-[2px] font-mono text-[10.5px] text-[var(--faint)]">
             {selected
-              ? `${dateLongue(selected.date)} · ${frNum(selected.prixUnitaire, 2)} € LA PIÈCE`
+              ? `${dateLongue(selected.date)} · ${frNum(selected.prixUnitaire, 2)} € LA PIÈCE EN MOYENNE`
               : "TOUTES COMMANDES CONFONDUES"}
           </div>
 

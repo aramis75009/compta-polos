@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
 import { deriveVente, prixUnitaire, STATUT_VENDU } from "@/lib/calc";
 import type { CommandeDTO } from "@/lib/types";
 
@@ -16,18 +17,16 @@ type PatchBody = {
 // articles vendus sont recalculées en conséquence).
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const body = (await req.json()) as PatchBody;
 
-    const existing = await prisma.commande.findUnique({
-      where: { id: params.id },
+    const existing = await prisma.commande.findFirst({
+      where: { id: params.id, userId },
     });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Commande introuvable." },
-        { status: 404 },
-      );
-    }
+    if (!existing) return notFound("Commande");
 
     const fournisseur =
       body.fournisseur !== undefined
@@ -63,13 +62,29 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const coutChanged =
       coutTotal !== existing.coutTotal || nbArticles !== existing.nbArticles;
 
+    // ⚠️ La propagation n'a de sens qu'en mode LISSE, où tous les articles
+    // partagent par définition le même prix. En mode DETAILLE, chaque pièce
+    // porte un prix saisi à la main : l'`updateMany` ci-dessous les écraserait
+    // tous par la moyenne et détruirait la saisie sans aucun avertissement.
+    const propage = coutChanged && existing.modeSaisie === "LISSE";
+
+    if (coutChanged && !propage) {
+      return NextResponse.json(
+        {
+          error:
+            "Cette commande est en saisie détaillée : son coût total découle des prix saisis article par article. Modifie les prix depuis le Stock.",
+        },
+        { status: 409 },
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.commande.update({
         where: { id: params.id },
         data: { fournisseur, date, coutTotal, nbArticles },
       });
 
-      if (coutChanged) {
+      if (propage) {
         // Propage le nouveau prix d'achat à tous les articles (1 requête).
         await tx.article.updateMany({
           where: { commandeId: params.id },
@@ -106,6 +121,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       nbArticles,
       coutTotal,
       prixUnitaire: prixAchat,
+      fraisLivraison: existing.fraisLivraison,
+      modeSaisie: existing.modeSaisie,
       marque: existing.marque,
       categorie: existing.categorie,
       grade: existing.grade,
@@ -124,9 +141,21 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 // DELETE /api/commandes/[id] — supprime la commande et ses articles
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
+    // Appartenance vérifiée AVANT la transaction : sans ce contrôle, la
+    // suppression en cascade des articles s'exécuterait sur la commande d'un
+    // autre compte avant que le delete final n'échoue.
+    const owned = await prisma.commande.findFirst({
+      where: { id: params.id, userId },
+      select: { id: true },
+    });
+    if (!owned) return notFound("Commande");
+
     await prisma.$transaction([
-      prisma.article.deleteMany({ where: { commandeId: params.id } }),
+      prisma.article.deleteMany({ where: { commandeId: params.id, userId } }),
       prisma.commande.delete({ where: { id: params.id } }),
     ]);
     return NextResponse.json({ ok: true });

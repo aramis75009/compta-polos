@@ -13,16 +13,32 @@ export type GeminiImage = { mimeType: string; data: string }; // data = base64 (
 // retiré par Google → 404 NOT_FOUND). Erreur exacte loggée en cas d'échec.
 const MODEL = "gemini-2.5-flash";
 
-let client: GoogleGenAI | null = null;
-function getClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+/**
+ * Client Gemini pour une clé donnée.
+ *
+ * Mémoïsé PAR CLÉ, et non dans un singleton unique : chaque utilisateur peut
+ * fournir la sienne. Un singleton figeait la première clé rencontrée par le
+ * processus et servait ensuite tout le monde avec — le compte du frère aurait
+ * consommé le quota d'Aramis, ou l'inverse, selon qui générait en premier après
+ * un démarrage à froid.
+ *
+ * La Map est bornée par le nombre de comptes ; il n'y a rien à évincer à cette
+ * échelle.
+ */
+const clients = new Map<string, GoogleGenAI>();
+function getClient(apiKey: string | null | undefined): GoogleGenAI {
+  const cle = apiKey?.trim();
+  if (!cle) {
     console.error(
-      "[gemini] GEMINI_API_KEY introuvable dans process.env — vérifier .env.local / variables Vercel.",
+      "[gemini] Aucune clé Gemini : ni sur le compte, ni dans l'environnement.",
     );
     throw new Error("GEMINI_API_KEY manquante.");
   }
-  if (!client) client = new GoogleGenAI({ apiKey });
+  let client = clients.get(cle);
+  if (!client) {
+    client = new GoogleGenAI({ apiKey: cle });
+    clients.set(cle, client);
+  }
   return client;
 }
 
@@ -50,8 +66,9 @@ function is503(err: unknown): boolean {
 export async function generateListing(
   prompt: string,
   images: GeminiImage[],
+  apiKey?: string | null,
 ): Promise<ListingResult> {
-  const ai = getClient();
+  const ai = getClient(apiKey ?? process.env.GEMINI_API_KEY);
   const request = {
     model: MODEL,
     contents: [

@@ -1,19 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import { Plus, Check, SquarePen, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
   PromptInput,
   useCreatePrompt,
   useDeletePrompt,
+  useObjectifMensuel,
   usePrompts,
+  useSetObjectif,
   useUpdatePrompt,
 } from "@/lib/hooks";
 import type { PromptTemplateDTO } from "@/lib/types";
 import { euros } from "@/lib/calc";
-import { getObjectifMensuel, setObjectifMensuel } from "@/lib/objectif";
+import { useIdentite } from "@/lib/useIdentite";
 import Modal from "@/components/Modal";
 import Loader from "@/components/Loader";
 import { CardTitle, Frame, Module } from "@/components/console";
@@ -23,9 +24,6 @@ const inputCls =
 
 const labelCls =
   "mb-1.5 block font-mono text-[9.5px] uppercase tracking-[0.14em] text-[var(--faint)]";
-
-// Prénom affiché, identique au Dashboard et à AccountMenu.
-const NOM = process.env.NEXT_PUBLIC_USER_NAME?.trim() || "";
 
 const TOUTES = "Toutes";
 
@@ -82,25 +80,32 @@ const emptyForm = (): FormState => ({
   estDefaut: false,
 });
 
-// Carte de réglage de l'objectif de CA mensuel (localStorage, cf. lib/objectif).
+// Carte de réglage de l'objectif de CA mensuel. Porté par le compte
+// (UserSettings.objectifMensuel), plus par le localStorage.
 function ObjectifMensuelCard() {
+  const { objectif: saved } = useObjectifMensuel();
+  const enregistrer = useSetObjectif();
   const [value, setValue] = useState("");
-  const [saved, setSaved] = useState<number | null>(null);
-
+  // La saisie suit la valeur du serveur tant que l'utilisateur n'a rien tapé.
+  const [touche, setTouche] = useState(false);
   useEffect(() => {
-    const o = getObjectifMensuel();
-    setSaved(o);
-    setValue(o != null ? String(o) : "");
-  }, []);
+    if (!touche) setValue(saved != null ? String(saved) : "");
+  }, [saved, touche]);
 
   const save = () => {
-    const n = value.trim() === "" ? null : Number(value);
-    setObjectifMensuel(Number.isFinite(n as number) ? (n as number) : null);
-    const o = getObjectifMensuel();
-    setSaved(o);
-    toast.success(
-      o != null ? `Objectif mensuel fixé à ${euros(o)}.` : "Objectif mensuel retiré.",
-    );
+    const brut = value.trim() === "" ? null : Number(value);
+    const n = brut != null && Number.isFinite(brut) && brut > 0 ? brut : null;
+    enregistrer.mutate(n, {
+      onSuccess: () => {
+        setTouche(false);
+        toast.success(
+          n != null
+            ? `Objectif mensuel fixé à ${euros(n)}.`
+            : "Objectif mensuel retiré.",
+        );
+      },
+      onError: (e) => toast.error((e as Error).message),
+    });
   };
 
   return (
@@ -125,7 +130,10 @@ function ObjectifMensuelCard() {
             inputMode="numeric"
             min="0"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              setTouche(true);
+              setValue(e.target.value);
+            }}
             onKeyDown={(e) => e.key === "Enter" && save()}
             placeholder="0"
             className="min-h-[44px] w-44 rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)] px-4 pr-9 text-[15px] font-semibold text-[var(--ink)] outline-none transition-colors focus:border-[var(--acc)]"
@@ -151,8 +159,7 @@ function ObjectifMensuelCard() {
 }
 
 export default function PromptsPage() {
-  const { data: session } = useSession();
-  const email = session?.user?.email ?? null;
+  const { nom: NOM, email, initiale } = useIdentite();
   const { data: prompts = [], isLoading } = usePrompts();
   const create = useCreatePrompt();
   const update = useUpdatePrompt();
@@ -224,19 +231,18 @@ export default function PromptsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-[14px] min-[900px]:grid-cols-[1.4fr_1fr_1fr]">
-        {/* Carte compte. Le prénom vient de NEXT_PUBLIC_USER_NAME, comme dans
-            le Dashboard et AccountMenu ; l'e-mail vient de la session. Les
-            deux étaient écrits en dur dans le JSX. */}
+        {/* Carte compte. Prénom, initiale et e-mail viennent tous de la session
+            via useIdentite, comme dans le Dashboard et AccountMenu. */}
         <Module className="flex items-center gap-3.5 p-[20px]">
           <span className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[var(--acc)] text-[18px] font-bold text-[var(--acc-ink)]">
-            {(NOM || email?.split("@")[0] || "·").slice(0, 1).toUpperCase()}
+            {initiale}
           </span>
           <span className="min-w-0">
             <span className="block truncate text-[15.5px] font-bold text-[var(--ink)]">
-              {NOM || email?.split("@")[0] || "—"}
+              {NOM || "—"}
             </span>
             <span className="mt-0.5 block truncate font-mono text-[11px] text-[var(--faint)]">
-              {email ?? "—"}
+              {email || "—"}
             </span>
           </span>
         </Module>

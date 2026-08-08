@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
 import { deriveVente, STATUT_VENDU } from "@/lib/calc";
 import { toDTO } from "@/lib/serialize";
 import { addLabelToCard, removeComptabiliserLabel } from "@/lib/trello";
+import { contexteTrello } from "@/lib/settings";
 import type { CompteVente } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +29,9 @@ function parseCompteVente(value: string | undefined): CompteVente | undefined {
 //    (la carte reste visible dans Trello — pas d'archivage).
 export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const body = (await req.json()) as Body;
     const prixVente = Number(body.prixVente);
@@ -40,15 +45,10 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const canal = body.canal ? String(body.canal).trim() : undefined;
     const compteVente = parseCompteVente(body.compteVente);
 
-    const existing = await prisma.article.findUnique({
-      where: { id: params.id },
+    const existing = await prisma.article.findFirst({
+      where: { id: params.id, userId },
     });
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Article introuvable." },
-        { status: 404 },
-      );
-    }
+    if (!existing) return notFound("Article");
 
     const d = deriveVente({
       statut: STATUT_VENDU,
@@ -76,21 +76,29 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     // On retire « À comptabiliser » et on pose « Comptabilisé ».
     // La carte n'est PAS archivée : elle reste visible avec ses autres étiquettes.
     let trello: string | null = null;
-    if (existing.trelloCardId) {
-      try {
-        await removeComptabiliserLabel(existing.trelloCardId);
-        trello = "Étiquette retirée.";
-      } catch (e) {
-        console.error("[trello] retrait « À comptabiliser »", e);
-        trello = "Article validé, mais la synchro Trello a échoué.";
+    // Les identifiants Trello viennent des réglages de CET utilisateur, avec
+    // repli sur ceux du déploiement. Sans contexte, on ne synchronise rien.
+    const ctx = existing.trelloCardId ? await contexteTrello(userId) : null;
+    if (existing.trelloCardId && ctx) {
+      if (ctx.labelId) {
+        try {
+          await removeComptabiliserLabel(ctx, existing.trelloCardId);
+          trello = "Étiquette retirée.";
+        } catch (e) {
+          console.error("[trello] retrait « À comptabiliser »", e);
+          trello = "Article validé, mais la synchro Trello a échoué.";
+        }
       }
 
       // Pose de l'étiquette verte, indépendante du retrait : si le retrait a
       // échoué, on tente quand même l'ajout (et inversement).
-      const comptabiliseId = process.env.TRELLO_COMPTABILISE_LABEL_ID;
-      if (comptabiliseId) {
+      if (ctx.comptabiliseLabelId) {
         try {
-          await addLabelToCard(existing.trelloCardId, comptabiliseId);
+          await addLabelToCard(
+            ctx,
+            existing.trelloCardId,
+            ctx.comptabiliseLabelId,
+          );
           if (trello === "Étiquette retirée.") {
             trello = "Étiquettes Trello mises à jour.";
           }
@@ -100,7 +108,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         }
       } else {
         console.warn(
-          "[trello] TRELLO_COMPTABILISE_LABEL_ID absent : étiquette « Comptabilisé » non posée.",
+          "[trello] étiquette « Comptabilisé » non configurée : non posée.",
         );
       }
     }

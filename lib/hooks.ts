@@ -1,11 +1,9 @@
 "use client";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { objectifLegacy, oublierObjectifLegacy } from "./objectif";
 import type {
   ArticleDTO,
   CalendarDTO,
@@ -16,6 +14,7 @@ import type {
   NotificationsDTO,
   PromptTemplateDTO,
   StatsDTO,
+  UserSettingsDTO,
 } from "./types";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -89,7 +88,8 @@ export function useArticles(filters: ArticleFilters = {}) {
 
   return useQuery({
     queryKey: ["articles", filters],
-    queryFn: () => jsonFetch<ArticleDTO[]>(`/api/articles${qs ? `?${qs}` : ""}`),
+    queryFn: () =>
+      jsonFetch<ArticleDTO[]>(`/api/articles${qs ? `?${qs}` : ""}`),
   });
 }
 
@@ -172,18 +172,102 @@ export function useDeleteArticle() {
   });
 }
 
+// ---------- Réglages du compte ----------
+
+export function useReglages() {
+  return useQuery({
+    queryKey: ["reglages"],
+    queryFn: () => jsonFetch<UserSettingsDTO>("/api/user/settings"),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Objectif de CA mensuel, porté par le compte.
+ *
+ * Reprend une seule fois l'ancienne valeur du localStorage : uniquement si le
+ * compte n'en a pas encore, sinon un vieux navigateur écraserait un objectif
+ * fixé depuis un autre appareil.
+ */
+export function useObjectifMensuel() {
+  const { data, isLoading } = useReglages();
+  const enregistrer = useSetObjectif();
+  const reprise = useRef(false);
+
+  useEffect(() => {
+    if (isLoading || !data || reprise.current) return;
+    reprise.current = true;
+    if (data.objectifMensuel != null) {
+      oublierObjectifLegacy();
+      return;
+    }
+    const ancien = objectifLegacy();
+    if (ancien != null) {
+      enregistrer.mutate(ancien, { onSuccess: oublierObjectifLegacy });
+    }
+  }, [data, isLoading, enregistrer]);
+
+  return { objectif: data?.objectifMensuel ?? null, isLoading };
+}
+
+export function useSetObjectif() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (objectifMensuel: number | null) =>
+      jsonFetch<{ ok: true }>("/api/user/settings", {
+        method: "PUT",
+        body: JSON.stringify({ objectifMensuel }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reglages"] }),
+  });
+}
+
 // ---------- Commandes ----------
 
+/** Une pièce saisie individuellement, en mode DETAILLE. */
+export type LigneCommande = {
+  marque: string;
+  categorie: string;
+  /** Prix payé pour CETTE pièce, hors frais de livraison. */
+  prixAchat: number;
+  /**
+   * Préfixe SKU de cette pièce. Un lot mixte porte plusieurs séries — des sacs
+   * Nike et des coques Rhodes n'ont pas la même numérotation.
+   */
+  prefixeSku?: string;
+};
+
+/**
+ * Deux formes d'entrée pour une même route, distinguées par `modeSaisie` :
+ *
+ * - LISSE    : on saisit un coût total et un nombre d'articles, le prix est
+ *              réparti uniformément. Mode historique.
+ * - DETAILLE : on saisit une ligne par pièce avec son prix réel, plus les
+ *              frais de livraison. `coutTotal` et `nbArticles` sont alors
+ *              CALCULÉS par le serveur depuis les lignes — jamais envoyés,
+ *              sinon les deux pourraient diverger.
+ */
 export type CommandeInput = {
   fournisseur: string;
   date: string;
-  coutTotal: number;
-  nbArticles: number;
   marque: string;
   categorie: string;
   grade?: string | null;
   coefObjectif?: number | null;
-};
+  /** Préfixe SKU du lot. À défaut, le serveur reprend la suggestion. */
+  prefixeSku?: string;
+} & (
+  | {
+      modeSaisie?: "LISSE";
+      coutTotal: number;
+      nbArticles: number;
+    }
+  | {
+      modeSaisie: "DETAILLE";
+      fraisLivraison: number;
+      lignes: LigneCommande[];
+    }
+);
 
 export function useCreateCommande() {
   const invalidate = useInvalidateAll();
@@ -208,8 +292,7 @@ export function useCommandeStats(id: string | null) {
   return useQuery({
     queryKey: ["commande-stats", id],
     enabled: !!id,
-    queryFn: () =>
-      jsonFetch<CommandeStatsDTO>(`/api/commandes/${id}/stats`),
+    queryFn: () => jsonFetch<CommandeStatsDTO>(`/api/commandes/${id}/stats`),
   });
 }
 

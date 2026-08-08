@@ -30,34 +30,144 @@ export const STATUT_PHOTOS_PRETES = "Photos prêtes";
 
 export type Statut = (typeof STATUTS)[number];
 
-/** Préfixes SKU connus par marque ; sinon dérivé des initiales. */
+// ── SKU ───────────────────────────────────────────────────────────────────
+//
+// Format : 2 ou 3 lettres majuscules suivies d'un numéro, sans séparateur et
+// sans zéro de tête — PTH1, PTH114, SDN1, CRH100.
+//
+// C'est le format des 1 243 articles historiques, et celui qu'attend le webhook
+// Trello (`/^[A-Z]{2,5}\d+$/`, app/api/webhooks/trello/route.ts). Le générateur
+// produisait auparavant `LAC-001` : le tiret faisait échouer la reconnaissance
+// des cartes Trello pour tout article créé depuis l'application.
+
+/** Préfixes SKU connus, pour les libellés où les initiales tombent mal. */
 const PREFIXES: Record<string, string> = {
   "polo ralph lauren": "PRL",
   lacoste: "LAC",
   "tommy hilfiger": "TH",
 };
 
-/** Calcule le préfixe SKU d'une marque (ex. "Lacoste" -> "LAC"). */
-export function skuPrefix(marque: string): string {
-  const key = marque.trim().toLowerCase();
-  if (PREFIXES[key]) return PREFIXES[key];
-  const initials = key
-    .split(/\s+/)
-    .map((w) => w[0])
+// Mots vides ignorés dans les initiales : « sac à dos » doit donner SD, pas SAD.
+const MOTS_VIDES = new Set([
+  "a",
+  "à",
+  "de",
+  "du",
+  "des",
+  "le",
+  "la",
+  "les",
+  "en",
+  "d",
+]);
+
+const initiales = (s: string) =>
+  s
+    .trim()
+    .toLowerCase()
+    .split(/[\s'’-]+/)
+    .filter((m) => m && !MOTS_VIDES.has(m))
+    .map((m) => m[0])
     .join("")
     .toUpperCase();
-  return (initials || marque.slice(0, 3)).toUpperCase().slice(0, 4) || "ART";
+
+/**
+ * SUGGÈRE un préfixe SKU à partir de la catégorie et de la marque.
+ *
+ * Ce n'est qu'une proposition : le préfixe réel est saisi par l'utilisateur
+ * dans le formulaire de commande. Ses abréviations lui appartiennent (SDN pour
+ * « sacs à dos Nike », CRH pour « coques Rhodes ») et aucune règle ne les
+ * devinera de façon fiable — d'où le champ éditable.
+ *
+ * Règle : initiales des mots significatifs de la catégorie, puis de la marque,
+ * tronquées à 3 lettres. « Polo » + « Tommy Hilfiger » → PTH.
+ */
+export function skuPrefix(marque: string, categorie?: string): string {
+  // La table l'emporte sur les initiales, même quand une catégorie est fournie :
+  // elle existe précisément pour les libellés dont les initiales tombent mal.
+  // « Polo Ralph Lauren » + « Polo » donnerait PPR, alors que la série réelle
+  // en base est PRL (256 articles).
+  const connu = PREFIXES[marque.trim().toLowerCase()];
+  if (connu) return connu;
+
+  const brut = `${initiales(categorie ?? "")}${initiales(marque)}`;
+  const propre = brut.replace(/[^A-Z]/g, "").slice(0, 3);
+
+  if (propre.length >= 2) return propre;
+  // Une seule initiale (« Adidas » seul) : on complète sur les lettres de la
+  // marque pour rester à 2 caractères minimum et limiter les collisions.
+  const secours = marque
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase()
+    .slice(0, 3);
+  return (propre + secours).slice(0, 3) || "ART";
 }
 
-/** Formate un numéro de SKU sur 3 chiffres (1 -> "001"). */
+/** Normalise un préfixe saisi à la main : lettres uniquement, 3 au maximum. */
+export function normaliserPrefixe(saisi: string): string {
+  return saisi
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase()
+    .slice(0, 3);
+}
+
+/**
+ * Numéro d'un SKU : sans zéro de tête, la série commence à 1.
+ * Fonction conservée comme point unique où le format du numéro est décidé.
+ */
 export function skuNumber(n: number): string {
-  return String(n).padStart(3, "0");
+  return String(n);
 }
 
-/** Prix unitaire d'une commande = coût total ÷ nombre d'articles. */
+/**
+ * Extrait le numéro d'un SKU s'il appartient EXACTEMENT à ce préfixe.
+ *
+ * Sans séparateur, un simple `startsWith` confondrait les séries : le préfixe
+ * « A » matcherait « ADI1 ». L'ancrage sur `\d+$` impose que tout ce qui suit
+ * le préfixe soit le numéro, et rien d'autre.
+ */
+export function numeroDuSku(sku: string, prefixe: string): number | null {
+  const m = new RegExp(`^${prefixe}(\\d+)$`, "i").exec(sku.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Prix unitaire d'une commande = coût total ÷ nombre d'articles.
+ *
+ * ⚠️ En mode de saisie DETAILLE, cette valeur n'est plus le prix d'un article
+ * mais la MOYENNE du lot : les articles y ont chacun leur propre prixAchat.
+ * Tout affichage doit alors être libellé « P.U. moyen ».
+ */
 export function prixUnitaire(coutTotal: number, nbArticles: number): number {
   if (!nbArticles) return 0;
   return coutTotal / nbArticles;
+}
+
+/**
+ * Répartit des frais de livraison sur des articles au prorata de leur prix, et
+ * renvoie le coût complet de chacun (prix + sa part de frais).
+ *
+ * Au prorata et non à parts égales : dans un lot mixte, un manteau à 20 € et
+ * un t-shirt à 2 € ne mobilisent pas le même transport. Répartir également
+ * gonflerait le coût des petites pièces et écraserait leur coefficient.
+ *
+ * Propriété garantie : `Σ résultat = Σ prix + frais`. C'est elle qui maintient
+ * `Σ Article.prixAchat = Commande.coutTotal`, dont dépendent toutes les
+ * métriques de rentabilité (resteARecuperer, coefActuel, datePointMort…).
+ *
+ * Cas limite : un lot entièrement offert (Σ prix = 0) n'a pas de prorata
+ * définissable — on retombe alors sur un partage à parts égales.
+ */
+export function repartirFrais(prix: number[], frais: number): number[] {
+  if (prix.length === 0) return [];
+  if (!frais) return [...prix];
+
+  const somme = prix.reduce((s, p) => s + p, 0);
+  if (somme <= 0) return prix.map(() => frais / prix.length);
+
+  return prix.map((p) => p + (frais * p) / somme);
 }
 
 /** Marge brute = prix de vente - prix d'achat. */
@@ -122,6 +232,19 @@ export const naturalSort = (a: string, b: string) =>
 export function moyenne(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+/**
+ * Moyenne de coefficients, en ignorant les valeurs nulles ou négatives.
+ *
+ * `coefficient()` renvoie 0 quand le prix d'achat vaut 0 — le garde-fou contre
+ * une division par zéro. Ce 0 n'est pas un coefficient faible, c'est une
+ * absence de coefficient. Avec la saisie détaillée, les pièces offertes dans un
+ * lot (prix 0) deviennent courantes : les compter tirerait la moyenne vers le
+ * bas et fausserait le classement des meilleures et pires catégories.
+ */
+export function moyenneCoefs(values: number[]): number {
+  return moyenne(values.filter((v) => v > 0));
 }
 
 /** Formate un montant en euros (fr-FR). */

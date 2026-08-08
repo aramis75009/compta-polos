@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
 import { toPromptDTO } from "@/lib/promptsServer";
 
 type Body = {
@@ -20,7 +21,16 @@ function critere(v: string | null | undefined): string | null {
 // PATCH /api/prompts/[id] — édition
 export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
+    const owned = await prisma.promptTemplate.findFirst({
+      where: { id: params.id, userId },
+      select: { id: true },
+    });
+    if (!owned) return notFound("Prompt");
+
     const body = (await req.json()) as Body;
     const data: Record<string, unknown> = {};
     if (body.nom !== undefined) {
@@ -39,9 +49,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     if (body.estDefaut !== undefined) data.estDefaut = Boolean(body.estDefaut);
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Le défaut est un singleton par compte : ne démarquer que les prompts
+      // de CET utilisateur, sinon on retire le défaut de tous les autres.
       if (data.estDefaut === true) {
         await tx.promptTemplate.updateMany({
-          where: { estDefaut: true, id: { not: params.id } },
+          where: { userId, estDefaut: true, id: { not: params.id } },
           data: { estDefaut: false },
         });
       }
@@ -61,8 +73,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 // DELETE /api/prompts/[id]
 export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
-    await prisma.promptTemplate.delete({ where: { id: params.id } });
+    const res = await prisma.promptTemplate.deleteMany({
+      where: { id: params.id, userId },
+    });
+    if (res.count === 0) return notFound("Prompt");
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("DELETE /api/prompts/[id]", err);
