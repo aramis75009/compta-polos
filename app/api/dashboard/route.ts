@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { moyenne, STATUT_VENDU } from "@/lib/calc";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
+import { moyenneCoefs, STATUT_VENDU } from "@/lib/calc";
 import type {
   BrandRow,
   DashboardDelta,
@@ -46,11 +47,17 @@ function debutPeriode(periode: string, now: Date): Date | null {
 
 // GET /api/dashboard — KPIs + récap par marque + CA hebdomadaire
 export async function GET(request: Request) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const { searchParams } = new URL(request.url);
     const periode = searchParams.get("periode") ?? "all";
     // Une seule requête, on agrège en mémoire (volume faible).
+    // Le filtre userId porte sur CETTE requête et donc sur tous les agrégats qui
+    // en découlent : KPI, récap par marque, CA hebdomadaire.
     const articles = await prisma.article.findMany({
+      where: { userId },
       select: {
         marque: true,
         statut: true,
@@ -129,7 +136,11 @@ export async function GET(request: Request) {
         vendus: b.vendus,
         ca: b.ca,
         margeNette: b.margeNette,
-        coefMoyen: moyenne(b.coefs),
+        // moyenneCoefs et non moyenne : une pièce offerte (prix d'achat 0) a un
+        // coefficient de 0, qui est une absence de coefficient et non un
+        // coefficient faible. La compter tirerait la moyenne de la marque vers
+        // le bas. Cas devenu courant avec la saisie détaillée.
+        coefMoyen: moyenneCoefs(b.coefs),
         panierMoyen: b.vendus ? b.ca / b.vendus : 0,
         pctVendu: b.total ? b.vendus / b.total : 0,
       }))

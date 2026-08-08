@@ -20,9 +20,62 @@ model User {
   id             String    @id @default(cuid())
   email          String    @unique
   password       String
+  // Prénom affiché dans le dashboard et les paramètres. Remplace la variable
+  // d'env NEXT_PUBLIC_USER_NAME, qui était inlinée au build et donc commune à
+  // tous les comptes.
+  prenom         String?
+  // Offre choisie sur la landing. Purement indicatif : aucun quota ni
+  // facturation n'est appliqué aujourd'hui (cf. plan, § Dette assumée).
+  plan           String?
   resetToken     String?
   resetTokenExp  DateTime?
   createdAt      DateTime  @default(now())
+
+  articles  Article[]
+  commandes Commande[]
+  prompts   PromptTemplate[]
+  settings  UserSettings?
+}
+
+/// Réglages et secrets propres à un compte : clés IA et accès Trello.
+///
+/// Les secrets sont stockés CHIFFRÉS (AES-256-GCM, cf. `lib/crypto.ts`) et ne
+/// ressortent jamais de l'API en clair — seulement un booléen « renseigné » et
+/// les 4 derniers caractères. Les identifiants non secrets (ids de board et
+/// d'étiquettes) restent en clair : ils servent de critère de recherche.
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Clés IA, chiffrées. Absentes = on retombe sur la clé d'environnement.
+  geminiKey     String? @db.Text
+  anthropicKey  String? @db.Text
+  openrouterKey String? @db.Text
+
+  // Accès Trello, chiffrés. `trelloSecret` est le « API Secret » de
+  // trello.com/app-key : il ne sert qu'à valider la signature des webhooks
+  // entrants, pas à appeler l'API.
+  trelloKey    String? @db.Text
+  trelloToken  String? @db.Text
+  trelloSecret String? @db.Text
+
+  // Identifiants Trello en clair. `trelloBoardId` est UNIQUE : c'est la clé de
+  // routage du webhook entrant, qui n'a pas de session pour s'identifier.
+  // Deux comptes ne peuvent donc pas déclarer le même board.
+  trelloBoardId            String? @unique
+  trelloLabelId            String?
+  trelloComptabiliseLabelId String?
+
+  // Modèle de génération d'annonces (lot 4). Null = modèle par défaut de l'app.
+  modeleIA String?
+
+  // Objectif de chiffre d'affaires mensuel. Vivait dans le localStorage
+  // (`lib/objectif.ts`), donc perdu d'un appareil à l'autre.
+  objectifMensuel Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Commande {
@@ -30,18 +83,36 @@ model Commande {
   date        DateTime  @default(now())
   fournisseur String
   nbArticles  Int
+  // Coût total du lot, frais de livraison INCLUS. En mode détaillé il est
+  // calculé depuis les lignes et jamais saisi : c'est ce qui garantit
+  // `Σ Article.prixAchat = coutTotal`, dont dépendent toutes les métriques de
+  // rentabilité (resteARecuperer, coefActuel, datePointMort…).
   coutTotal   Float
+  // Part du coutTotal correspondant au transport. Conservée à part pour
+  // pouvoir l'afficher, mais elle est déjà répartie au prorata sur les
+  // articles — ne jamais la ré-additionner au coutTotal.
+  fraisLivraison Float?
+  // LISSE   : coût total ÷ nombre d'articles, le mode historique.
+  // DETAILLE: un prix d'achat saisi par article (prix hétérogènes).
+  modeSaisie  String    @default("LISSE")
   marque      String?
   categorie   String?
   grade       String?
   coefObjectif Float?   @default(2.5)
   articles    Article[]
   createdAt   DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Article {
   id          String    @id @default(cuid())
-  sku         String    @unique
+  // Le SKU n'est unique QUE dans le périmètre d'un utilisateur : deux comptes
+  // doivent pouvoir avoir chacun leur PRL-001. Cf. @@unique([userId, sku]).
+  sku         String
   // `marque` = la marque réelle (Adidas, Ralph Lauren…), `categorie` = le type
   // d'article (Short, Polo…). `lot` conserve le libellé du lot d'achat
   // (« Short Adidas ») : c'est lui qui alimente le filtre « Tous les lots ».
@@ -70,6 +141,11 @@ model Article {
 
   compteVente        CompteVente?
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sku])
+  @@index([userId])
   @@index([statut])
   @@index([marque])
   @@index([lot])
@@ -90,7 +166,13 @@ model PromptTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // `estDefaut` est un singleton PAR UTILISATEUR, pas global : l'index composite
+  // évite un scan de toute la table pour retrouver le défaut d'un compte.
+  @@index([userId])
+  @@index([userId, estDefaut])
   @@index([marque])
   @@index([categorie])
-  @@index([estDefaut])
 }

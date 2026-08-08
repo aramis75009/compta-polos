@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { toDTO, articleSelect } from "@/lib/serialize";
 import type { Prisma } from "@prisma/client";
 
@@ -7,6 +8,9 @@ export const dynamic = "force-dynamic";
 
 // GET /api/articles?marque=&lot=&statut=&q=
 export async function GET(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const { searchParams } = req.nextUrl;
     const marque = searchParams.get("marque")?.trim();
@@ -15,7 +19,10 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get("q")?.trim();
     const commande = searchParams.get("commande")?.trim();
 
-    const where: Prisma.ArticleWhereInput = {};
+    // Le userId est posé en premier et n'est jamais surchargé par un filtre de
+    // l'appelant : c'est lui qui borne le périmètre, les autres critères ne font
+    // que le restreindre.
+    const where: Prisma.ArticleWhereInput = { userId };
     if (marque) where.marque = marque;
     if (lot) where.lot = lot;
     if (statut) where.statut = statut;

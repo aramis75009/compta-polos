@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { CardTitle, Frame, Module } from "@/components/console";
-import { getObjectifMensuel } from "@/lib/objectif";
+import Integrations from "@/components/compte/Integrations";
+import { useObjectifMensuel } from "@/lib/hooks";
 import { euros } from "@/lib/calc";
 
 // Deux premières lettres de la partie locale de l'e-mail. La maquette pose un
@@ -32,9 +33,8 @@ export default function ComptePage() {
   const { data: session } = useSession();
   const email = session?.user?.email ?? null;
 
-  // localStorage : lu après montage pour ne pas diverger du rendu serveur.
-  const [objectif, setObjectif] = useState<number | null>(null);
-  useEffect(() => setObjectif(getObjectifMensuel()), []);
+  // Objectif porté par le compte, plus par le navigateur.
+  const { objectif } = useObjectifMensuel();
 
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -166,6 +166,8 @@ export default function ComptePage() {
           </form>
         </Module>
       </section>
+
+      <Integrations />
     </Frame>
   );
 }

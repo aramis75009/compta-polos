@@ -299,7 +299,30 @@ body {
   }
 }
 
+/* Le bloc existait mais était VIDE : le garde-fou était déclaré sans rien
+   faire, et toutes les animations ci-dessus s'exécutaient quand même pour un
+   utilisateur ayant demandé la réduction des mouvements au niveau du système.
+
+   Durée quasi nulle plutôt que `animation: none` : l'animation se joue toujours,
+   mais instantanément, donc les éléments qui n'existent visuellement qu'à leur
+   état final (cartes en fadeUp, barres en growBar, modales) restent affichés.
+   `animation: none` les figerait à leur état initial, souvent invisible.
+
+   Les composants qui ont besoin d'aller plus loin lisent la media query
+   directement en JS — c'est le cas de la frise SKU de la landing, qui affiche
+   l'état final au lieu de faire défiler le cycle. */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Scrollbar discrète, cohérente avec l'esprit épuré du design system */

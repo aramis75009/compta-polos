@@ -82,7 +82,8 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `/commandes` — gestion des commandes fournisseur
 - `/statistiques` — stats avancées
 - `/parametres` — prompts IA (modèles d'annonces)
-- `/compte` — Mon compte + changement de mot de passe
+- `/compte` — Mon compte, mot de passe, et configuration des clés IA / Trello
+  (`components/compte/Integrations.tsx`)
 - `/login` — connexion + mot de passe oublié (inline)
 - `/reset-password` — réinitialisation via token email
 
@@ -95,6 +96,11 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `/api/auth/forgot-password` — génère un token, envoie l'email via Resend
 - `/api/auth/reset-password` — valide le token, met à jour le mot de passe
 - `/api/user/password` — changement de mot de passe (authentifié)
+- `/api/user/settings` — réglages du compte : clés IA et Trello (chiffrées), objectif
+  mensuel. Un secret n'est jamais renvoyé en clair, seulement « renseigné » + 4 derniers
+  caractères. Champ absent du corps = inchangé, champ vide = effacé.
+- `/api/user/settings/test` — teste la clé IA réellement utilisée (lecture seule)
+- `/api/user/settings/trello` — liste boards et étiquettes ; POST crée le webhook
 - `/api/articles`, `/api/articles/[id]` — CRUD articles
 - `/api/commandes`, `/api/commandes/[id]` — CRUD commandes
 - `/api/dashboard`, `/api/stats`, `/api/calendar` — données agrégées
@@ -134,6 +140,17 @@ Couleurs principales : `#1B4332` (vert forêt), `#A8D5B5` (mint), `#16261D` (ink
 
 ## 🔗 Intégration Trello
 
+⚠️ **Depuis le lot 3 (08/08/2026), les identifiants Trello sont PAR UTILISATEUR.**
+Ils vivent chiffrés dans `UserSettings` (clé, token, secret) avec les ids de board et
+d'étiquettes en clair. Les helpers de `lib/trello.ts` reçoivent tous un `TrelloContexte`
+— ils ne lisent plus `process.env`. La résolution se fait dans `lib/settings.ts`, en
+cascade : réglages du compte → variables d'environnement du déploiement.
+
+Le webhook entrant n'a pas de session : il s'identifie par `data.board.id`, résolu en
+`userId` via `UserSettings.trelloBoardId` (colonne **unique**). Sa signature
+`x-trello-webhook` est vérifiée dès qu'un secret d'API est configuré sur le compte ;
+sans secret, l'événement passe et l'absence de vérification est journalisée.
+
 Deux sens de synchronisation, à ne pas confondre :
 
 **Trello → MyFlip** (`app/api/webhooks/trello/route.ts`)
@@ -161,18 +178,33 @@ Les IDs d'étiquettes se listent avec :
 
 ## 🔑 Variables d'environnement requises
 
+Depuis le lot 3, les clés IA et Trello ci-dessous sont des **valeurs de repli** :
+elles servent aux comptes qui n'ont pas saisi les leurs dans `/compte`.
+
 ```
 AUTH_SECRET
 AUTH_TRUST_HOST=true
 NEXTAUTH_URL
+INVITE_CODES            # codes d'invitation acceptés sur /signup ; absente = aucune inscription
+ENCRYPTION_KEY          # 32 octets hex : chiffre les secrets de UserSettings (AES-256-GCM)
 ANTHROPIC_API_KEY
 GEMINI_API_KEY
+OPENROUTER_API_KEY      # facultative
 TRELLO_API_KEY
 TRELLO_TOKEN
+TRELLO_SECRET                 # secret d'API, vérification de signature du webhook
 TRELLO_BOARD_ID
 TRELLO_LABEL_ID               # étiquette « À comptabiliser » (violette)
 TRELLO_COMPTABILISE_LABEL_ID  # étiquette « Comptabilisé » (verte)
+TRELLO_OWNER_EMAIL      # compte de repli pour le board du déploiement
 RESEND_API_KEY
-NEXT_PUBLIC_USER_NAME   # prénom affiché dans le dashboard
 DATABASE_URL            # Neon PostgreSQL (dans .env, géré par Vercel/Prisma)
 ```
+
+⚠️ **`ENCRYPTION_KEY` perdue = tous les secrets de `UserSettings` illisibles.** La
+sauvegarder hors Vercel. La changer invalide l'existant (il faudrait déchiffrer avec
+l'ancienne et rechiffrer avec la nouvelle).
+
+`NEXT_PUBLIC_USER_NAME` a été retirée : le prénom vit sur `User.prenom` et transite par
+la session (`lib/useIdentite.ts`). Une variable inlinée au build ne pouvait pas différer
+d'un compte à l'autre.

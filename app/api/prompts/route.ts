@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { ensureDefaultPrompt, toPromptDTO } from "@/lib/promptsServer";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +23,13 @@ function critere(v: string | null | undefined): string | null {
 
 // GET /api/prompts — liste (crée un prompt par défaut si aucun n'existe)
 export async function GET() {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
-    await ensureDefaultPrompt();
+    await ensureDefaultPrompt(userId);
     const prompts = await prisma.promptTemplate.findMany({
+      where: { userId },
       orderBy: [{ estDefaut: "desc" }, { nom: "asc" }],
     });
     return NextResponse.json(prompts.map(toPromptDTO));
@@ -39,6 +44,9 @@ export async function GET() {
 
 // POST /api/prompts — création
 export async function POST(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const body = (await req.json()) as Body;
     const nom = body.nom?.trim();
@@ -54,13 +62,15 @@ export async function POST(req: NextRequest) {
       marque: critere(body.marque),
       categorie: critere(body.categorie),
       estDefaut,
+      userId,
     };
 
     const created = await prisma.$transaction(async (tx) => {
-      // Un seul prompt par défaut à la fois.
+      // Un seul prompt par défaut à la fois — par utilisateur. Sans le userId,
+      // définir son défaut retirerait celui de tous les autres comptes.
       if (estDefaut) {
         await tx.promptTemplate.updateMany({
-          where: { estDefaut: true },
+          where: { userId, estDefaut: true },
           data: { estDefaut: false },
         });
       }

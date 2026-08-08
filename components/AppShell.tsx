@@ -5,11 +5,16 @@ import Sidebar from "./Sidebar";
 import ChatBot from "./ChatBot";
 import TopBar from "./TopBar";
 
-// Enveloppe l'app : sidebar + décalage du contenu, sauf sur /login.
+// Pages servies sans le châssis de l'app : ni sidebar, ni bottom nav, ni
+// chatbot. Ce sont les pages publiques — la landing, l'authentification et les
+// mentions légales — auxquelles on accède sans session.
+const SANS_CHASSIS = ["/", "/login", "/signup", "/reset-password"];
+
+// Enveloppe l'app : sidebar + décalage du contenu.
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname === "/login" || pathname === "/reset-password" || pathname.startsWith("/legal")) {
+  if (SANS_CHASSIS.includes(pathname) || pathname.startsWith("/legal")) {
     return <>{children}</>;
   }
 

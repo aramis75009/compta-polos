@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { STATUT_VENDU } from "@/lib/calc";
 import type { CalendarDay, CalendarDTO } from "@/lib/types";
 import { endOfMonth, format, parse, startOfMonth } from "date-fns";
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 // GET /api/calendar?month=YYYY-MM — ventes du mois groupées par jour
 export async function GET(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const monthParam = req.nextUrl.searchParams.get("month");
     const ref = monthParam
@@ -22,6 +26,7 @@ export async function GET(req: NextRequest) {
 
     const articles = await prisma.article.findMany({
       where: {
+        userId,
         statut: STATUT_VENDU,
         dateVente: { gte: from, lte: to },
       },

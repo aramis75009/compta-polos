@@ -18,14 +18,21 @@ export function toPromptDTO(p: PromptTemplate): PromptTemplateDTO {
 }
 
 /**
- * Garantit qu'au moins un prompt par défaut existe, pour que la génération
- * fonctionne sans configuration. Idempotent : ne crée rien s'il y en a déjà un.
+ * Garantit qu'au moins un prompt par défaut existe **pour cet utilisateur**,
+ * pour que la génération fonctionne sans configuration. Idempotent : ne crée
+ * rien s'il y en a déjà un.
+ *
+ * `estDefaut` est un singleton PAR COMPTE, pas global : sans le filtre userId,
+ * le premier utilisateur à appeler cette fonction empêcherait tous les autres
+ * d'avoir leur propre prompt par défaut.
  */
-export async function ensureDefaultPrompt(): Promise<void> {
-  const count = await prisma.promptTemplate.count({ where: { estDefaut: true } });
+export async function ensureDefaultPrompt(userId: string): Promise<void> {
+  const count = await prisma.promptTemplate.count({
+    where: { userId, estDefaut: true },
+  });
   if (count > 0) return;
   // Aucun défaut : on en crée un (ou on promeut un existant s'il y en a).
-  const existing = await prisma.promptTemplate.findFirst();
+  const existing = await prisma.promptTemplate.findFirst({ where: { userId } });
   if (existing) {
     await prisma.promptTemplate.update({
       where: { id: existing.id },
@@ -40,6 +47,7 @@ export async function ensureDefaultPrompt(): Promise<void> {
       categorie: null,
       contenu: DEFAULT_PROMPT_CONTENU,
       estDefaut: true,
+      userId,
     },
   });
 }

@@ -24,7 +24,13 @@ export type ArticleDTO = {
   transporteur: string | null;
   trelloCardId: string | null;
   commandeId: string | null;
-  prixUnitaire: number | null; // dérivé de la commande
+  /**
+   * Moyenne du lot (coût total ÷ nombre d'articles), PAS le prix de cet
+   * article — celui-ci est `prixAchat`. Les deux diffèrent dès qu'une commande
+   * est en saisie détaillée. Aucun écran ne l'affiche aujourd'hui ; ne pas
+   * l'utiliser comme prix d'une pièce.
+   */
+  prixUnitaire: number | null;
   coefObjectif: number | null; // objectif de coef de la commande
   titreAnnonce: string | null;
   descriptionAnnonce: string | null;
@@ -50,7 +56,15 @@ export type CommandeDTO = {
   fournisseur: string;
   nbArticles: number;
   coutTotal: number;
+  /**
+   * Coût total ÷ nombre d'articles. En mode DETAILLE, c'est une MOYENNE et non
+   * le prix d'une pièce : à libeller « P.U. moyen » partout où il s'affiche.
+   */
   prixUnitaire: number;
+  /** Part du coût total correspondant au transport, déjà répartie sur les articles. */
+  fraisLivraison: number | null;
+  /** "LISSE" (prix uniforme) ou "DETAILLE" (un prix saisi par pièce). */
+  modeSaisie: string;
   marque: string | null;
   categorie: string | null;
   grade: string | null;
@@ -265,3 +279,43 @@ export type StatsDTO = {
   repartitionStatuts: StatutCount[];
   caParCanal: CanalCA[];
 };
+
+// ── Réglages du compte ─────────────────────────────────────────────────────
+
+/**
+ * État d'un secret vu du client. La valeur en clair ne traverse jamais l'API :
+ * on ne renvoie que sa présence et ses 4 derniers caractères.
+ */
+export type SecretEtat = {
+  renseigne: boolean;
+  apercu: string | null; // « ••••a1b2 »
+};
+
+/** D'où vient la valeur réellement utilisée à l'exécution. */
+export type SourceReglage = "utilisateur" | "app" | "absente";
+
+export type UserSettingsDTO = {
+  gemini: SecretEtat;
+  anthropic: SecretEtat;
+  openrouter: SecretEtat;
+  trelloKey: SecretEtat;
+  trelloToken: SecretEtat;
+  trelloSecret: SecretEtat;
+  trelloBoardId: string | null;
+  trelloLabelId: string | null;
+  trelloComptabiliseLabelId: string | null;
+  modeleIA: string | null;
+  objectifMensuel: number | null;
+  source: {
+    gemini: SourceReglage;
+    anthropic: SourceReglage;
+    openrouter: SourceReglage;
+    trello: SourceReglage;
+  };
+  /** Faux si ENCRYPTION_KEY manque : aucun secret ne peut être enregistré. */
+  chiffrementDisponible: boolean;
+};
+
+/** Un board Trello proposé au choix dans l'écran de configuration. */
+export type TrelloBoardDTO = { id: string; name: string };
+export type TrelloLabelDTO = { id: string; name: string; color: string | null };

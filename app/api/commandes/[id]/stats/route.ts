@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { moyenne, STATUT_VENDU, naturalSort } from "@/lib/calc";
+import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
+import { moyenne, moyenneCoefs, STATUT_VENDU, naturalSort } from "@/lib/calc";
 import type {
   CanalRow,
   CommandeResume,
@@ -20,17 +21,18 @@ const joursEntre = (a: Date, b: Date) =>
 // Récap par catégorie + synthèse de rentabilité (état actuel et projection).
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
-    const commande = await prisma.commande.findUnique({
-      where: { id: params.id },
+    const commande = await prisma.commande.findFirst({
+      where: { id: params.id, userId },
       select: { date: true, coutTotal: true, coefObjectif: true },
     });
-    if (!commande) {
-      return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
-    }
+    if (!commande) return notFound("Commande");
 
     const articles = await prisma.article.findMany({
-      where: { commandeId: params.id },
+      where: { commandeId: params.id, userId },
       select: {
         categorie: true,
         statut: true,
@@ -82,7 +84,10 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
         vendus: r.vendus,
         ca: r.ca,
         margeNette: r.margeNette,
-        coefMoyen: moyenne(r.coefs),
+        // Exclut les pièces offertes (coef 0) : sans ça, le classement des
+        // meilleures et pires catégories serait faussé par des lots contenant
+        // des pièces à 0 €.
+        coefMoyen: moyenneCoefs(r.coefs),
         pctVendu: r.total ? r.vendus / r.total : 0,
       }))
       .sort((a, b) => naturalSort(a.categorie, b.categorie));

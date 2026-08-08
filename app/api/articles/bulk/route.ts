@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { STATUT_VENDU, STATUTS } from "@/lib/calc";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,9 @@ type Body = { ids?: string[]; statut?: string };
 
 // PATCH /api/articles/bulk — change le statut d'un ensemble d'articles.
 export async function PATCH(req: NextRequest) {
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
     const { ids, statut } = (await req.json()) as Body;
 
@@ -32,8 +36,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Champs de vente remis à null (règle centrale si on quitte « Vendu »).
+    // Le `userId` dans le where fait le tri en une seule requête : les ids qui
+    // ne sont pas à cet utilisateur sont simplement ignorés, et `res.count`
+    // reflète ce qui a réellement été modifié.
     const res = await prisma.article.updateMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, userId },
       data: {
         statut: nouveau,
         prixVente: null,

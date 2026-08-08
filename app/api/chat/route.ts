@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { deriveVente, euros, STATUT_VENDU, STATUTS } from "@/lib/calc";
+import { resoudreReglages } from "@/lib/settings";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -117,12 +119,19 @@ function skuWhere(sku?: string): Prisma.ArticleWhereInput {
   return { sku: { startsWith: t } };
 }
 
+// `userId` est un champ OBLIGATOIRE de la signature, et non un paramètre
+// optionnel : c'est ce qui rend impossible d'oublier le cloisonnement sur l'un
+// des cinq outils exposés au modèle. Un outil qui ne le passe pas ne compile pas.
 function buildWhere(f: {
+  userId: string;
   marque?: string;
   statut?: string;
   sku?: string;
 }): Prisma.ArticleWhereInput {
-  const where: Prisma.ArticleWhereInput = { ...skuWhere(f.sku) };
+  const where: Prisma.ArticleWhereInput = {
+    userId: f.userId,
+    ...skuWhere(f.sku),
+  };
   if (f.marque) where.marque = f.marque;
   if (f.statut) where.statut = f.statut;
   return where;
@@ -130,9 +139,14 @@ function buildWhere(f: {
 
 // ---------- Outils de lecture ----------
 
-async function runRead(name: string, input: Record<string, unknown>) {
+async function runRead(
+  name: string,
+  input: Record<string, unknown>,
+  userId: string,
+) {
   if (name === "get_stats") {
     const arts = await prisma.article.findMany({
+      where: { userId },
       select: { statut: true, prixVente: true, margeNette: true },
     });
     const vendus = arts.filter((a) => a.statut === STATUT_VENDU);
@@ -150,6 +164,7 @@ async function runRead(name: string, input: Record<string, unknown>) {
 
   if (name === "count_articles") {
     const where = buildWhere({
+      userId,
       marque: input.marque as string | undefined,
       statut: input.statut as string | undefined,
       sku: input.sku as string | undefined,
@@ -160,6 +175,7 @@ async function runRead(name: string, input: Record<string, unknown>) {
 
   if (name === "get_articles") {
     const where = buildWhere({
+      userId,
       marque: input.marque as string | undefined,
       statut: input.statut as string | undefined,
       sku: input.sku as string | undefined,
@@ -189,6 +205,7 @@ async function runRead(name: string, input: Record<string, unknown>) {
 async function runMutation(
   name: string,
   input: Record<string, unknown>,
+  userId: string,
 ): Promise<string> {
   if (name === "update_articles_status") {
     const filtre = (input.filtre ?? {}) as {
@@ -207,6 +224,7 @@ async function runMutation(
     }
 
     const where = buildWhere({
+      userId,
       marque: filtre.marque,
       statut: filtre.statut_actuel,
       sku: filtre.sku,
@@ -231,7 +249,7 @@ async function runMutation(
         select: { id: true },
       });
       const res = await prisma.article.updateMany({
-        where: { id: { in: ids.map((a) => a.id) } },
+        where: { userId, id: { in: ids.map((a) => a.id) } },
         data,
       });
       count = res.count;
@@ -257,7 +275,7 @@ async function runMutation(
       ? new Date(String(input.dateVente))
       : new Date();
 
-    const where = buildWhere({ marque: filtre.marque, sku: filtre.sku });
+    const where = buildWhere({ userId, marque: filtre.marque, sku: filtre.sku });
     const articles = await prisma.article.findMany({
       where,
       orderBy: { sku: "asc" },
@@ -313,10 +331,21 @@ type Body = {
 };
 
 export async function POST(req: NextRequest) {
+  // Le chatbot expose des outils MUTANTS au modèle (changement de statut en
+  // masse, marquage vendu). Sans cette garde, ils étaient appelables sans
+  // aucune session.
+  const userId = await getUserId();
+  if (!userId) return unauthorized();
+
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    // Clé du compte si l'utilisateur en a saisi une, sinon celle de l'app.
+    const { anthropicKey } = await resoudreReglages(userId);
+    if (!anthropicKey) {
       return NextResponse.json(
-        { error: "Clé ANTHROPIC_API_KEY manquante côté serveur." },
+        {
+          error:
+            "Aucune clé Anthropic : renseigne la tienne dans Mon compte, ou configure celle de l'application.",
+        },
         { status: 500 },
       );
     }
@@ -332,7 +361,7 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-      const result = await runMutation(tool, input ?? {});
+      const result = await runMutation(tool, input ?? {}, userId);
       return NextResponse.json({ result });
     }
 
@@ -341,7 +370,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message vide." }, { status: 400 });
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const client = new Anthropic({ apiKey: anthropicKey });
     const messages: Anthropic.MessageParam[] = [
       { role: "user", content: message },
     ];
@@ -391,6 +420,7 @@ export async function POST(req: NextRequest) {
         const data = await runRead(
           t.name,
           t.input as Record<string, unknown>,
+          userId,
         );
         toolResults.push({
           type: "tool_result",

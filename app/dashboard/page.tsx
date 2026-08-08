@@ -21,9 +21,13 @@ import {
   subMonths,
 } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useDashboard, type DashboardPeriode } from "@/lib/hooks";
+import {
+  useDashboard,
+  useObjectifMensuel,
+  type DashboardPeriode,
+} from "@/lib/hooks";
 import { coefLabel, euros, pct1, pctInt } from "@/lib/calc";
-import { getObjectifMensuel } from "@/lib/objectif";
+import { useIdentite } from "@/lib/useIdentite";
 import type { BrandRow, DashboardDelta } from "@/lib/types";
 import { CardTitle, Eyebrow, Frame } from "@/components/console";
 import Loader from "@/components/Loader";
@@ -113,23 +117,17 @@ const coefDash = (n: number) => coefLabel(n, 1);
 // Page
 // ─────────────────────────────────────────────────────────────────────────
 
-// Le prénom réel vit dans `.env.local`, qui est gitignoré : ce repli est donc
-// la seule occurrence d'un prénom visible depuis le dépôt. Tout outil qui lit
-// le code sans les variables d'environnement affichera cette valeur — elle
-// doit rester le vrai prénom, pas un espace réservé.
-const name = process.env.NEXT_PUBLIC_USER_NAME ?? "Aramis";
-
 export default function DashboardPage() {
+  // Prénom du compte connecté (plus de constante de build : cf. lib/useIdentite).
+  const { nom } = useIdentite();
   // Le Dashboard atterrit sur le mois en cours (#15).
   const [periode, setPeriode] = useState<DashboardPeriode>("month");
   const { data, isLoading, isError, error } = useDashboard(periode);
   // CA du mois en cours pour l'anneau d'objectif — indépendant de la période
   // sélectionnée. Même clé que « month » → dédupliqué par react-query.
   const { data: moisData } = useDashboard("month");
-  // Objectif mensuel (localStorage, réglé dans Paramètres). Lu au montage pour
-  // éviter tout écart d'hydratation SSR.
-  const [objectif, setObjectif] = useState<number | null>(null);
-  useEffect(() => setObjectif(getObjectifMensuel()), []);
+  // Objectif mensuel, porté par le compte (réglé dans Paramètres).
+  const { objectif } = useObjectifMensuel();
 
   if (isLoading && !data) {
     return (
@@ -164,7 +162,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-[24px] font-bold tracking-[-0.03em] text-[var(--ink)]">
-            Bonjour {name}
+            Bonjour {nom}
           </div>
           <div className="mt-[3px] font-mono text-[11px] tracking-[0.06em] text-[var(--faint)]">
             {todayLabel()}

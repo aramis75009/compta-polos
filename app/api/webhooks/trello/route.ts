@@ -1,7 +1,13 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { STATUT_A_COMPTABILISER } from "@/lib/calc";
 import { getCardLabels, getCardName } from "@/lib/trello";
+import {
+  contexteTrello,
+  utilisateurDuBoard,
+  type TrelloContexte,
+} from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,16 +33,53 @@ function parseSkus(cardName: string): string[] {
     .filter((token) => SKU_PATTERN.test(token));
 }
 
+/**
+ * Valide la signature `x-trello-webhook` : HMAC-SHA1, en base64, du corps brut
+ * concaténé à l'URL de rappel, avec le secret d'API du compte.
+ *
+ * L'endpoint est public et route désormais vers un compte d'après l'id du
+ * board : sans cette vérification, une requête forgée ferait basculer les
+ * articles d'un utilisateur en « À comptabiliser ».
+ *
+ * Faute de secret configuré, on laisse passer — sinon la synchro s'arrêterait
+ * du jour au lendemain pour un board déjà en place. Le défaut est journalisé à
+ * chaque appel, et l'écran de configuration invite à renseigner le secret.
+ */
+function signatureValide(
+  ctx: TrelloContexte | null,
+  brut: string,
+  entete: string | null,
+): boolean {
+  if (!ctx?.secret) {
+    console.warn(
+      "[trello] secret d'API absent : signature du webhook non vérifiée.",
+    );
+    return true;
+  }
+  if (!entete) return false;
+
+  const callbackURL = `${(process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "")}/api/webhooks/trello`;
+  const attendu = crypto
+    .createHmac("sha1", ctx.secret)
+    .update(brut + callbackURL)
+    .digest("base64");
+
+  // Comparaison à temps constant, sur des tampons de même longueur.
+  const a = Buffer.from(entete);
+  const b = Buffer.from(attendu);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 // Migration ponctuelle : supprimer les faux articles créés par l'ancien
 // comportement (un seul article avec un SKU contenant des espaces).
 // Exécutée une seule fois au démarrage de la correction.
 let fakeArticlesCleanupDone = false;
-async function cleanupFakeArticlesOnce() {
+async function cleanupFakeArticlesOnce(userId: string) {
   if (fakeArticlesCleanupDone) return;
   fakeArticlesCleanupDone = true;
   try {
     const result = await prisma.article.deleteMany({
-      where: { sku: { contains: " " } },
+      where: { userId, sku: { contains: " " } },
     });
     if (result.count > 0) {
       console.log(`Migration: ${result.count} faux article(s) supprimé(s)`);
@@ -83,66 +126,92 @@ function log(payload: Record<string, unknown>) {
 // POST /api/webhooks/trello — déclenché à chaque action du board Trello.
 export async function POST(req: NextRequest) {
   try {
-    // Nettoyage ponctuel des faux articles de l'ancien comportement (une seule fois).
-    await cleanupFakeArticlesOnce();
-
-    const body = (await req.json()) as TrelloWebhookBody;
+    // Le corps est lu en texte : la signature porte sur les octets exacts reçus,
+    // qu'un aller-retour par JSON.parse/stringify ne restituerait pas.
+    const brut = await req.text();
+    const body = JSON.parse(brut || "{}") as TrelloWebhookBody;
     const action = body.action ?? {};
     const data = action.data ?? {};
     const type = action.type;
 
-    const boardId = process.env.TRELLO_BOARD_ID;
-    const labelId = process.env.TRELLO_LABEL_ID;
-
     const card = data.card;
-    const ctx = { type, cardId: card?.id, cardName: card?.name };
+    const journal = { type, cardId: card?.id, cardName: card?.name };
 
-    // 1. L'action doit concerner notre board.
-    if (!data?.board?.id || data.board.id !== boardId) {
-      log({ ...ctx, ignored: "board", boardRecu: data?.board?.id });
+    // 1. Le board désigne le compte concerné. C'est la seule identification
+    //    disponible : l'appel entrant n'a pas de session.
+    const boardRecu = data?.board?.id;
+    if (!boardRecu) {
+      log({ ...journal, ignored: "no-board" });
+      return NextResponse.json({ ignored: "no-board" });
+    }
+
+    const ownerId = await utilisateurDuBoard(boardRecu);
+    if (!ownerId) {
+      log({ ...journal, ignored: "board-inconnu", boardRecu });
       return NextResponse.json({ ignored: "board" });
     }
 
-    // 2. L'action doit concerner une carte.
+    // 2. Signature. Vérifiée avec le secret du compte que le board désigne.
+    const trello = await contexteTrello(ownerId);
+    if (!signatureValide(trello, brut, req.headers.get("x-trello-webhook"))) {
+      console.warn("[trello] signature invalide — événement rejeté.");
+      return NextResponse.json({ error: "Signature invalide." }, { status: 401 });
+    }
+
+    if (!trello) {
+      log({ ...journal, ignored: "trello-non-configure" });
+      return NextResponse.json({ ignored: "trello-non-configure" });
+    }
+    const labelId = trello.labelId;
+
+    // Nettoyage ponctuel des faux articles de l'ancien comportement (une seule fois).
+    await cleanupFakeArticlesOnce(ownerId);
+
+    // 3. L'action doit concerner une carte.
     if (!card?.id) {
-      log({ ...ctx, ignored: "no-card" });
+      log({ ...journal, ignored: "no-card" });
       return NextResponse.json({ ignored: "no-card" });
     }
 
-    // 3. Type d'action pertinent ? (cf. CARD_ACTIONS)
+    // 4. Type d'action pertinent ? (cf. CARD_ACTIONS)
     if (!type || !CARD_ACTIONS.has(type)) {
-      log({ ...ctx, ignored: "type-hors-scope" });
+      log({ ...journal, ignored: "type-hors-scope" });
       return NextResponse.json({ ignored: type ?? "unknown" });
     }
 
-    // 4. L'étiquette « À comptabiliser » est-elle sur la carte ?
+    // 5. L'étiquette « À comptabiliser » est-elle sur la carte ?
     //    `addLabelToCard` la porte dans son payload ; pour tous les autres types
     //    (création, copie, déplacement, update) il faut interroger l'API.
+    if (!labelId) {
+      log({ ...journal, ignored: "label-non-configuree" });
+      return NextResponse.json({ ignored: "label-non-configuree" });
+    }
+
     let labels: TrelloLabel[] | null = null;
     let hasComptabiliser: boolean;
 
     if (type === "addLabelToCard" && data.label?.id) {
       hasComptabiliser = data.label.id === labelId;
     } else {
-      labels = await getCardLabels(card.id);
+      labels = await getCardLabels(trello, card.id);
       hasComptabiliser = labels.some((l) => l.id === labelId);
     }
 
     if (!hasComptabiliser) {
       log({
-        ...ctx,
+        ...journal,
         ignored: "no-label",
         labelsCarte: labels?.map((l) => l.name ?? l.id),
       });
       return NextResponse.json({ ignored: "no-label" });
     }
 
-    // 5. Le nom de la carte peut contenir plusieurs SKUs (ex: "SDM11 SDM36 ADI36").
+    // 6. Le nom de la carte peut contenir plusieurs SKUs (ex: "SDM11 SDM36 ADI36").
     //    Certains payloads (copie, déplacement) n'incluent pas le nom → on le lit.
     let cardName = card.name ?? "";
     if (!cardName) {
       try {
-        cardName = await getCardName(card.id);
+        cardName = await getCardName(trello, card.id);
       } catch (e) {
         console.error("[trello] lecture du nom de carte échouée", e);
       }
@@ -150,16 +219,16 @@ export async function POST(req: NextRequest) {
 
     const skus = parseSkus(cardName);
     if (skus.length === 0) {
-      log({ ...ctx, cardName, ignored: "no-sku" });
+      log({ ...journal, cardName, ignored: "no-sku" });
       return NextResponse.json({ ignored: "no-sku" });
     }
 
-    // 6. Transporteur = nom de l'autre étiquette de la carte (best-effort).
+    // 7. Transporteur = nom de l'autre étiquette de la carte (best-effort).
     //    L'étiquette « Comptabilisé » ne doit pas être prise pour un transporteur.
-    const comptabiliseId = process.env.TRELLO_COMPTABILISE_LABEL_ID;
+    const comptabiliseId = trello.comptabiliseLabelId;
     let transporteur: string | null = null;
     try {
-      if (!labels) labels = await getCardLabels(card.id);
+      if (!labels) labels = await getCardLabels(trello, card.id);
       transporteur =
         labels.find(
           (l) => l.id !== labelId && l.id !== comptabiliseId && l.name,
@@ -175,7 +244,7 @@ export async function POST(req: NextRequest) {
 
     for (const token of skus) {
       const existing = await prisma.article.findFirst({
-        where: { sku: { equals: token, mode: "insensitive" } },
+        where: { userId: ownerId, sku: { equals: token, mode: "insensitive" } },
       });
       if (existing) {
         await prisma.article.update({
@@ -192,7 +261,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    log({ ...ctx, cardName, transporteur, found, notFound });
+    log({ ...journal, cardName, transporteur, found, notFound });
     return NextResponse.json({ ok: true, found, notFound });
   } catch (err) {
     const e = err as Error;
