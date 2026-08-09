@@ -63,7 +63,7 @@ export default function StatutPill({
           color: c.color,
           WebkitAppearance: "none",
         }}
-        className={`peer absolute inset-0 h-full w-full cursor-pointer appearance-none truncate rounded-full border border-[var(--border)] bg-[var(--tint)] font-semibold leading-none outline-none transition-colors hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        className={`peer absolute inset-0 h-full w-full cursor-pointer appearance-none truncate rounded-full border border-[var(--border)] bg-[var(--tint)] font-semibold leading-none outline-none transition-colors hover:border-[var(--border-strong)] focus-visible:ring-2 focus-visible:ring-[var(--acc-ring-strong)] ${
           md ? "pl-4 pr-9 text-[13px]" : "pl-2.5 pr-7 text-[11.5px]"
         }`}
       >

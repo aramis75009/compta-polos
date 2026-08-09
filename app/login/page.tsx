@@ -95,7 +95,7 @@ function LoginForm() {
               className={inputCls}
             />
             {error && (
-              <p className="mb-4 rounded-xl bg-[#FBEEE7] px-4 py-2.5 text-[13.5px] text-[#C2603F]">
+              <p className="mb-4 rounded-xl bg-[var(--neg-soft)] px-4 py-2.5 text-[13.5px] text-[var(--neg)]">
                 {error}
               </p>
             )}
@@ -116,7 +116,7 @@ function LoginForm() {
           </form>
         ) : forgotDone ? (
           <div className="space-y-4">
-            <div className="rounded-xl bg-[#E4F3EA] px-4 py-4 text-[14px] font-medium text-[var(--pos)]">
+            <div className="rounded-xl bg-[var(--pos-soft)] px-4 py-4 text-[14px] font-medium text-[var(--pos)]">
               Si cet email est enregistré, un lien de réinitialisation a été envoyé.
             </div>
             <button

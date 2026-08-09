@@ -27,7 +27,7 @@ par authentification.
 | Domaine | Choix |
 |---|---|
 | Framework | Next.js 15 (App Router) + React 18 + TypeScript |
-| Styles | Tailwind CSS — design system « Forest Precision » (`docs/design-system.md`) |
+| Styles | Tailwind CSS — design system « Direction C — Console tactile » (`docs/design-system.md`), Space Grotesk + JetBrains Mono, thèmes clair/sombre |
 | Base de données | PostgreSQL (Neon) via Prisma 6 |
 | Authentification | NextAuth v5 (credentials, mot de passe bcrypt stocké en base) |
 | État client | TanStack Query (+ TanStack Virtual pour la liste du stock) |

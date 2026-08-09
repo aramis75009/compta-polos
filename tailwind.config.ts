@@ -8,40 +8,33 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // TOUT alias de couleur pointe sur une variable CSS de globals.css, sans
+      // exception. Une valeur en dur ici ne suit pas le thème sombre : elle
+      // passe la revue visuelle en clair et disparaît sur le graphite.
       colors: {
-        // Neutres → variables CSS (thème clair/sombre, cf. globals.css).
+        // Neutres
         bg: "var(--bg)",
         surface: "var(--surface)", // fond principal du contenu
         "surface-soft": "var(--surface-2)", // sidebar, cartes teintées
         "surface-container": "var(--tint)",
-        "surface-container-high": "var(--tint)",
         tint: "var(--tint)",
         // Texte
-        ink: "var(--ink)", // on-surface
-        "ink-muted": "var(--ink2)", // on-surface-variant
-        "ink-faint": "var(--faint)", // outline / texte tertiaire
+        ink: "var(--ink)", // encre principale
+        "ink-muted": "var(--ink2)", // encre secondaire
+        "ink-faint": "var(--faint)", // encre tertiaire
         muted: "var(--muted)",
         faint: "var(--faint)",
         nav: "var(--nav)",
         // Bordures
         line: "var(--border)",
-        "line-strong": "var(--border-strong)",
-        // Vert forêt (couleur de marque)
-        primary: "#1a5336",
-        "primary-dark": "#003b22",
-        "primary-container": "#b5f0c9",
-        "on-primary": "#ffffff",
-        // Vert menthe (tendances positives, accents)
-        mint: "#47c98e",
-        "mint-soft": "#79f7b8",
+        // Accent. `primary` est l'ancien nom de `--acc` : vert forêt en clair,
+        // lime en sombre. Les deux noms coexistent le temps que les usages
+        // migrent ; ils désignent la même chose.
+        primary: "var(--acc)",
+        "primary-dark": "var(--acc-hover)",
+        "on-primary": "var(--acc-ink)",
         // États
-        error: "#ba1a1a",
-        "error-container": "#ffdad6",
-        "on-error-container": "#93000a",
-        // Alias de sécurité : neutralise toute ancienne couleur violette
-        accent: "#1a5336",
-        background: "#ffffff",
-        card: "#ffffff",
+        error: "var(--neg)",
       },
       fontFamily: {
         // Direction C n'a qu'une police d'interface : Space Grotesk, des
@@ -67,16 +60,15 @@ const config: Config = {
           "monospace",
         ],
       },
+      // Direction C travaille au demi-pixel (12,5 / 13,5 / 10,5 px), que
+      // l'échelle Tailwind ne sait pas nommer : le produit pose donc des
+      // valeurs arbitraires (`text-[13.5px]`) et c'est assumé. Les trois
+      // alias ci-dessous sont les seuls encore utilisés ; l'échelle complète
+      // est documentée dans docs/design-system.md.
       fontSize: {
         "label-sm": ["12px", { lineHeight: "1.2", fontWeight: "500" }],
         "body-md": ["14px", { lineHeight: "1.5", fontWeight: "400" }],
         "title-sm": ["18px", { lineHeight: "1.4", fontWeight: "600" }],
-        "headline-md": ["24px", { lineHeight: "1.3", fontWeight: "600" }],
-        "display-lg": [
-          "32px",
-          { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" },
-        ],
-        "stat-lg": ["52px", { lineHeight: "1.05", fontWeight: "700" }],
       },
       borderRadius: {
         sm: "0.25rem",
@@ -92,9 +84,9 @@ const config: Config = {
         card: "0 4px 20px rgba(0,0,0,0.04)",
         "card-hover": "0 8px 28px rgba(0,0,0,0.08)",
       },
-      spacing: {
-        sidebar: "256px",
-      },
+      // Pas d'alias de largeur de sidebar ici : elle se replie, donc sa valeur
+      // est dynamique. Elle vit dans --sidebar-w (globals.css), lue en
+      // md:pl-[var(--sidebar-w)] par AppShell.
     },
   },
   plugins: [],

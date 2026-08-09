@@ -22,14 +22,24 @@ export default function Loader({ label = "Chargement", size = "md" }: Props) {
           display: "inline-flex",
           padding: g.pad,
           borderRadius: g.radius,
-          background: "radial-gradient(120% 120% at 50% 0%, #214f3b 0%, var(--ink) 100%)",
+          // La tuile porte son propre fond sombre : le M mint et sa lueur ne
+          // sont lisibles que là-dessus. Elle ne doit donc PAS suivre le thème.
+          //
+          // Le dégradé finissait sur var(--ink), qui vaut #0e1412 en clair mais
+          // #eaf1ec en sombre : la tuile virait au blanc dès qu'on basculait le
+          // thème, et le logo mint disparaissait dessus. Fin de dégradé en dur.
+          background:
+            "radial-gradient(120% 120% at 50% 0%, #214f3b 0%, #0e1412 100%)",
         }}
       >
         <svg width={g.svg} height={g.svg} viewBox="0 0 96 96" fill="none">
+          {/* Rail du tracé, sous le M animé. Littéral pour la même raison que
+              la tuile : var(--pos) ne se voyait qu'en thème sombre (#5fd39b) et
+              disparaissait en clair (#0f5132 posé sur #0e1412). */}
           <path
             d="M27 69 V31 L48 54 L69 31 V69"
             fill="none"
-            stroke="var(--pos)"
+            stroke="#5fd39b"
             strokeWidth="8.5"
             strokeLinecap="round"
             strokeLinejoin="round"

@@ -63,7 +63,7 @@ export default function SellModal({
             autoFocus
             value={prix}
             onChange={(e) => setPrix(e.target.value)}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-[var(--acc-ring)]"
           />
         </div>
         <div>
@@ -75,7 +75,7 @@ export default function SellModal({
             required
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-[var(--acc-ring)]"
           />
         </div>
         <div>
@@ -85,7 +85,7 @@ export default function SellModal({
           <select
             value={canal}
             onChange={(e) => setCanal(e.target.value)}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-[var(--acc-ring)]"
           >
             {CANAUX.map((c) => (
               <option key={c} value={c}>

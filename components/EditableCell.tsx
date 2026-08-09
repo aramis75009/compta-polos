@@ -71,7 +71,7 @@ export default function EditableCell({
             cancel();
           }
         }}
-        className={`w-full rounded border border-primary bg-surface px-2 py-1 text-ink outline-none ring-2 ring-primary/15 ${alignCls}`}
+        className={`w-full rounded border border-primary bg-surface px-2 py-1 text-ink outline-none ring-2 ring-[var(--acc-ring)] ${alignCls}`}
       />
     );
   }

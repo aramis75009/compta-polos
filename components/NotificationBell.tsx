@@ -6,11 +6,20 @@ import { AlertTriangle, Bell, Check, ChevronRight, Clock } from "lucide-react";
 import { useNotifications } from "@/lib/hooks";
 import { useDismissOnOutside } from "@/lib/useDismiss";
 
-// Accent + fond de pastille par sévérité (couleurs d'accent, littérales : elles
-// tiennent sur les deux thèmes).
+// Accent + fond de pastille par sévérité. Les valeurs vivent dans globals.css
+// (--alert / --notice) et sont volontairement identiques en clair et en sombre :
+// un badge de sévérité doit se reconnaître à la même couleur d'un thème à
+// l'autre, comme les statuts de lib/statutColors.ts.
+//
+// Posées en style inline et non en classe Tailwind : le JIT ne compile pas
+// `bg-[${x}]` construit à l'exécution.
 const SEV = {
-  action: { accent: "#C2603F", tint: "#FBEEE7", Icon: AlertTriangle },
-  info: { accent: "#B5872E", tint: "#FBF3E2", Icon: Clock },
+  action: {
+    accent: "var(--alert)",
+    tint: "var(--alert-soft)",
+    Icon: AlertTriangle,
+  },
+  info: { accent: "var(--notice)", tint: "var(--notice-soft)", Icon: Clock },
 } as const;
 
 // Cloche + panneau de notifications, intégrée dans la barre supérieure.
@@ -35,7 +44,7 @@ export default function NotificationBell() {
       >
         <Bell className="h-5 w-5" strokeWidth={2} />
         {count > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] border-2 border-[var(--surface)] bg-[#C2603F] px-1 font-grotesk text-[10.5px] font-bold text-white">
+          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] border-2 border-[var(--surface)] bg-[var(--alert)] px-1 font-grotesk text-[10.5px] font-bold text-white">
             {count}
           </span>
         )}
@@ -58,7 +67,7 @@ export default function NotificationBell() {
 
           {count === 0 ? (
             <div className="flex flex-col items-center gap-3 px-6 pb-10 pt-[38px] text-center">
-              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#E4F3EA] text-[var(--acc)]">
+              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--pos-soft)] text-[var(--acc)]">
                 <Check className="h-[26px] w-[26px]" strokeWidth={2.6} />
               </span>
               <span className="text-[14px] font-semibold text-ink-muted">

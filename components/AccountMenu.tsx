@@ -49,7 +49,7 @@ export default function AccountMenu() {
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[13.5px] font-semibold text-[#C2603F] transition-colors hover:bg-[#FBEEE7]"
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-[13.5px] font-semibold text-[var(--neg)] transition-colors hover:bg-[var(--neg-soft)]"
           >
             <LogOut className="h-[18px] w-[18px]" strokeWidth={2} />
             Déconnexion

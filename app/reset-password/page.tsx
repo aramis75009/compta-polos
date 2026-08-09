@@ -59,13 +59,13 @@ function ResetForm() {
         </div>
 
         {done ? (
-          <div className="rounded-xl bg-[#E4F3EA] px-4 py-4 text-[14px] font-medium text-[var(--pos)]">
+          <div className="rounded-xl bg-[var(--pos-soft)] px-4 py-4 text-[14px] font-medium text-[var(--pos)]">
             Mot de passe mis à jour. Redirection vers la connexion…
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             {!token && (
-              <p className="rounded-xl bg-[#FBEEE7] px-4 py-3 text-[13.5px] text-[#C2603F]">
+              <p className="rounded-xl bg-[var(--neg-soft)] px-4 py-3 text-[13.5px] text-[var(--neg)]">
                 Lien invalide. Recommence la procédure depuis la page de connexion.
               </p>
             )}
@@ -98,7 +98,7 @@ function ResetForm() {
               />
             </div>
             {error && (
-              <p className="rounded-xl bg-[#FBEEE7] px-4 py-3 text-[13.5px] text-[#C2603F]">
+              <p className="rounded-xl bg-[var(--neg-soft)] px-4 py-3 text-[13.5px] text-[var(--neg)]">
                 {error}
               </p>
             )}

@@ -48,6 +48,14 @@
   --acc-soft: #e6efe9;
   /* Encre lisible SUR l'accent plein, en retrait de --acc-ink. */
   --acc-dim: #9fd4b5;
+  /* Halos de focus. Ils existent en variables plutôt qu'en modificateur
+     d'opacité Tailwind (`ring-primary/15`) parce que Tailwind ne sait appliquer
+     une opacité qu'à une couleur qu'il peut décomposer en canaux : un hex, pas
+     un `var(--*)`. Tant que `primary` valait un hex en dur, le `/15` marchait ;
+     depuis qu'il pointe sur `--acc` pour suivre le thème, il produirait une
+     couleur invalide, donc aucun halo. Ces deux tokens sont la contrepartie. */
+  --acc-ring: rgba(15, 81, 50, 0.15);
+  --acc-ring-strong: rgba(15, 81, 50, 0.4);
   --pos: #0f5132;
   --neg: #b03a28;
   /* Niveau d'alerte intermédiaire (« seuil proche », marge sous objectif).
@@ -59,6 +67,22 @@
   --pos-soft: #e4f3ea;
   --neg-soft: #fbeee7;
   --warn-soft: #fbf3e2;
+  /* Orange d'alerte des notifications (cloche, pastilles de la nav). Miroir
+     volontaire du statut « À comptabiliser » : une notification d'action et
+     l'étiquette qui la déclenche doivent porter la même couleur.
+
+     DÉLIBÉRÉMENT IDENTIQUE DANS LES DEUX THÈMES, comme la table de
+     lib/statutColors.ts : ce n'est pas un oubli de variante sombre. Un badge
+     de compteur doit se reconnaître au même orange d'un thème à l'autre.
+     Défini ici plutôt qu'en littéral parce qu'il était recopié dans quatre
+     fichiers, et qu'une seule des quatre copies aurait bougé le jour où
+     quelqu'un l'ajuste. */
+  --alert: #c2603f;
+  --alert-soft: #fbeee7;
+  /* Second palier de la cloche : « à surveiller » plutôt qu'« à faire ».
+     Même règle, même invariance entre les deux thèmes. */
+  --notice: #b5872e;
+  --notice-soft: #fbf3e2;
   /* Teinte d'accent appuyée, un cran au-dessus de --acc-soft. Sert au survol
      d'une surface qui porte DÉJÀ --acc-soft (case du calendrier ayant des
      ventes) : --raise n'y suffit pas, il n'en diffère que de trois valeurs
@@ -87,6 +111,10 @@
   --acc-hover: #d4fa6a;
   --acc-soft: #1e2a1c;
   --acc-dim: #38491f;
+  /* Opacités un cran au-dessus du thème clair : sur le graphite, un halo à 15 %
+     de lime disparaît. */
+  --acc-ring: rgba(199, 247, 81, 0.22);
+  --acc-ring-strong: rgba(199, 247, 81, 0.45);
   --pos: #5fd39b;
   --neg: #ff8a7a;
   --warn: #e5bb63;

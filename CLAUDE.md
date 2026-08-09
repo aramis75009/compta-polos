@@ -23,8 +23,11 @@ Pattern obligatoire :
 <div className="md:hidden">cartes</div>
 
 ### Sidebar
-Mobile : masquée, bottom nav visible, pas de margin-left sur le contenu
-Desktop (md+) : 260px fixe, ml-[260px] sur le contenu
+Mobile : masquée, bottom nav visible, pas de décalage sur le contenu
+Desktop (md+) : largeur pilotée par `--sidebar-w` — **236px déployée, 76px repliée**.
+Le contenu suit avec `md:pl-[var(--sidebar-w)]` (`components/AppShell.tsx:26`), jamais
+avec une valeur en dur. L'état de repli vit dans `localStorage["myflip-sidebar"]` et est
+posé sur `<html data-sidebar>` avant le premier paint.
 
 ### Typographie mobile
 text-3xl md:text-4xl pour les titres de page
@@ -129,12 +132,46 @@ Pour tout état de chargement : utiliser `<Loader>`. Il n'y a plus de composant 
 `public/logo-atlas/` contient le pack logo :
 - `myflip-favicon-32.png` — favicon 32×32 (référencé dans `layout.tsx` metadata icons)
 - `myflip-icon-180.png` — apple-touch-icon 180×180
-- `myflip-sidebar.svg` — icône + wordmark, fond transparent, utilisé dans la sidebar (`h-11`)
+- `myflip-icon-192.png` / `myflip-icon-512.png` — icônes du manifeste PWA (`app/manifest.ts`), la 512 servant aussi de `maskable`
+- `myflip-sidebar.svg` — icône + wordmark, fond transparent
 - `myflip-icon.svg` — icône seule sur fond `#1B4332`
 
+⚠️ Ces SVG embarquent l'ancien vert `#1B4332` en dur. Ils **ne sont plus utilisés
+dans la sidebar** (qui pose une tuile `var(--acc)` + wordmark texte, cf.
+`components/Sidebar.tsx:154`) : sur le fond graphite du thème sombre ils sont
+illisibles. Ils restent servis comme favicon et icône iOS uniquement.
+
 ### Design system
-`docs/design-system.md` — tokens Forest Precision (couleurs, typographie). Source de vérité pour la palette.
-Couleurs principales : `#1B4332` (vert forêt), `#A8D5B5` (mint), `#16261D` (ink), `#EEF1EC` (surface).
+`docs/design-system.md` — **« Direction C — Console tactile »**, source de vérité.
+Relevé sur le code, pas sur une intention : toute divergence entre ce fichier et
+`app/globals.css` se tranche en faveur du code.
+
+- Polices : **Space Grotesk** (interface) + **JetBrains Mono** (SKU, montants,
+  micro-libellés). Plus Jakarta Sans a été retirée à la refonte — si tu la vois
+  citée quelque part, la doc est périmée.
+- Palette : variables CSS dans `app/globals.css`, **deux thèmes de premier rang**.
+  L'accent change de teinte : `--acc` = `#0f5132` en clair, `#c7f751` (lime) en
+  sombre. **Ne jamais coder l'accent en dur** — toujours `var(--acc)`. Un
+  `bg-[#0f5132]` passe la revue en clair et casse le sombre sans bruit.
+- Neutres verdis (`--bg` `#e7ece8` clair / `#0b0e0d` sombre), profondeur par
+  filets et empilement tonal, pas par ombres.
+- Le thème est posé avant le premier paint par un script inline
+  (`app/layout.tsx:70`). Ne pas le déplacer dans un `useEffect`.
+
+**Règle de `tailwind.config.ts` : tout alias de couleur pointe sur une variable
+CSS, sans exception.** Les alias `primary` / `primary-dark` / `on-primary` /
+`error` sont les anciens noms de `--acc` / `--acc-hover` / `--acc-ink` / `--neg`,
+ils suivent donc le thème. Y écrire un hex, c'est refabriquer le bug qui a été
+nettoyé le 09/08/2026.
+
+⚠️ **Pas de modificateur d'opacité sur une variable CSS.** Tailwind ne sait
+appliquer une opacité qu'à un hex, pas à un `var(--*)` : depuis que `primary`
+pointe sur `--acc`, `ring-primary/15` ne produit plus aucun halo. Utiliser les
+tokens dédiés `--acc-ring` et `--acc-ring-strong`.
+
+Écarts résiduels assumés (logos SVG, `--alert`/`--notice` invariants,
+`lib/statutColors.ts`) : listés en fin de `docs/design-system.md` avec leur
+raison.
 
 ---
 

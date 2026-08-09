@@ -1,10 +1,26 @@
 import { toast } from "sonner";
 import { euros } from "./calc";
 
-// Célébration à la vente : burst de confettis aux couleurs MyFlip + toast riche
-// (montant encaissé + marge nette). Appelé depuis le onSuccess d'une vente.
+// Célébration à la vente : burst de confettis + toast riche (montant encaissé +
+// marge nette). Appelé depuis le onSuccess d'une vente.
+//
+// Le toast plus bas garde des couleurs littérales, et c'est volontaire : il
+// porte son PROPRE fond sombre (#16261D, le même que SellDialog), donc son
+// contenu ne doit surtout pas suivre le thème. Y mettre var(--acc-dim)
+// rendrait le sous-titre invisible en thème sombre, où cette variable vaut un
+// olive foncé fait pour être posé sur du clair.
 
-const COLORS = ["#1B4332", "#2D6A4F", "#A8D5B5", "#47C98E", "#7CE0A8", "#B5872E"];
+// Les confettis volent par-dessus le fond de page : ils doivent se voir sur
+// --bg clair (#e7ece8) ET sur --bg sombre (#0b0e0d). Ils portaient la palette
+// Forest Precision, à moitié illisible des deux côtés — les deux verts foncés
+// disparaissaient sur le graphite, les deux menthes se délavaient sur le clair.
+//
+// Ce sont les six teintes de statut de lib/statutColors.ts, seules couleurs du
+// produit calibrées en tons moyens pour tenir sur les deux fonds. Littérales et
+// non var(--*) pour la même raison que la table des statuts : un confetti ne
+// change pas de couleur avec le thème. Écho voulu : l'article fête sa sortie du
+// pipeline dans les couleurs des étapes qu'il vient de traverser.
+const COLORS = ["#5FD39B", "#6FA8FF", "#E58CB4", "#D8B23A", "#C44FD0", "#9A8FEA"];
 
 /** Petit feu d'artifice DOM, sans dépendance. Nettoyé après l'animation. */
 export function burstConfetti() {

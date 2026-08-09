@@ -202,7 +202,7 @@ export default function Sidebar() {
                     <span className="sb-hide-collapsed font-mono text-[10px] opacity-75">
                       {count}
                     </span>
-                    <span className="sb-only-collapsed absolute right-2 top-1.5 h-[6px] w-[6px] rounded-full bg-[#C2603F]" />
+                    <span className="sb-only-collapsed absolute right-2 top-1.5 h-[6px] w-[6px] rounded-full bg-[var(--alert)]" />
                   </>
                 )}
               </Link>
@@ -253,7 +253,7 @@ export default function Sidebar() {
               active={isActive(pathname, item.href)}
             />
             {item.badge && count > 0 && (
-              <span className="absolute right-1.5 top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#C2603F] px-1 font-mono text-[9px] font-bold text-white">
+              <span className="absolute right-1.5 top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--alert)] px-1 font-mono text-[9px] font-bold text-white">
                 {count}
               </span>
             )}

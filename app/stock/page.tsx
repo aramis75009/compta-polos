@@ -160,16 +160,16 @@ const MICRO =
   "font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--faint)]";
 
 // Couleur de la marge nette. Le zéro et l'absence de valeur se lisent pareil :
-// il n'y a rien à saluer ni à alarmer. Deux palettes, une par vue — la ligne de
-// tableau passe par les alias Tailwind, la carte mobile par les variables.
-function margeRowClass(marge: number | null): string {
-  if (marge == null) return "text-[var(--faint-2)]";
-  return marge < 0 ? "text-error" : "text-primary";
-}
-
-function margeCardClass(marge: number | null): string {
+// il n'y a rien à saluer ni à alarmer.
+//
+// UNE seule fonction pour les deux vues. Il y en avait deux, avec deux palettes
+// différentes (la ligne de tableau via les alias Tailwind, la carte mobile via
+// les variables) et deux comportements différents sur le zéro : la version
+// tableau le colorait en vert, contredisant le commentaire ci-dessus. La même
+// marge se lisait donc « neutre » sur mobile et « positive » sur desktop.
+function margeClass(marge: number | null): string {
   if (marge == null || marge === 0) return "text-[var(--faint-2)]";
-  return marge < 0 ? "text-[#C2603F]" : "text-[var(--pos)]";
+  return marge < 0 ? "text-[var(--neg)]" : "text-[var(--pos)]";
 }
 
 // Détecte le breakpoint md (768px) pour ne rendre qu'une seule liste virtualisée
@@ -480,7 +480,7 @@ const ArticleRow = memo(
       margeNette: (
         <td
           key="margeNette"
-          className={`px-3 py-[9px] text-right font-mono text-[12.5px] font-medium tabular-nums ${margeRowClass(
+          className={`px-3 py-[9px] text-right font-mono text-[12.5px] font-medium tabular-nums ${margeClass(
             a.margeNette,
           )}`}
         >
@@ -495,7 +495,7 @@ const ArticleRow = memo(
           {sousObjectif ? (
             <span
               className="inline-flex items-center gap-1"
-              style={{ color: "#EA580C" }}
+              style={{ color: "var(--warn)" }}
               title={`Objectif : x${a.coefObjectif}`}
             >
               ⚠️ {coef(coefEffectif)}
@@ -575,7 +575,7 @@ const ArticleRow = memo(
             </button>
             <button
               onClick={() => onDelete(a)}
-              className="transition-colors hover:text-[#C2603F]"
+              className="transition-colors hover:text-[var(--neg)]"
               title="Supprimer"
             >
               <X className="h-[17px] w-[17px]" strokeWidth={2} />
@@ -651,7 +651,7 @@ const ArticleCard = memo(
                   {a.prixVente != null ? euros(a.prixVente) : "—"}
                 </span>
                 <span className="text-[var(--faint-2)]">·</span>
-                <span className={`font-bold ${margeCardClass(a.margeNette)}`}>
+                <span className={`font-bold ${margeClass(a.margeNette)}`}>
                   {a.margeNette != null ? euros(a.margeNette) : "—"}
                 </span>
               </div>
@@ -679,7 +679,7 @@ const ArticleCard = memo(
             <button
               onClick={() => onDelete(a)}
               aria-label={`Supprimer ${a.sku}`}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[var(--border)] text-[var(--faint-2)] transition-colors active:text-[#C2603F]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border border-[var(--border)] text-[var(--faint-2)] transition-colors active:text-[var(--neg)]"
             >
               <X className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
@@ -1640,7 +1640,7 @@ function StockInner() {
                       onChange={(e) =>
                         handlePatch(detail.id, { canal: e.target.value })
                       }
-                      className="mt-0.5 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      className="mt-0.5 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-[var(--acc-ring)]"
                     >
                       {detail.canal == null && <option value="">—</option>}
                       {CANAUX.map((c) => (

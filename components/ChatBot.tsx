@@ -213,7 +213,7 @@ export default function ChatBot() {
                 }}
                 rows={1}
                 placeholder="Écris un message…"
-                className="max-h-32 flex-1 resize-none rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="max-h-32 flex-1 resize-none rounded-md border border-line bg-surface px-3 py-2 text-body-md text-ink outline-none focus:border-primary focus:ring-2 focus:ring-[var(--acc-ring)]"
               />
               <button
                 onClick={send}

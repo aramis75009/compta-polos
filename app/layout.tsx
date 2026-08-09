@@ -52,7 +52,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#1B4332",
+  // Valeurs de --bg (globals.css), le fond sur lequel s'appuie la barre
+  // supérieure. Une seule couleur fixe (#1B4332, héritée de l'ancien design)
+  // laissait une bande vert forêt au-dessus d'une app qui n'a plus cette teinte,
+  // et un liseré clair au-dessus du thème sombre.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e7ece8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0e0d" },
+  ],
 };
 
 export default function RootLayout({

@@ -99,19 +99,37 @@ Sous la grille, une mention : *Un compte de vente supplémentaire sur n'importe 
 
 ## Direction artistique
 
-Charte « Forest Precision », à respecter :
+Charte « Direction C — Console tactile », à respecter. Elle est décrite en entier
+dans `docs/design-system.md` ; ce qui suit en est le strict nécessaire pour une
+page seule.
 
 | Rôle | Couleur |
 |---|---|
-| Vert forêt (primaire, boutons, titres) | `#1A5336` |
-| Mint (accent, éléments actifs) | `#47C98E` |
-| Or (mise en avant, badges) | `#F0C040` |
-| Encre (texte) | `#16261D` |
-| Surface (fond) | `#F9F9F9` |
+| Fond de page | `#E7ECE8` |
+| Surface (blocs, cartes) | `#FFFFFF` |
+| Filet / bordure | `#DDE4DF` |
+| Encre principale | `#0E1412` |
+| Encre secondaire | `#4C5B54` |
+| Encre tertiaire | `#75857C` |
+| Accent (boutons, liens, éléments actifs) | `#0F5132` |
+| Encre sur accent | `#FFFFFF` |
+| Positif | `#0F5132` |
+| Négatif | `#B03A28` |
 
-Polices : **Plus Jakarta Sans** pour le texte courant et l'interface, **Space Grotesk** pour les titres et tous les chiffres (prix, statistiques).
+Polices : **Space Grotesk** pour absolument tout, des micro-libellés aux chiffres
+héros — c'est la seule police d'interface du produit. **JetBrains Mono** pour ce
+qui doit s'aligner ou se lire comme une donnée : prix, SKU, micro-libellés de
+section en capitales espacées (`letter-spacing: 0.2em`, 10-11px).
 
-Ambiance : sobre, précis, professionnel. Beaucoup de blanc, une hiérarchie typographique nette, des angles légèrement arrondis. Le vert forêt est la couleur de marque — utilise-le avec assurance mais sans saturer la page. L'or est réservé aux mises en avant rares.
+Pas de mint, pas d'or : le produit n'a qu'une couleur d'accent. Si tu as besoin
+d'une troisième teinte pour hiérarchiser, prends un niveau d'encre plus clair,
+pas une nouvelle couleur.
+
+Ambiance : sobre, dense, instrumentale. Un poste de pilotage, pas une brochure.
+La profondeur vient des filets fins et de l'empilement de tons, **jamais des
+ombres portées marquées**. Rayons généreux (20-26px sur les blocs, pilule sur les
+boutons). Le vert d'accent s'emploie avec assurance mais reste minoritaire à
+l'écran.
 
 **À éviter absolument** : les dégradés violet-bleu, les fonds crème avec serif et accent terracotta, les emoji comme puces de section, tout centrer, les cartes arrondies avec une barre d'accent à gauche. Ce sont des tics de page générée. Fais des choix propres à ce produit.
 
