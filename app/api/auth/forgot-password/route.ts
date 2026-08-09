@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendResetEmail } from "@/lib/emails";
+import { origineDe } from "@/lib/hosts";
 
 export async function POST(req: Request) {
   const { email } = await req.json();
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { resetToken: token, resetTokenExp: exp },
     });
-    await sendResetEmail(user.email, token);
+    // Le lien doit ramener sur le domaine depuis lequel la demande est partie.
+    await sendResetEmail(user.email, token, origineDe(req));
   }
 
   // Toujours renvoyer success pour ne pas révéler si l'email existe

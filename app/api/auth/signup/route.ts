@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { inviteCodeValide } from "@/lib/invite";
 import { DEFAULT_PROMPT_CONTENU } from "@/lib/promptSelect";
 import { sendWelcomeEmail } from "@/lib/emails";
+import { origineDe } from "@/lib/hosts";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     // Best-effort, comme la synchro Trello : une clé Resend absente ou en panne
     // ne doit pas annuler un compte déjà créé.
     try {
-      await sendWelcomeEmail(email, prenom);
+      await sendWelcomeEmail(email, prenom, origineDe(req));
     } catch (e) {
       console.error("[signup] email de bienvenue non envoyé", e);
     }

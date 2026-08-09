@@ -19,9 +19,30 @@ function getResend(): Resend {
 }
 
 const FROM = "onboarding@resend.dev";
-const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-export async function sendWelcomeEmail(email: string, name: string) {
+/**
+ * Adresse de base des liens envoyés par e-mail.
+ *
+ * Passée par l'appelant, qui la déduit de la requête (`origineDe`). Elle était
+ * lue dans `NEXTAUTH_URL` : après un changement de domaine, les liens de
+ * réinitialisation pointaient sur l'ancienne adresse — ou pire, sur
+ * `localhost` si la variable disparaissait. Un lien mort dans un e-mail ne se
+ * rattrape pas : l'utilisateur ne peut plus se connecter et n'a aucun recours.
+ *
+ * Le repli sur `NEXTAUTH_URL` reste pour les appels sans requête (scripts).
+ */
+const base = (baseUrl?: string) =>
+  (baseUrl || process.env.NEXTAUTH_URL || "http://localhost:3000").replace(
+    /\/$/,
+    "",
+  );
+
+export async function sendWelcomeEmail(
+  email: string,
+  name: string,
+  baseUrl?: string,
+) {
+  const BASE_URL = base(baseUrl);
   await getResend().emails.send({
     from: FROM,
     to: email,
@@ -48,8 +69,12 @@ export async function sendWelcomeEmail(email: string, name: string) {
   });
 }
 
-export async function sendResetEmail(email: string, token: string) {
-  const url = `${BASE_URL}/reset-password?token=${token}`;
+export async function sendResetEmail(
+  email: string,
+  token: string,
+  baseUrl?: string,
+) {
+  const url = `${base(baseUrl)}/reset-password?token=${token}`;
   await getResend().emails.send({
     from: FROM,
     to: email,
