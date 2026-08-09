@@ -8,6 +8,7 @@ import {
   utilisateurDuBoard,
   type TrelloContexte,
 } from "@/lib/settings";
+import { origineDe } from "@/lib/hosts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,6 +50,7 @@ function signatureValide(
   ctx: TrelloContexte | null,
   brut: string,
   entete: string | null,
+  callbackURL: string,
 ): boolean {
   if (!ctx?.secret) {
     console.warn(
@@ -58,7 +60,6 @@ function signatureValide(
   }
   if (!entete) return false;
 
-  const callbackURL = `${(process.env.NEXTAUTH_URL ?? "").replace(/\/$/, "")}/api/webhooks/trello`;
   const attendu = crypto
     .createHmac("sha1", ctx.secret)
     .update(brut + callbackURL)
@@ -153,7 +154,17 @@ export async function POST(req: NextRequest) {
 
     // 2. Signature. Vérifiée avec le secret du compte que le board désigne.
     const trello = await contexteTrello(ownerId);
-    if (!signatureValide(trello, brut, req.headers.get("x-trello-webhook"))) {
+    // L'URL de rappel est celle réellement servie, la même que celle utilisée à
+    // l'enregistrement du webhook — la signature porte dessus.
+    const callbackURL = `${origineDe(req)}/api/webhooks/trello`;
+    if (
+      !signatureValide(
+        trello,
+        brut,
+        req.headers.get("x-trello-webhook"),
+        callbackURL,
+      )
+    ) {
       console.warn("[trello] signature invalide — événement rejeté.");
       return NextResponse.json({ error: "Signature invalide." }, { status: 401 });
     }

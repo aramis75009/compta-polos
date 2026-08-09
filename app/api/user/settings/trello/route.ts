@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { contexteTrello } from "@/lib/settings";
+import { origineDe } from "@/lib/hosts";
 import { createWebhook, listBoardLabels, listBoards } from "@/lib/trello";
 import type { TrelloBoardDTO, TrelloLabelDTO } from "@/lib/types";
 
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
 //
 // C'est `scripts/setup-trello-webhook.ts` devenu une action applicative : le
 // frère n'a pas de terminal.
-export async function POST() {
+export async function POST(req: NextRequest) {
   const userId = await getUserId();
   if (!userId) return unauthorized();
 
@@ -71,7 +72,10 @@ export async function POST() {
       );
     }
 
-    const base = process.env.NEXTAUTH_URL?.replace(/\/$/, "");
+    // L'URL de rappel est déduite de la requête, pas de NEXTAUTH_URL : un
+    // webhook enregistré sur une adresse que l'application ne sert plus est un
+    // webhook mort, que Trello finit par désactiver.
+    const base = origineDe(req).replace(/\/$/, "");
     if (!base || base.includes("localhost")) {
       return NextResponse.json(
         {

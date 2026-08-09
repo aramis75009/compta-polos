@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextAuthConfig } from "next-auth";
-import { HOTE_APP, HOTES_SEPARES, estRouteVitrine } from "@/lib/hosts";
+import {
+  HOTE_APP,
+  HOTES_SEPARES,
+  estRouteVitrine,
+  origineDe,
+} from "@/lib/hosts";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -48,6 +53,23 @@ export const authConfig: NextAuthConfig = {
         pathname === "/" ||
         ["/login", "/signup", "/reset-password"].includes(pathname) ||
         pathname.startsWith("/legal");
+
+      // Redirection vers la connexion faite ICI, et pas laissée à NextAuth.
+      //
+      // Laissée à NextAuth, elle est construite depuis `NEXTAUTH_URL` : un
+      // changement de domaine renvoyait l'utilisateur se connecter sur
+      // l'ancienne adresse, avec un `callbackUrl` qui l'y ramenait — et la
+      // session se posait donc sur un hôte qu'il ne visitait pas. L'origine
+      // réellement servie est dans la requête ; c'est la seule source fiable.
+      if (!isPublic && !isLoggedIn) {
+        const base = origineDe(request);
+        const login = new URL("/login", base);
+        login.searchParams.set(
+          "callbackUrl",
+          new URL(`${pathname}${nextUrl.search}`, base).toString(),
+        );
+        return NextResponse.redirect(login);
+      }
 
       if (isPublic) return true;
       return isLoggedIn;

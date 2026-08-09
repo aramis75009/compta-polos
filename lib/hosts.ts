@@ -32,6 +32,26 @@ export function estRouteVitrine(pathname: string): boolean {
 }
 
 /**
+ * Origine publique réellement servie, déduite de la requête.
+ *
+ * ⚠️ À préférer systématiquement à `NEXTAUTH_URL` et à `request.nextUrl`. La
+ * première est une variable d'environnement qui ment dès qu'on change de
+ * domaine ; la seconde est alignée par Auth.js sur cette même variable. Se
+ * fier à l'une ou à l'autre, c'est renvoyer l'utilisateur se connecter sur un
+ * domaine qu'il n'a pas demandé — et y poser le cookie de session.
+ */
+export function origineDe(req: Request): string {
+  const h = req.headers;
+  const hote = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (hote.startsWith("localhost") || hote.startsWith("127.0.0.1")
+      ? "http"
+      : "https");
+  return `${proto}://${hote}`;
+}
+
+/**
  * Lien vers l'application depuis la vitrine.
  *
  * Absolu quand les hôtes sont séparés, relatif sinon. Sans cela, chaque CTA de
