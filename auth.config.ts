@@ -28,9 +28,14 @@ export const authConfig: NextAuthConfig = {
         }
         // Sur l'hôte de l'app, la racine n'a rien à montrer : la vitrine vit
         // ailleurs.
+        //
+        // La base est reconstruite depuis l'hôte REÇU, pas depuis `nextUrl` :
+        // Auth.js aligne `nextUrl` sur `NEXTAUTH_URL`, si bien qu'une variable
+        // restée sur l'ancien domaine renvoyait l'utilisateur s'y connecter —
+        // et le cookie de session se posait sur le mauvais hôte.
         if (hote === HOTE_APP && pathname === "/") {
           return NextResponse.redirect(
-            new URL(isLoggedIn ? "/dashboard" : "/login", nextUrl),
+            new URL(isLoggedIn ? "/dashboard" : "/login", `https://${hote}`),
           );
         }
       }
