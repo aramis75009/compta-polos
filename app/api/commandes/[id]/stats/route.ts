@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId, unauthorized, notFound } from "@/lib/apiAuth";
-import { moyenne, moyenneCoefs, STATUT_VENDU, naturalSort } from "@/lib/calc";
+import {
+  cleRegroupement,
+  moyenne,
+  moyenneCoefs,
+  naturalSort,
+  STATUT_VENDU,
+} from "@/lib/calc";
 import type {
   CanalRow,
   CommandeResume,
@@ -31,10 +37,17 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     });
     if (!commande) return notFound("Commande");
 
+    // `lotRef` est joint : la migration des lots a rétro-rempli `Article.lotId`
+    // mais PAS `Article.lot`. Sans `lotRef.nom`, toutes les commandes
+    // antérieures afficheraient une ligne sans nom. Cf. `cleRegroupement`.
     const articles = await prisma.article.findMany({
       where: { commandeId: params.id, userId },
       select: {
         categorie: true,
+        marque: true,
+        lot: true,
+        lotId: true,
+        lotRef: { select: { nom: true } },
         statut: true,
         prixVente: true,
         margeNette: true,
@@ -44,15 +57,21 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
       },
     });
 
-    // ---------- Récap par catégorie ----------
+    // ---------- Récap par LOT ----------
+    // Groupé par lot et non par catégorie depuis le 11/08/2026 : une ligne
+    // « Polo » ne dit pas de quel lot elle vient, « Polo Ralph Lauren » si.
     type Acc = CommandeStatsRow & { coefs: number[] };
     const map = new Map<string, Acc>();
     for (const a of articles) {
-      const cat = a.categorie || "À définir";
+      const { cle, libelle } = cleRegroupement(a);
       const row =
-        map.get(cat) ??
+        map.get(cle) ??
         {
-          categorie: cat,
+          cle,
+          libelle,
+          // Doublon assumé, le temps qu'un onglet servi par l'ancien bundle
+          // finisse sa session. Cf. le @deprecated sur CommandeStatsRow.
+          categorie: libelle,
           total: 0,
           enStock: 0,
           enVente: 0,
@@ -72,12 +91,14 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
         row.margeNette += a.margeNette ?? 0;
         if (a.coefficient != null) row.coefs.push(a.coefficient);
       }
-      map.set(cat, row);
+      map.set(cle, row);
     }
 
     const rows: CommandeStatsRow[] = Array.from(map.values())
       .map((r) => ({
-        categorie: r.categorie,
+        cle: r.cle,
+        libelle: r.libelle,
+        categorie: r.libelle,
         total: r.total,
         enStock: r.enStock,
         enVente: r.enVente,
@@ -85,12 +106,12 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
         ca: r.ca,
         margeNette: r.margeNette,
         // Exclut les pièces offertes (coef 0) : sans ça, le classement des
-        // meilleures et pires catégories serait faussé par des lots contenant
+        // meilleurs et pires lots serait faussé par des lots contenant
         // des pièces à 0 €.
         coefMoyen: moyenneCoefs(r.coefs),
         pctVendu: r.total ? r.vendus / r.total : 0,
       }))
-      .sort((a, b) => naturalSort(a.categorie, b.categorie));
+      .sort((a, b) => naturalSort(a.libelle, b.libelle));
 
     // ---------- Synthèse : où on en est, et où ça atterrit ----------
     // Les champs indisponibles valent null (jamais 0, qui serait un mensonge).
@@ -209,18 +230,20 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
     const dormants = articles.filter((a) => a.statut === "En stock").length;
     const caDormant = panierMoyen != null ? dormants * panierMoyen : null;
 
-    // Top / flop catégorie — uniquement celles qui ont réellement vendu.
+    // Top / flop LOT — uniquement ceux qui ont réellement vendu. Dérivés des
+    // mêmes lignes que `rows` : depuis qu'elles portent un lot, ces deux
+    // champs aussi. Les garder nommés « catégorie » ferait mentir l'affichage.
     const triCoef = rows
       .filter((r) => r.vendus > 0 && r.coefMoyen > 0)
       .sort((a, b) => b.coefMoyen - a.coefMoyen);
-    const meilleureCategorie =
+    const meilleurLot =
       triCoef.length > 0
-        ? { categorie: triCoef[0].categorie, coefMoyen: triCoef[0].coefMoyen }
+        ? { libelle: triCoef[0].libelle, coefMoyen: triCoef[0].coefMoyen }
         : null;
-    const pireCategorie =
+    const pireLot =
       triCoef.length > 1
         ? {
-            categorie: triCoef[triCoef.length - 1].categorie,
+            libelle: triCoef[triCoef.length - 1].libelle,
             coefMoyen: triCoef[triCoef.length - 1].coefMoyen,
           }
         : null;
@@ -253,8 +276,8 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
       canaux,
       dormants,
       caDormant,
-      meilleureCategorie,
-      pireCategorie,
+      meilleurLot,
+      pireLot,
     };
 
     const dto: CommandeStatsDTO = { rows, resume };

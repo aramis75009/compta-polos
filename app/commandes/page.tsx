@@ -371,12 +371,12 @@ function CommandeDetailPanel({
                 {r.caDormant != null ? ` — ≈ ${euros(r.caDormant)} de CA immobilisé` : ""}.
               </li>
             )}
-            {r.meilleureCategorie && r.pireCategorie && (
+            {r.meilleurLot && r.pireLot && (
               <li>
-                Meilleure catégorie : <strong>{r.meilleureCategorie.categorie}</strong> (
-                {r.meilleureCategorie.coefMoyen.toFixed(2)}×) · à la traîne :{" "}
-                <strong>{r.pireCategorie.categorie}</strong> (
-                {r.pireCategorie.coefMoyen.toFixed(2)}×).
+                Meilleur lot : <strong>{r.meilleurLot.libelle}</strong> (
+                {r.meilleurLot.coefMoyen.toFixed(2)}×) · à la traîne :{" "}
+                <strong>{r.pireLot.libelle}</strong> (
+                {r.pireLot.coefMoyen.toFixed(2)}×).
               </li>
             )}
           </ul>
@@ -400,7 +400,7 @@ function CommandeDetailPanel({
       <div style={{ overflowX: "auto" }}>
         <div style={{ minWidth: 760 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "0 8px 8px", fontSize: 11, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--faint)" }}>
-            <div>Catégorie</div>
+            <div>Lot</div>
             <div style={{ textAlign: "right" }}>Total</div>
             <div style={{ textAlign: "right" }}>En stock</div>
             <div style={{ textAlign: "right" }}>En vente</div>
@@ -418,8 +418,8 @@ function CommandeDetailPanel({
                   ? "var(--neg)"
                   : "var(--pos)";
             return (
-              <div key={r.categorie} style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "10px 8px", borderTop: "1px solid var(--bg)", fontSize: 13.5, fontVariantNumeric: "tabular-nums" as const }}>
-                <div style={{ fontWeight: 600, color: "var(--ink)" }}>{r.categorie}</div>
+              <div key={r.cle} style={{ display: "grid", gridTemplateColumns: "1.4fr .8fr .8fr .8fr .8fr 1fr 1.1fr 1fr .9fr", gap: 8, padding: "10px 8px", borderTop: "1px solid var(--bg)", fontSize: 13.5, fontVariantNumeric: "tabular-nums" as const }}>
+                <div style={{ fontWeight: 600, color: "var(--ink)" }}>{r.libelle}</div>
                 <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.total}</div>
                 <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.enStock}</div>
                 <div style={{ textAlign: "right", color: "var(--muted)" }}>{r.enVente}</div>

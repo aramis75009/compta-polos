@@ -18,8 +18,7 @@ import {
   PanelLeft,
   type LucideIcon,
 } from "lucide-react";
-import { useArticles } from "@/lib/hooks";
-import { STATUT_A_COMPTABILISER } from "@/lib/calc";
+import { useCompteAComptabiliser } from "@/lib/hooks";
 
 type NavItem = {
   href: string;
@@ -113,10 +112,10 @@ function toggleSidebar() {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { data: aComptabiliser } = useArticles({
-    statut: STATUT_A_COMPTABILISER,
-  });
-  const count = aComptabiliser?.length ?? 0;
+  // Lu depuis les notifications, pas depuis la liste des articles : l'ancienne
+  // version téléchargeait TOUS les articles à comptabiliser, sur chaque page,
+  // pour n'en lire que la longueur.
+  const count = useCompteAComptabiliser();
 
   // Indicateur actif unique qui glisse jusqu'à l'item courant (#07). On mesure
   // la position/hauteur de l'item actif ; le repli (rail) ne change pas ces
@@ -199,7 +198,15 @@ export default function Sidebar() {
                 <ItemLabel label={item.label} short={item.short} />
                 {item.badge && count > 0 && (
                   <>
-                    <span className="sb-hide-collapsed font-mono text-[10px] opacity-75">
+                    {/* Déployée : la même pastille que le dock mobile, pour que
+                        le compteur se lise comme une notification et non comme
+                        une décoration. Le liseré en --surface la détache du
+                        fond d'accent de la ligne active, qui est lime en thème
+                        sombre — sans lui, le contraste tombe à ~2,3:1. */}
+                    <span
+                      aria-label={`${count} article${count > 1 ? "s" : ""} à comptabiliser`}
+                      className="sb-hide-collapsed inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--alert)] px-1.5 font-mono text-[10px] font-bold text-white ring-2 ring-[var(--surface)]"
+                    >
                       {count}
                     </span>
                     <span className="sb-only-collapsed absolute right-2 top-1.5 h-[6px] w-[6px] rounded-full bg-[var(--alert)]" />

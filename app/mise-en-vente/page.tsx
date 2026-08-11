@@ -1,29 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Copy,
-  FileText,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  RotateCw,
-  Sparkles,
-  Upload,
-  X,
-  ZoomIn,
-} from "lucide-react";
-import {
-  useGenerateListing,
-  usePrompts,
-  useUpdateArticle,
-  type GenerateResult,
-} from "@/lib/hooks";
+// Assistant de mise en vente, 1 à 5 articles par session.
+//
+// Ce fichier ORCHESTRE : il tient les effets de bord (réseau, canvas, object
+// URLs, sessionStorage) et laisse la logique au reducer, qui est pur et testé.
+// Tout ce qui ressemble à une règle métier doit descendre dans `_reducer.ts` —
+// c'est le seul endroit où elle sera couverte par un test.
+//
+//   ÉTAPE 1        ÉTAPE 2                ÉTAPE 3        ÉTAPE 4
+//   les SKU   ──▶  rail + fiches     ──▶  génération ──▶ annonces
+//   d'un bloc      (photos + QCM)         séquentielle   + statuts
+
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ArrowRight, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
+import { useGenerateListing, usePrompts, useUpdateArticle } from "@/lib/hooks";
 import { pickPrompt } from "@/lib/promptSelect";
-import { ETATS, MATIERES_SUGGESTIONS, TAILLES } from "@/lib/listingOptions";
 import {
   blobToBase64,
   compressForApi,
@@ -32,1599 +25,595 @@ import {
   triggerDownload,
 } from "@/lib/imageProcessing";
 import type { ArticleDTO } from "@/lib/types";
-import StatutBadge from "@/components/StatutBadge";
 import { Eyebrow } from "@/components/console";
+import EtapeSku from "./_components/EtapeSku";
+import ExportAnnonces from "./_components/ExportAnnonces";
+import FicheArticle from "./_components/FicheArticle";
+import FileGeneration from "./_components/FileGeneration";
+import RailArticles from "./_components/RailArticles";
+import { descripteurBarre } from "./_barreAction";
+import { ecrire, effacer, lire } from "./_persistance";
+import {
+  etatInitial,
+  fichePrete,
+  MAX_PHOTOS,
+  reducerMev,
+  skuEnDoublon,
+  type Photo,
+} from "./_reducer";
+import { btnGhost, cardCls } from "./_ui";
 
-const MAX_PHOTOS = 20;
-const MAX_SELECT = 3;
-const MIN_SELECT = 2;
-
-type Photo = {
-  id: string;
-  base: HTMLCanvasElement;
-  rotation: number;
-  url: string;
-  blob: Blob;
-};
-
-const inputCls =
-  "w-full rounded-xl border border-[var(--border)] bg-surface px-3.5 py-2.5 text-[14px] text-[var(--ink)] outline-none transition-colors focus:border-[var(--acc)]";
-
-const STEPS = ["Photos", "Détails", "Génération", "Export"] as const;
-
-const GEN_MSGS = [
-  "Analyse des photos…",
-  "Identification de la marque et du modèle…",
-  "Rédaction de l’annonce…",
-  "Optimisation des mots-clés…",
-  "Finalisation…",
-];
-
-const AUTRE = "Autre…";
-
-// Marques proposées en chips : celles qui sortent réellement des lots (cf.
-// MARQUE_LISTING_MAP). Les autres restent accessibles via « Autre… » + datalist.
-const MARQUES_CHIPS = [
-  "Ralph Lauren",
-  "Tommy Hilfiger",
-  "Lacoste",
-  "Adidas",
-  "Dickies",
-  "Helly Hansen",
-];
-
-const MARQUES_LIST = [
-  "Nike",
-  "Adidas",
-  "Puma",
-  "Lacoste",
-  "Lacoste Sport",
-  "Reebok",
-  "Under Armour",
-  "Fila",
-  "Le Coq Sportif",
-  "Champion",
-  "Columbia",
-  "Hurley",
-  "Ralph Lauren",
-  "Tommy Hilfiger",
-  "Levi's",
-];
-
-const CATEGORIES_LIST = [
-  "Polo",
-  "Pull",
-  "Chemise",
-  "Sweat",
-  "Veste",
-  "Short",
-  "Jogging",
-  "Jean",
-  "Bermuda",
-];
-
-// Marques « génériques » : elles décrivent un lot mixte, pas un fabricant, et
-// n'ont donc rien à faire dans une annonce — à l'utilisateur (ou à l'IA) de
-// trancher article par article.
-const MARQUES_NON_ANNONCABLES = new Set(["Mix", "TNF/PAT/COL", "À définir"]);
-// Idem côté type d'article pour les lots qui mélangent les pièces.
-const CATEGORIES_NON_ANNONCABLES = new Set(["Mix", "À définir"]);
+/** Longueur de titre visée par les prompts (« saturer 100 sans dépasser »). */
+const TITRE_MAX = 100;
 
 /**
- * Valeurs « annonce » d'un article. Depuis la normalisation de la base,
- * `marque` et `categorie` sont déjà justes : on les reprend telles quelles,
- * en neutralisant seulement les libellés collectifs.
+ * Identifiant de la PREMIÈRE fiche : déterministe, obligatoirement.
+ *
+ * ⚠️ L'initialiseur de `useReducer` s'exécute au rendu serveur ET au rendu
+ * client. Un id tiré de `Date.now()` / `Math.random()` y produit deux valeurs
+ * différentes, donc des `id=` et des `key=` qui ne correspondent pas : React
+ * signale un décalage d'hydratation et n'applique pas le HTML serveur.
  */
-function listingLabels(a: ArticleDTO): { marque: string; categorie: string } {
-  return {
-    marque: MARQUES_NON_ANNONCABLES.has(a.marque) ? "" : a.marque,
-    categorie: CATEGORIES_NON_ANNONCABLES.has(a.categorie) ? "" : a.categorie,
-  };
-}
+const PREMIERE_FICHE = "fiche-1";
 
-const MEV_STORAGE_KEY = "mev_state";
+/** Fiches ajoutées ensuite : uniquement depuis une interaction, donc côté
+ *  client seulement — l'aléatoire n'y pose aucun problème. */
+const nouvelId = () =>
+  `f-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
-type PersistedState = {
-  sku: string;
-  taille: string;
-  etat: string;
-  matiere: string;
-  matiere2: string;
-  details: string;
-  marqueQcm: string;
-  categorieQcm: string;
-  titre: string;
-  description: string;
-  motsCles: string;
-  step: number;
-};
-
-const labelCls = "text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]";
-const cardCls =
-  "rounded-[20px] border border-[var(--border)] bg-surface shadow-[var(--shadow)]";
-
-/** Chip de sélection (marque, catégorie, taille, état, matière). 44px = touch target. */
-function Chip({
-  value,
-  active,
-  onClick,
-}: {
-  value: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`inline-flex min-h-[44px] items-center justify-center rounded-xl border-[1.5px] px-4 text-[13.5px] font-semibold transition-all ${
-        active
-          ? "border-[var(--acc)] bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)]"
-          : "border-[var(--border)] bg-surface text-[var(--ink2)] hover:border-[var(--border-strong)]"
-      }`}
-    >
-      {value}
-    </button>
-  );
-}
-
-// ── Stepper (4 cercles + connecteurs) — cliquable pour revenir en arrière ──
-function Stepper({ step, onGo }: { step: number; onGo: (n: number) => void }) {
-  return (
-    <div className="mx-auto mb-6 flex max-w-[700px] items-start">
-      {STEPS.map((label, i) => {
-        const n = i + 1;
-        const done = n < step;
-        const active = n === step;
-        return (
-          <div key={label} className="flex flex-1 items-start last:flex-none">
-            <button
-              type="button"
-              onClick={() => done && onGo(n)}
-              disabled={!done}
-              className="flex flex-col items-center gap-2 disabled:cursor-default"
-            >
-              <span
-                className={`flex h-10 w-10 items-center justify-center rounded-full font-grotesk text-[16px] font-bold transition-all ${
-                  done
-                    ? "bg-[var(--acc)] text-[var(--acc-ink)]"
-                    : active
-                      ? "bg-[var(--acc)] text-[var(--acc-ink)] shadow-[0_0_0_5px_var(--acc-soft)]"
-                      : "border-2 border-[var(--border)] bg-surface text-[var(--faint-2)]"
-                }`}
-              >
-                {done ? <Check className="h-[18px] w-[18px]" strokeWidth={2.6} /> : n}
-              </span>
-              <span
-                className={`text-[12px] md:text-[13px] ${
-                  done || active
-                    ? "font-bold text-[var(--acc)]"
-                    : "font-semibold text-[var(--faint-2)]"
-                }`}
-              >
-                {label}
-              </span>
-            </button>
-            {n < STEPS.length && (
-              <div
-                className={`mx-1.5 mt-[18px] h-[3px] flex-1 rounded-full transition-colors ${
-                  n < step ? "bg-[var(--acc)]" : "bg-[var(--border)]"
-                }`}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const ETAPES = ["SKU", "Fiches", "Génération", "Annonces"] as const;
 
 export default function MiseEnVentePage() {
-  const [step, setStep] = useState(1);
-
-  // --- Article ---
-  const [sku, setSku] = useState("");
-  const [article, setArticle] = useState<ArticleDTO | null>(null);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-
-  // --- Photos ---
-  const [photos, setPhotos] = useState<Photo[]>([]);
-  const [processing, setProcessing] = useState(0);
-  // Tableau (et non Set) : l'ordre de sélection = ordre envoyé à l'IA.
-  const [selected, setSelected] = useState<string[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isZipping, setIsZipping] = useState(false);
-  const [zoomedId, setZoomedId] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  // --- QCM ---
-  const [marqueQcm, setMarqueQcm] = useState("");
-  const [categorieQcm, setCategorieQcm] = useState("");
-  const [marqueCustom, setMarqueCustom] = useState(false);
-  const [categorieCustom, setCategorieCustom] = useState(false);
-  const [taille, setTaille] = useState("");
-  const [etat, setEtat] = useState("");
-  const [matiere, setMatiere] = useState("");
-  const [matiere2, setMatiere2] = useState("");
-  const [details, setDetails] = useState("");
-  const [showPromptPicker, setShowPromptPicker] = useState(false);
-
-  // --- Génération ---
-  const [result, setResult] = useState<GenerateResult | null>(null);
-  const [titre, setTitre] = useState("");
-  const [description, setDescription] = useState("");
-  const [motsCles, setMotsCles] = useState("");
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
-  const [genIndex, setGenIndex] = useState(0);
-  const [saved, setSaved] = useState(false);
-  const [savedStatut, setSavedStatut] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"titre" | "annonce" | null>(null);
+  const [etat, dispatch] = useReducer(reducerMev, undefined, () =>
+    etatInitial(PREMIERE_FICHE),
+  );
+  const [genEnCours, setGenEnCours] = useState(false);
+  /**
+   * Fiches du lot en cours de génération.
+   *
+   * L'écran d'attente doit compter CE lot, pas toute la session : avec deux
+   * fiches dont une seule est prête, un dénominateur global affichait « 1 / 2 »
+   * à la fin — un succès complet qui ressemble à un échec.
+   */
+  const [lotGeneration, setLotGeneration] = useState<string[]>([]);
+  const [saveEnCours, setSaveEnCours] = useState(false);
+  const [zoom, setZoom] = useState<{ ficheId: string; photoId: string } | null>(null);
+  const [choixPrompt, setChoixPrompt] = useState(false);
 
   const { data: prompts = [] } = usePrompts();
   const generate = useGenerateListing();
   const updateArticle = useUpdateArticle();
+  const queryClient = useQueryClient();
 
-  const detectedPrompt = useMemo(
-    () =>
-      article ? pickPrompt(prompts, marqueQcm || null, categorieQcm || null) : null,
-    [prompts, article, marqueQcm, categorieQcm],
-  );
+  const fiche = etat.fiches.find((f) => f.id === etat.active) ?? etat.fiches[0];
+  const doublons = useMemo(() => skuEnDoublon(etat.fiches), [etat.fiches]);
 
-  // Pré-remplissage depuis la fiche article ; l'utilisateur reste libre de corriger.
+  // Miroir de l'état pour les boucles asynchrones : une closure capturée au
+  // lancement de la file lirait un état figé au premier tour.
+  const etatRef = useRef(etat);
+  etatRef.current = etat;
+
+  // Compteur de recherche, PAR FICHE. Généré ici et non dans le reducer :
+  // `useReducer` ne rend pas la valeur dispatchée, donc le handler asynchrone
+  // ne pourrait pas relire le numéro qu'il vient d'incrémenter.
+  const seqRef = useRef<Record<string, number>>({});
+
+  // ── Persistance de session ──────────────────────────────────────────────
+  const hydrate = useRef(false);
   useEffect(() => {
-    if (article) {
-      const { marque, categorie } = listingLabels(article);
-      setMarqueQcm(marque);
-      setCategorieQcm(categorie);
-      setMarqueCustom(false);
-      setCategorieCustom(false);
-    }
-  }, [article]);
-
-  // Zoom photo : fermeture au clavier.
-  useEffect(() => {
-    if (!zoomedId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setZoomedId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [zoomedId]);
-
-  useEffect(() => {
-    setSelectedPromptId(detectedPrompt?.id ?? null);
-  }, [detectedPrompt]);
-
-  // Checklist animée pendant la génération (étape 3) — placeholder UX :
-  // la vraie fin d'appel Gemini déclenche le passage à l'étape 4.
-  useEffect(() => {
-    if (step !== 3) return;
-    setGenIndex(0);
-    const t = setInterval(() => {
-      setGenIndex((g) => Math.min(g + 1, GEN_MSGS.length - 1));
-    }, 600);
-    return () => clearInterval(t);
-  }, [step]);
-
-  // Persistance entre refreshs (sessionStorage). Photos + article non restaurables
-  // → seules l'étape 1 et l'étape 4 (export, si du texte a été généré) survivent.
-  const hydrated = useRef(false);
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(MEV_STORAGE_KEY);
-      if (raw) {
-        const s = JSON.parse(raw) as Partial<PersistedState>;
-        if (s.sku) setSku(s.sku);
-        if (s.taille) setTaille(s.taille);
-        if (s.etat) setEtat(s.etat);
-        if (s.matiere) setMatiere(s.matiere);
-        if (s.matiere2) setMatiere2(s.matiere2);
-        if (s.details) setDetails(s.details);
-        if (s.marqueQcm) setMarqueQcm(s.marqueQcm);
-        if (s.categorieQcm) setCategorieQcm(s.categorieQcm);
-        if (s.titre) setTitre(s.titre);
-        if (s.description) setDescription(s.description);
-        if (s.motsCles) setMotsCles(s.motsCles);
-        if ((s.step === 4 || s.step === 3) && s.titre) {
-          setResult({
-            titre: s.titre,
-            description: s.description ?? "",
-            motsCles: s.motsCles ?? "",
-            promptNom: "",
-          });
-          // article non sérialisable → on repart toujours de l'étape 1
-          setStep(1);
-        }
+    const restaure = lire();
+    if (restaure) {
+      dispatch({ type: "session/restaure", etat: restaure });
+      const aChercher = restaure.fiches.filter((f) => f.sku.trim());
+      if (aChercher.length > 0) {
+        toast.info(
+          `Session restaurée : ${aChercher.length} article${aChercher.length > 1 ? "s" : ""}. Les photos sont à remettre.`,
+        );
+        // Les recherches repartent : l'article n'est pas persisté, son statut
+        // et son prix ont pu changer entre-temps.
+        aChercher.forEach((f) => void chercherSku(f.id, f.sku));
       }
-    } catch {
-      /* sessionStorage indisponible ou JSON invalide : on ignore */
     }
-    hydrated.current = true;
+    hydrate.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!hydrated.current) return;
-    const payload: PersistedState = {
-      sku,
-      taille,
-      etat,
-      matiere,
-      matiere2,
-      details,
-      marqueQcm,
-      categorieQcm,
-      titre,
-      description,
-      motsCles,
-      // étapes intermédiaires (2/3) non restaurables → repli sur 1.
-      step: step >= 4 ? 4 : 1,
-    };
-    try {
-      sessionStorage.setItem(MEV_STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      /* quota/securité : on ignore */
-    }
-  }, [
-    sku,
-    taille,
-    etat,
-    matiere,
-    matiere2,
-    details,
-    marqueQcm,
-    categorieQcm,
-    titre,
-    description,
-    motsCles,
-    step,
-  ]);
+    if (hydrate.current) ecrire(etat);
+  }, [etat]);
 
-  const photosRef = useRef(photos);
-  photosRef.current = photos;
+  // ── Filet contre la fermeture d'onglet ──────────────────────────────────
+  // Les photos et les annonces non enregistrées ne survivent pas à un Cmd-W.
+  // À cinq articles, la perte vaut l'avertissement.
   useEffect(() => {
-    return () => {
-      photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
-    };
+    const enJeu = etat.fiches.some(
+      (f) => f.photos.length > 0 || (f.generation.phase === "ok" && !f.enregistre),
+    );
+    if (!enJeu) return;
+    const onLeave = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [etat.fiches]);
+
+  // ── Object URLs : révoqués ICI, jamais dans le reducer ──────────────────
+  // Un reducer est invoqué DEUX FOIS en StrictMode React 18 : y révoquer une
+  // URL la libérerait pendant que l'image l'affiche encore.
+  const urlsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const vivantes = new Set(
+      etat.fiches.flatMap((f) => f.photos.map((p) => p.url)),
+    );
+    for (const url of urlsRef.current) {
+      if (!vivantes.has(url)) URL.revokeObjectURL(url);
+    }
+    urlsRef.current = vivantes;
+  }, [etat.fiches]);
+  useEffect(() => {
+    const set = urlsRef.current;
+    return () => set.forEach((u) => URL.revokeObjectURL(u));
   }, []);
 
-  const lookupSeq = useRef(0);
-
-  // ---------- Étape 1 : lookup + photos ----------
-  async function lookup(e: React.FormEvent) {
-    e.preventDefault();
-    const q = sku.trim();
+  // ── Étape 1 : recherche des SKU ─────────────────────────────────────────
+  async function chercherSku(id: string, skuBrut?: string) {
+    const cible = etatRef.current.fiches.find((f) => f.id === id);
+    const q = (skuBrut ?? cible?.sku ?? "").trim();
     if (!q) return;
-    const seq = ++lookupSeq.current;
-    setLookupLoading(true);
-    setLookupError(null);
-    setArticle(null);
+    const seq = (seqRef.current[id] ?? 0) + 1;
+    seqRef.current[id] = seq;
+    dispatch({ type: "sku/lookup", id, seq });
     try {
       const res = await fetch(`/api/articles?q=${encodeURIComponent(q)}`);
-      if (seq !== lookupSeq.current) return;
       if (!res.ok) throw new Error("Erreur lors de la recherche.");
-      const list = (await res.json()) as ArticleDTO[];
-      if (seq !== lookupSeq.current) return;
-      const match = list.find((a) => a.sku.toLowerCase() === q.toLowerCase());
+      const liste = (await res.json()) as ArticleDTO[];
+      const match = liste.find((a) => a.sku.toLowerCase() === q.toLowerCase());
       if (!match) {
-        setLookupError(`Aucun article trouvé pour le SKU « ${q} ».`);
+        dispatch({ type: "sku/echec", id, seq, message: `Aucun article pour « ${q} ».` });
         return;
       }
-      setArticle(match);
+      dispatch({ type: "sku/resolu", id, seq, article: match });
     } catch (err) {
-      if (seq !== lookupSeq.current) return;
-      setLookupError((err as Error).message);
-    } finally {
-      if (seq === lookupSeq.current) setLookupLoading(false);
+      dispatch({
+        type: "sku/echec",
+        id,
+        seq,
+        message: err instanceof Error ? err.message : "Recherche impossible.",
+      });
     }
   }
 
-  async function processFiles(files: File[]) {
+  // ── Photos ──────────────────────────────────────────────────────────────
+  async function ajouterPhotos(ficheId: string, files: File[]) {
     if (files.length === 0) return;
-    const room = MAX_PHOTOS - photos.length;
-    const toProcess = files.slice(0, Math.max(0, room));
-    setProcessing((n) => n + toProcess.length);
-    for (const file of toProcess) {
+    const cible = etatRef.current.fiches.find((f) => f.id === ficheId);
+    const place = MAX_PHOTOS - (cible?.photos.length ?? 0);
+    const aTraiter = files.slice(0, Math.max(0, place));
+    const ignores: string[] = [];
+    const prets: Photo[] = [];
+
+    for (const file of aTraiter) {
       try {
         const base = await loadImageDirect(file);
         const blob = await encodeRotated(base, 0);
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const photo: Photo = { id, base, rotation: 0, url: URL.createObjectURL(blob), blob };
-        setPhotos((prev) => (prev.length >= MAX_PHOTOS ? prev : [...prev, photo]));
+        prets.push({
+          id: `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+          base,
+          rotation: 0,
+          url: URL.createObjectURL(blob),
+          blob,
+        });
       } catch {
-        /* fichier illisible ignoré */
-      } finally {
-        setProcessing((n) => Math.max(0, n - 1));
+        // Un fichier illisible disparaissait sans un mot dans l'ancienne
+        // version : on croyait avoir déposé 3 photos, il y en avait 2.
+        ignores.push(file.name);
       }
     }
-  }
 
-  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (fileRef.current) fileRef.current.value = "";
-    await processFiles(files);
-  }
-
-  function onDragOver(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragging(true);
-  }
-
-  function onDragLeave(e: React.DragEvent) {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
-  }
-
-  async function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files).filter((f) =>
-      f.type.startsWith("image/"),
-    );
-    await processFiles(files);
-  }
-
-  // Coller une image (⌘V / Ctrl+V) — ex. depuis une annonce Vinted déjà prête.
-  // Passe par le même pipeline que le drop / Finder / appareil photo.
-  // Ref pour appeler toujours le dernier processFiles sans re-souscrire à chaque rendu.
-  const processFilesRef = useRef(processFiles);
-  processFilesRef.current = processFiles;
-  useEffect(() => {
-    if (step !== 1 || !article) return;
-    const onPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      const imgs: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        if (it.kind === "file" && it.type.startsWith("image/")) {
-          const f = it.getAsFile();
-          if (f) imgs.push(f);
-        }
-      }
-      // Pas d'image dans le presse-papier → on laisse le collage natif (texte).
-      if (imgs.length === 0) return;
-      e.preventDefault();
-      void processFilesRef.current(imgs);
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [step, article]);
-
-  function removePhoto(id: string) {
-    setPhotos((prev) => {
-      const p = prev.find((x) => x.id === id);
-      if (p) URL.revokeObjectURL(p.url);
-      return prev.filter((x) => x.id !== id);
-    });
-    setSelected((prev) => prev.filter((x) => x !== id));
-    setZoomedId((z) => (z === id ? null : z));
-  }
-
-  async function rotatePhoto(id: string, delta: number) {
-    const photo = photos.find((p) => p.id === id);
-    if (!photo) return;
-    const rotation = (((photo.rotation + delta) % 360) + 360) % 360;
-    const blob = await encodeRotated(photo.base, rotation);
-    const url = URL.createObjectURL(blob);
-    setPhotos((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        URL.revokeObjectURL(p.url);
-        return { ...p, rotation, blob, url };
-      }),
-    );
-  }
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_SELECT) return prev;
-      return [...prev, id];
-    });
-  }
-
-  function toggleMatiere(m: string) {
-    const list = [matiere, matiere2].filter(Boolean);
-    const next = list.includes(m)
-      ? list.filter((x) => x !== m)
-      : list.length >= 2
-        ? list
-        : [...list, m];
-    setMatiere(next[0] ?? "");
-    setMatiere2(next[1] ?? "");
-  }
-
-  const fileName = (index: number) =>
-    `${article?.sku ?? "PHOTO"}_${String(index + 1).padStart(2, "0")}.jpg`;
-
-  // ---------- Étape 3 : génération ----------
-  async function runGenerate() {
-    if (!article) return;
-    // Ordre de sélection conservé : la 1re photo choisie est la plus importante.
-    const chosen = selected
-      .map((id) => photos.find((p) => p.id === id))
-      .filter((p): p is Photo => !!p);
-    setStep(3);
-    try {
-      const images = await Promise.all(
-        chosen.map(async (p) => {
-          const compressed = await compressForApi(p.blob);
-          return `data:image/jpeg;base64,${await blobToBase64(compressed)}`;
-        }),
-      );
-      const res = await generate.mutateAsync({
-        sku: article.sku,
-        marque: marqueQcm || null,
-        categorie: categorieQcm || null,
-        taille: taille || null,
-        etat: etat || null,
-        matiere: [matiere, matiere2].filter(Boolean).join(" / ") || null,
-        details: details.trim() || null,
-        images,
-        promptId: selectedPromptId ?? undefined,
+    if (prets.length > 0) dispatch({ type: "photo/ajout", id: ficheId, photos: prets });
+    if (files.length > place) {
+      toast.warning(`${files.length - place} photo(s) non ajoutée(s) : limite de ${MAX_PHOTOS}.`);
+    }
+    if (ignores.length > 0) {
+      toast.error(`Fichier(s) illisible(s), ignoré(s) : ${ignores.join(", ")}`, {
+        duration: 8000,
       });
-      setResult(res);
-      setTitre(res.titre);
-      setDescription(res.description);
-      setMotsCles(res.motsCles);
-      setSaved(false);
-      setStep(4);
-    } catch {
-      /* erreur affichée via generate.isError sur l'étape 3 */
     }
   }
 
-  // Enregistre l'annonce, en fixant au passage le statut de l'article (Brouillon
-  // ou En vente) : évite d'aller le changer à la main dans le Stock ensuite.
-  function enregistrer(nouveauStatut?: string) {
-    if (!article) return;
-    updateArticle.mutate(
-      {
-        id: article.id,
-        patch: {
-          titreAnnonce: titre,
-          descriptionAnnonce: description,
-          motsClesAnnonce: motsCles,
-          ...(nouveauStatut ? { statut: nouveauStatut } : {}),
-        },
-      },
-      {
-        onSuccess: () => {
-          setSaved(true);
-          if (nouveauStatut) setSavedStatut(nouveauStatut);
-        },
-      },
-    );
-  }
-
-  // Contenu prêt à coller : description, ligne vide, mots-clés, ligne vide, SKU.
-  // Aucun label ni titre. Défini une seule fois : le bloc affiché et le
-  // presse-papier lisent la même valeur, ils ne peuvent pas diverger.
-  const annonceComplete = `${description}\n\n${motsCles}\n\n${article?.sku ?? ""}`;
-
-  async function copier(kind: "titre" | "annonce") {
-    const value = kind === "titre" ? titre : annonceComplete;
-    await navigator.clipboard.writeText(value);
-    setCopied(kind);
-    setTimeout(() => setCopied(null), 1600);
-  }
-
-  async function downloadZip() {
-    if (!article || isZipping) return;
-    setIsZipping(true);
+  async function tourner(ficheId: string, photoId: string, delta: number) {
+    const f = etatRef.current.fiches.find((x) => x.id === ficheId);
+    const p = f?.photos.find((x) => x.id === photoId);
+    if (!p) return;
+    const rotation = (((p.rotation + delta) % 360) + 360) % 360;
     try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      photos.forEach((p, i) => zip.file(fileName(i), p.blob));
-      const annonceTxt =
-        `SKU: ${article.sku}\n` +
-        `COMMANDE: ${article.commandeFournisseur || ""}\n` +
-        `MARQUE: ${marqueQcm || article.marque || ""}\n` +
-        `CATEGORIE: ${categorieQcm || article.categorie || ""}\n\n` +
-        `TITRE:\n${titre}\n\n` +
-        `DESCRIPTION:\n${description}\n\n` +
-        `MOTS-CLÉS:\n${motsCles}\n`;
-      zip.file(`${article.sku}_annonce.txt`, annonceTxt);
-      const content = await zip.generateAsync({ type: "blob" });
-      triggerDownload(content, `${article.sku}_annonce.zip`);
-    } finally {
-      setIsZipping(false);
-    }
-  }
-
-  function resetAll() {
-    photos.forEach((p) => URL.revokeObjectURL(p.url));
-    setPhotos([]);
-    setSelected([]);
-    setArticle(null);
-    setSku("");
-    setResult(null);
-    setTitre("");
-    setDescription("");
-    setMotsCles("");
-    setMarqueQcm("");
-    setCategorieQcm("");
-    setMarqueCustom(false);
-    setCategorieCustom(false);
-    setTaille("");
-    setEtat("");
-    setMatiere("");
-    setMatiere2("");
-    setDetails("");
-    setSelectedPromptId(null);
-    setShowPromptPicker(false);
-    setSaved(false);
-    setSavedStatut(null);
-    setGenIndex(0);
-    setZoomedId(null);
-    try {
-      sessionStorage.removeItem(MEV_STORAGE_KEY);
+      // Deux chemins, et l'angle n'est PAS le même :
+      //  • `base` présent  → canvas d'origine, on applique la rotation ABSOLUE ;
+      //  • `base` libéré   → on re-décode `blob`, DÉJÀ tourné de p.rotation,
+      //    donc on n'applique que le DELTA. Confondre les deux tourne double.
+      const blob = p.base
+        ? await encodeRotated(p.base, rotation)
+        : await encodeRotated(
+            await loadImageDirect(p.blob),
+            (((delta % 360) + 360) % 360),
+          );
+      dispatch({
+        type: "photo/rotation",
+        id: ficheId,
+        photoId,
+        rotation,
+        url: URL.createObjectURL(blob),
+        blob,
+      });
     } catch {
-      /* ignore */
+      toast.error("Rotation impossible sur cette photo.");
     }
-    setStep(1);
   }
 
-  const zoomedIdx = zoomedId ? photos.findIndex((p) => p.id === zoomedId) : -1;
-  const zoomedPhoto = zoomedIdx >= 0 ? photos[zoomedIdx] : null;
+  // ── Étape 3 : la file de génération ─────────────────────────────────────
+  async function genererFiches(ids: string[]) {
+    if (ids.length === 0) return;
+    setGenEnCours(true);
+    setLotGeneration(ids);
+    dispatch({ type: "etape", etape: 3 });
+    // Le canvas pleine résolution ne sert plus qu'aux rotations : le libérer
+    // ici fait tomber la mémoire retenue d'environ 48 Mo à ~4 Mo par photo.
+    // `blob` reste intact — c'est lui qui part sur Vinted.
+    dispatch({ type: "photo/liberer-base" });
 
-  const canStep2 = !!article && photos.length > 0;
-  const canGenerate = selected.length >= MIN_SELECT && !!taille && !!etat;
+    for (const id of ids) {
+      const f = etatRef.current.fiches.find((x) => x.id === id);
+      if (!f?.article) continue;
+      dispatch({ type: "generation/debut", id });
+      try {
+        const choisies = f.selected
+          .map((pid) => f.photos.find((p) => p.id === pid))
+          .filter((p): p is Photo => !!p);
+        const images = await Promise.all(
+          choisies.map(async (p) => {
+            const compressed = await compressForApi(p.blob);
+            return `data:image/jpeg;base64,${await blobToBase64(compressed)}`;
+          }),
+        );
+        const res = await generate.mutateAsync({
+          sku: f.article.sku,
+          marque: f.qcm.marque || null,
+          categorie: f.qcm.categorie || null,
+          taille: f.qcm.taille || null,
+          etat: f.qcm.etat || null,
+          matiere: [f.qcm.matiere, f.qcm.matiere2].filter(Boolean).join(" / ") || null,
+          details: f.qcm.details.trim() || null,
+          images,
+          // Envoyé UNIQUEMENT si l'utilisateur a choisi explicitement. Sinon le
+          // serveur applique `pickPrompt` sur la marque et la catégorie de CET
+          // article : cinq marques différentes = cinq prompts différents. Poser
+          // un promptId unique pour la session ferait générer les cinq annonces
+          // avec le prompt de la première, en silence.
+          promptId: f.promptId ?? undefined,
+        });
+        dispatch({ type: "generation/ok", id, resultat: res });
 
-  // Chips : la valeur pré-remplie doit toujours être proposée, même hors liste.
-  const marqueChips = useMemo(() => {
-    const base = [...MARQUES_CHIPS];
-    if (marqueQcm && !marqueCustom && !base.includes(marqueQcm)) base.unshift(marqueQcm);
-    return base;
-  }, [marqueQcm, marqueCustom]);
-
-  const categorieChips = useMemo(() => {
-    const base = [...CATEGORIES_LIST];
-    if (categorieQcm && !categorieCustom && !base.includes(categorieQcm))
-      base.unshift(categorieQcm);
-    return base;
-  }, [categorieQcm, categorieCustom]);
-
-  const matieres = [matiere, matiere2].filter(Boolean);
-
-  // ---------- Barre d'action collante ----------
-  const missing: string[] = [];
-  if (selected.length < MIN_SELECT) missing.push(`${MIN_SELECT} photos`);
-  if (!taille) missing.push("taille");
-  if (!etat) missing.push("état");
-
-  let primaryLabel = "Continuer";
-  let primaryIcon = <ArrowRight className="h-[17px] w-[17px]" strokeWidth={2.3} />;
-  let primaryEnabled = canStep2;
-  let primaryAction: () => void = () => setStep(2);
-  let hint = "Saisis un SKU puis vérifie l’article";
-  let hintOk = false;
-
-  if (step === 1) {
-    if (article && photos.length > 0) {
-      hint = `${photos.length} photo${photos.length > 1 ? "s" : ""} prête${photos.length > 1 ? "s" : ""}`;
-      hintOk = true;
-    } else if (article) {
-      hint = "Ajoute au moins une photo";
+        const vides = [
+          !res.titre.trim() && "le titre",
+          !res.description.trim() && "la description",
+          !res.motsCles.trim() && "les mots-clés",
+        ].filter(Boolean) as string[];
+        if (vides.length > 0) {
+          toast.warning(`${f.article.sku} : Gemini n'a pas rempli ${vides.join(" et ")}.`);
+        } else if (res.titre.length > TITRE_MAX) {
+          toast.warning(
+            `${f.article.sku} : titre de ${res.titre.length} caractères (limite ${TITRE_MAX}).`,
+          );
+        }
+      } catch (err) {
+        // Le catch couvre AUSSI ce qui casse avant l'appel réseau (compression,
+        // encodage). L'ancienne version ne testait que `generate.isError`, qui
+        // reste à false dans ce cas : l'écran tournait indéfiniment.
+        dispatch({
+          type: "generation/echec",
+          id,
+          message: err instanceof Error ? err.message : "Échec de la génération.",
+        });
+      }
     }
-  } else if (step === 2) {
-    primaryLabel = "Générer l’annonce";
-    primaryIcon = <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />;
-    primaryEnabled = canGenerate;
-    primaryAction = runGenerate;
-    hintOk = canGenerate;
-    hint = canGenerate
-      ? "Prêt · appuie sur Entrée pour générer"
-      : `Il manque : ${missing.join(" · ")}`;
-  } else if (step === 3) {
-    primaryLabel = "Génération…";
-    primaryIcon = <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />;
-    primaryEnabled = false;
-    primaryAction = () => {};
-    hint = "Rédaction en cours";
-    hintOk = true;
-  } else {
-    // Étape 4 : le bouton est remplacé par le choix Brouillon / Mettre en vente
-    // (cf. barre d'action). Ici on ne pilote plus que l'indice.
-    hint = saved
-      ? "Annonce enregistrée"
-      : "Relis, ajuste, puis choisis le statut à droite";
-    hintOk = true;
+
+    setGenEnCours(false);
+    // On ne saute à l'export que si TOUT le lot est passé : sinon l'écran de
+    // file reste, avec ses boutons « Relancer » sur les fiches en échec.
+    const duLot = etatRef.current.fiches.filter((f) => ids.includes(f.id));
+    if (duLot.every((f) => f.generation.phase === "ok")) {
+      dispatch({ type: "etape", etape: 4 });
+    }
   }
 
-  // Entrée = générer (étape 2), hors saisie de texte.
+  // ── Étape 4 : enregistrement ────────────────────────────────────────────
+  // EN SÉRIE, jamais en parallèle. `useUpdateArticle` prend un instantané du
+  // cache ["articles"] entier dans `onMutate` et le restaure dans `onError` :
+  // deux enregistrements qui se chevauchent, et l'échec du premier efface
+  // l'update optimiste du second. Sérialiser ici rend l'instantané correct,
+  // sans toucher à un hook partagé par /stock et /a-comptabiliser.
+  async function enregistrer(ids: string[], statut: string) {
+    setSaveEnCours(true);
+    for (const id of ids) {
+      const f = etatRef.current.fiches.find((x) => x.id === id);
+      if (!f?.article) continue;
+      try {
+        await updateArticle.mutateAsync({
+          id: f.article.id,
+          patch: {
+            titreAnnonce: f.annonce.titre,
+            descriptionAnnonce: f.annonce.description,
+            motsClesAnnonce: f.annonce.motsCles,
+            statut,
+          },
+          // `statut` déclenche quatre invalidations par patch : à cinq
+          // articles, l'app clignoterait vingt fois pendant la série. On
+          // invalide une seule fois, en sortie de boucle.
+          differerInvalidation: true,
+        });
+        dispatch({ type: "enregistre", id, statut });
+      } catch (err) {
+        dispatch({
+          type: "enregistrement/echec",
+          id,
+          message: err instanceof Error ? err.message : "Échec de l'enregistrement.",
+        });
+        toast.error(`${f.article.sku} : enregistrement impossible.`, { duration: 8000 });
+      }
+    }
+    // Une fois, à la fin — y compris si des enregistrements ont échoué : le
+    // cache doit refléter ce qui est réellement passé.
+    for (const cle of ["articles", "dashboard", "stats", "calendar", "notifications"]) {
+      queryClient.invalidateQueries({ queryKey: [cle] });
+    }
+    setSaveEnCours(false);
+  }
+
+  // ── Barre d'action ──────────────────────────────────────────────────────
+  // Ce qu'elle DIT est calculé par un module pur et testé ; il ne reste ici
+  // qu'à traduire l'intention en effet de bord.
+  const barre = descripteurBarre(etat);
+
+  function agir() {
+    switch (barre.intention) {
+      case "continuer":
+        return dispatch({ type: "etape", etape: 2 });
+      case "generer":
+        return void genererFiches(etat.fiches.filter(fichePrete).map((f) => f.id));
+      case "nouvelle-session":
+        effacer();
+        return dispatch({ type: "reset", id: PREMIERE_FICHE });
+      case "attendre":
+        return;
+    }
+  }
+
+  const photoZoomee = zoom
+    ? etat.fiches.find((f) => f.id === zoom.ficheId)?.photos.find((p) => p.id === zoom.photoId)
+    : null;
+
   useEffect(() => {
-    if (step !== 2 || !canGenerate) return;
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName?.toUpperCase();
-      if (e.key !== "Enter" || tag === "INPUT" || tag === "TEXTAREA") return;
-      e.preventDefault();
-      runGenerate();
-    };
+    if (!photoZoomee) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setZoom(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, canGenerate, selected, taille, etat, matiere, matiere2, details, article]);
+  }, [photoZoomee]);
 
-  const btnGhost =
-    "inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-surface px-4 text-[13.5px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)]";
+  const nomPromptDetecte = fiche.promptId
+    ? (prompts.find((p) => p.id === fiche.promptId)?.nom ?? "inconnu")
+    : (pickPrompt(prompts, fiche.qcm.marque || null, fiche.qcm.categorie || null)?.nom ??
+      "aucun");
 
   return (
     <main className="min-h-screen bg-[var(--bg)] p-[14px] pb-40 text-[var(--ink)] min-[900px]:p-[18px] min-[900px]:pb-32">
-      {/* ── Barre de contexte : l'article reste visible à toutes les étapes ── */}
       <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <Eyebrow>PHOTOS → DÉTAILS → GÉNÉRATION → EXPORT</Eyebrow>
-        {article && (
-          <div className="flex items-center gap-2.5 self-start rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2">
-            <span className="font-mono text-[12.5px] font-bold">{article.sku}</span>
-            <span className="h-4 w-px bg-[var(--border)]" />
-            <span className="font-mono text-[11px] text-[var(--ink2)]">
-              {[marqueQcm, categorieQcm].filter(Boolean).join(" · ") || "à préciser"}
-            </span>
-          </div>
-        )}
-      </header>
-
-      <Stepper step={step} onGo={setStep} />
-
-      <div className="mx-auto max-w-[1000px]">
-        {/* ÉTAPE 1 — Photos */}
-        {step === 1 && (
-          <div className="flex flex-col gap-[18px] [animation:stepIn_.3s_both]">
-            {/* SKU */}
-            <form onSubmit={lookup} className={`${cardCls} p-5 md:p-6`}>
-              <label className={labelCls}>SKU de l’article</label>
-              <div className="mt-2.5 flex flex-col gap-3 sm:flex-row">
-                <input
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  placeholder="Ex : PRL1"
-                  autoCapitalize="characters"
-                  className="min-w-0 flex-1 rounded-[13px] border-2 border-[var(--acc)] px-4 py-3 font-grotesk text-[16px] font-bold uppercase text-[var(--ink)] outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={lookupLoading || !sku.trim()}
-                  className="min-h-[48px] rounded-[13px] bg-[var(--acc)] px-7 text-[14.5px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-50"
-                >
-                  {lookupLoading ? "Recherche…" : "Vérifier"}
-                </button>
-              </div>
-              {lookupError && (
-                <p className="mt-3 rounded-[10px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-2.5 text-[13.5px] text-[var(--neg)]">
-                  {lookupError}
-                </p>
-              )}
-              {article && (
-                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--bg)] pt-4 [animation:stepIn_.25s_both]">
-                  <span className="font-grotesk text-[17px] font-bold">{article.sku}</span>
-                  <StatutBadge statut={article.statut} />
-                  <span className="text-[13.5px] font-medium text-[var(--muted)]">
-                    Marque :{" "}
-                    <b className="text-[var(--ink2)]">
-                      {listingLabels(article).marque || "à préciser"}
-                    </b>
-                  </span>
-                  <span className="text-[13.5px] font-medium text-[var(--muted)]">
-                    Catégorie :{" "}
-                    <b className="text-[var(--ink2)]">
-                      {listingLabels(article).categorie || "à préciser"}
-                    </b>
-                  </span>
-                  {article.lot && (
-                    <span
-                      title="Libellé du lot d'achat (filtre « Tous les lots » du Stock)"
-                      className="rounded-full bg-[var(--tint)] px-2.5 py-1 text-[12px] font-semibold text-[var(--faint)]"
-                    >
-                      Lot : {article.lot}
-                    </span>
-                  )}
-                </div>
-              )}
-            </form>
-
-            {article && (
-              <>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,.jpg,.jpeg"
-                  multiple
-                  onChange={onFiles}
-                  className="hidden"
-                />
-
-                {/* Photos : la carte entière est la zone de dépôt */}
-                <div
-                  onDrop={onDrop}
-                  onDragOver={onDragOver}
-                  onDragEnter={onDragOver}
-                  onDragLeave={onDragLeave}
-                  className={`${cardCls} p-5 transition-colors md:p-6 ${
-                    isDragging ? "border-[var(--acc)] bg-[var(--surface-2)]" : ""
-                  } [animation:stepIn_.28s_both]`}
-                >
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
-                    <div className="flex flex-col gap-0.5 md:flex-row md:items-baseline md:gap-3">
-                      <h2 className="font-grotesk text-[17px] font-bold">
-                        Photos de l’article
-                      </h2>
-                      <span className="text-[12.5px] font-medium text-[var(--faint-2)]">
-                        Ajoute-les, puis choisis les meilleures à l’étape suivante.
-                      </span>
-                    </div>
-                    <span className="rounded-full bg-[var(--tint)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--muted)]">
-                      {photos.length} / {MAX_PHOTOS}
-                      {processing > 0 ? ` · ${processing} en cours…` : ""}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                    {photos.map((p, i) => (
-                      <div
-                        key={p.id}
-                        className="group relative aspect-square overflow-hidden rounded-[15px] border border-[var(--border)] bg-[var(--tint)] [animation:popIn_.2s_ease]"
-                      >
-                        <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--acc)] font-mono text-[11px] font-bold text-[var(--acc-ink)]">
-                          {i + 1}
-                        </span>
-                        <button
-                          onClick={() => removePhoto(p.id)}
-                          aria-label={`Supprimer la photo ${i + 1}`}
-                          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--ink)]/55 text-[var(--bg)] transition-colors hover:bg-[var(--ink)]/80"
-                        >
-                          <X className="h-3.5 w-3.5" strokeWidth={2.4} />
-                        </button>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={p.url}
-                          alt={fileName(i)}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          onClick={() => rotatePhoto(p.id, -90)}
-                          aria-label="Tourner à gauche"
-                          className="absolute bottom-2 left-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[var(--acc)]"
-                        >
-                          <RotateCcw className="h-4 w-4" strokeWidth={2} />
-                        </button>
-                        <button
-                          onClick={() => rotatePhoto(p.id, 90)}
-                          aria-label="Tourner à droite"
-                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-[var(--ink2)] shadow-sm transition-colors hover:bg-surface hover:text-[var(--acc)]"
-                        >
-                          <RotateCw className="h-4 w-4" strokeWidth={2} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      disabled={photos.length >= MAX_PHOTOS}
-                      className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[15px] border-2 border-dashed border-[var(--border-strong)] bg-[var(--tint)] text-[var(--acc)] transition-colors hover:border-[var(--acc)] hover:bg-[var(--surface-2)] disabled:opacity-50"
-                    >
-                      <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[var(--surface-2)]">
-                        <Upload className="h-[22px] w-[22px]" strokeWidth={1.9} />
-                      </span>
-                      <span className="text-[12.5px] font-bold">Ajouter</span>
-                    </button>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2.5 rounded-[13px] border border-dashed border-[var(--border-strong)] bg-[var(--tint)] px-4 py-3">
-                    <Upload
-                      className="h-[18px] w-[18px] flex-shrink-0 text-[var(--acc)]"
-                      strokeWidth={1.9}
-                    />
-                    <span className="text-[13px] font-medium text-[var(--ink2)]">
-                      Glisse tes fichiers ici, ou <b className="font-bold text-[var(--acc)]">colle une image</b> (⌘V / Ctrl+V) — ex. depuis une annonce Vinted. Jusqu’à {MAX_PHOTOS} photos.
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ÉTAPE 2 — Détails */}
-        {step === 2 && article && (
-          <div className="grid grid-cols-1 items-start gap-[18px] [animation:stepIn_.3s_both] md:grid-cols-[340px_1fr]">
-            {/* Photos + sélection */}
-            <div className={`${cardCls} p-5 md:sticky md:top-5`}>
-              <div className="mb-1 flex items-center justify-between">
-                <h2 className="font-grotesk text-[16px] font-bold">Photos pour l’IA</h2>
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${
-                    selected.length >= MIN_SELECT
-                      ? "bg-[var(--pos-soft)] text-[var(--pos)]"
-                      : "bg-[var(--tint)] text-[var(--faint)]"
-                  }`}
-                >
-                  {selected.length} / {MAX_SELECT}
-                </span>
-              </div>
-              <p className="mb-3.5 text-[12.5px] font-medium text-[var(--faint-2)]">
-                Choisis {MIN_SELECT} à {MAX_SELECT} photos. L’ordre = priorité.
-              </p>
-              <div className="grid grid-cols-2 gap-2.5">
-                {photos.map((p, i) => {
-                  const order = selected.indexOf(p.id);
-                  const sel = order >= 0;
-                  return (
-                    <div
-                      key={p.id}
-                      className={`relative aspect-square overflow-hidden rounded-[13px] border-[2.5px] transition-all ${
-                        sel
-                          ? "border-[var(--acc)] shadow-[var(--shadow)]"
-                          : "border-transparent outline outline-1 outline-[var(--border)]"
-                      }`}
-                    >
-                      <button
-                        onClick={() => toggleSelect(p.id)}
-                        aria-pressed={sel}
-                        aria-label={`Sélectionner la photo ${i + 1}`}
-                        className="block h-full w-full"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={p.url}
-                          alt={fileName(i)}
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
-                      {sel && (
-                        <span className="pointer-events-none absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--acc)] font-mono text-[11px] font-bold text-[var(--acc-ink)] [animation:popIn_.18s_ease]">
-                          {order + 1}
-                        </span>
-                      )}
-                      <button
-                        onClick={() => setZoomedId(p.id)}
-                        aria-label={`Agrandir la photo ${i + 1}`}
-                        className="absolute bottom-1.5 right-1.5 z-10 flex h-[33px] w-[33px] items-center justify-center rounded-full bg-white/92 text-[var(--acc)] shadow-[0_3px_9px_rgba(20,53,40,.22)] transition-colors hover:bg-surface"
-                      >
-                        <ZoomIn className="h-4 w-4" strokeWidth={2.2} />
-                      </button>
-                    </div>
-                  );
-                })}
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="flex aspect-square items-center justify-center rounded-[13px] border-2 border-dashed border-[var(--border-strong)] text-[var(--faint-2)] transition-colors hover:border-[var(--acc)] hover:text-[var(--acc)]"
-                  aria-label="Ajouter une photo"
-                >
-                  <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
-                </button>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,.jpg,.jpeg"
-                multiple
-                onChange={onFiles}
-                className="hidden"
-              />
-            </div>
-
-            {/* Caractéristiques */}
-            <div className="flex flex-col gap-4">
-              {/* Détecté depuis le lot */}
-              <div className={`${cardCls} p-5 md:px-6`}>
-                <div className="mb-3.5 flex items-center gap-2">
-                  <Sparkles className="h-[15px] w-[15px] text-[var(--acc)]" strokeWidth={2.2} />
-                  <span className={labelCls}>Détecté depuis le lot — modifiable</span>
-                </div>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className={labelCls}>Marque</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {marqueChips.map((m) => (
-                        <Chip
-                          key={m}
-                          value={m}
-                          active={!marqueCustom && marqueQcm === m}
-                          onClick={() => {
-                            setMarqueCustom(false);
-                            setMarqueQcm(m);
-                          }}
-                        />
-                      ))}
-                      <Chip
-                        value={AUTRE}
-                        active={marqueCustom}
-                        onClick={() => {
-                          setMarqueCustom(true);
-                          setMarqueQcm("");
-                        }}
-                      />
-                    </div>
-                    {marqueCustom && (
-                      <>
-                        <input
-                          value={marqueQcm}
-                          onChange={(e) => setMarqueQcm(e.target.value)}
-                          list="marques-list"
-                          placeholder="Saisis la marque"
-                          autoFocus
-                          className={`${inputCls} mt-2.5 border-[1.5px] border-[var(--acc)]`}
-                        />
-                        <datalist id="marques-list">
-                          {MARQUES_LIST.map((m) => (
-                            <option key={m} value={m} />
-                          ))}
-                        </datalist>
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Catégorie</label>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {categorieChips.map((c) => (
-                        <Chip
-                          key={c}
-                          value={c}
-                          active={!categorieCustom && categorieQcm === c}
-                          onClick={() => {
-                            setCategorieCustom(false);
-                            setCategorieQcm(c);
-                          }}
-                        />
-                      ))}
-                      <Chip
-                        value={AUTRE}
-                        active={categorieCustom}
-                        onClick={() => {
-                          setCategorieCustom(true);
-                          setCategorieQcm("");
-                        }}
-                      />
-                    </div>
-                    {categorieCustom && (
-                      <input
-                        value={categorieQcm}
-                        onChange={(e) => setCategorieQcm(e.target.value)}
-                        placeholder="Saisis la catégorie"
-                        autoFocus
-                        className={`${inputCls} mt-2.5 border-[1.5px] border-[var(--acc)]`}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Champs requis */}
-              <div className={`${cardCls} p-5 md:px-6`}>
-                <div className="mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
-                      Taille
-                    </label>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        taille
-                          ? "bg-[var(--pos-soft)] text-[var(--pos)]"
-                          : "bg-[var(--neg-soft)] text-[var(--neg)]"
-                      }`}
-                    >
-                      {taille ? "ok" : "requis"}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-2.5">
-                    {TAILLES.map((t) => (
-                      <Chip
-                        key={t}
-                        value={t}
-                        active={taille === t}
-                        onClick={() => setTaille(taille === t ? "" : t)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="my-4 h-px bg-[var(--bg)]" />
-
-                <div className="mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
-                      État
-                    </label>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                        etat ? "bg-[var(--pos-soft)] text-[var(--pos)]" : "bg-[var(--neg-soft)] text-[var(--neg)]"
-                      }`}
-                    >
-                      {etat ? "ok" : "requis"}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-2.5">
-                    {ETATS.map((s) => (
-                      <Chip
-                        key={s}
-                        value={s}
-                        active={etat === s}
-                        onClick={() => setEtat(etat === s ? "" : s)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="my-4 h-px bg-[var(--bg)]" />
-
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <label className="text-[12.5px] font-bold tracking-[0.03em] text-[var(--ink)]">
-                      Matière
-                    </label>
-                    <span className="text-[11px] font-semibold text-[var(--faint-2)]">
-                      jusqu’à 2 · optionnel
-                    </span>
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-2.5">
-                    {MATIERES_SUGGESTIONS.map((m) => (
-                      <Chip
-                        key={m}
-                        value={m}
-                        active={matieres.includes(m)}
-                        onClick={() => toggleMatiere(m)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Infos supplémentaires + prompt */}
-              <div className={`${cardCls} p-5 md:px-6`}>
-                <label className={labelCls}>Infos supplémentaires</label>
-                <textarea
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  rows={2}
-                  placeholder="Ex : dernière collection, coupe slim, voir photo 4…"
-                  className={`${inputCls} mt-2 resize-y leading-[1.55]`}
-                />
-                <div className="mt-3.5 flex flex-wrap items-center gap-2.5 rounded-xl bg-[var(--surface-2)] px-4 py-3">
-                  <FileText className="h-4 w-4 flex-shrink-0 text-[var(--acc)]" strokeWidth={2} />
-                  <span className="text-[13px] font-medium text-[var(--ink2)]">
-                    Prompt :{" "}
-                    <b className="text-[var(--acc)]">
-                      {prompts.find((p) => p.id === selectedPromptId)?.nom ?? "aucun"}
-                    </b>
-                  </span>
-                  <button
-                    onClick={() => setShowPromptPicker((v) => !v)}
-                    className="ml-auto text-[12px] font-semibold text-[var(--faint)] transition-colors hover:text-[var(--acc)]"
-                  >
-                    {showPromptPicker ? "Fermer" : "Changer"}
-                  </button>
-                </div>
-                {showPromptPicker && (
-                  <select
-                    value={selectedPromptId ?? ""}
-                    onChange={(e) => setSelectedPromptId(e.target.value || null)}
-                    className={`${inputCls} mt-2.5`}
-                  >
-                    <option value="">— Sélectionner un prompt —</option>
-                    {prompts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nom}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ÉTAPE 3 — Génération (chargement) */}
-        {step === 3 && (
-          <div className="[animation:stepIn_.3s_both]">
-            {generate.isError ? (
-              <div className={`${cardCls} px-6 py-12 text-center`}>
-                <p className="mx-auto max-w-md rounded-[12px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-3 text-[14px] text-[var(--neg)]">
-                  {(generate.error as Error).message}
-                </p>
-                <button onClick={() => setStep(2)} className={`${btnGhost} mx-auto mt-5`}>
-                  <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.3} />
-                  Retour
-                </button>
-              </div>
-            ) : (
-              <div className={`${cardCls} px-6 py-14 text-center`}>
-                <div className="relative mx-auto mb-[26px] h-[84px] w-[84px]">
-                  <div className="absolute inset-0 rounded-full border-[5px] border-[var(--surface-2)]" />
-                  {/* `animate-spin` (Tailwind) plutôt qu'une animation inline :
-                      le keyframe est garanti présent dans le bundle. */}
-                  <div className="absolute inset-0 animate-spin rounded-full border-[5px] border-transparent border-r-[var(--pos)] border-t-[var(--acc)]" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-[var(--acc)] text-[var(--acc-dim)]">
-                      <Sparkles className="h-[22px] w-[22px]" strokeWidth={2} />
-                    </span>
-                  </div>
-                </div>
-                <h2 className="font-grotesk text-[22px] font-bold tracking-[-0.02em]">
-                  Génération en cours…
-                </h2>
-                <p className="mt-2.5 text-[13.5px] font-medium text-[var(--faint-2)]">
-                  MyFlip rédige ton annonce avec Gemini Flash
-                </p>
-                <div className="mx-auto mt-7 flex max-w-[420px] flex-col gap-3">
-                  {GEN_MSGS.map((msg, i) => {
-                    const done = i < genIndex;
-                    const active = i === genIndex;
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-colors ${
-                          active ? "bg-[var(--surface-2)]" : "bg-transparent"
-                        }`}
-                      >
-                        <span
-                          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
-                          style={{
-                            background: done ? "var(--acc)" : active ? "var(--pos)" : "var(--surface-2)",
-                            color: done ? "var(--acc-ink)" : active ? "var(--bg)" : "var(--faint)",
-                          }}
-                        >
-                          {done ? (
-                            <Check className="h-3 w-3" strokeWidth={3} />
-                          ) : active ? (
-                            <span className="h-2 w-2 rounded-full bg-surface" />
-                          ) : null}
-                        </span>
-                        <span
-                          className={`text-[14px] ${
-                            done
-                              ? "font-semibold text-[var(--ink2)]"
-                              : active
-                                ? "font-bold text-[var(--ink)]"
-                                : "font-semibold text-[var(--faint-2)]"
-                          }`}
-                        >
-                          {msg}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ÉTAPE 4 — Fallback si article perdu après refresh */}
-        {step === 4 && !article && (
-          <div className={`${cardCls} px-6 py-12 text-center`}>
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--warn-soft)]">
-              <RefreshCw className="h-6 w-6 text-[var(--warn)]" strokeWidth={2} />
-            </div>
-            <h2 className="font-grotesk text-[20px] font-bold text-[var(--ink)]">
-              Session expirée
-            </h2>
-            <p className="mx-auto mt-2 max-w-sm text-[14px] font-medium text-[var(--muted)]">
-              {"Les photos et les données de l'article n'ont pas pu être restaurées."}
-              {" Recommence depuis le début pour re-scanner le SKU."}
-            </p>
-            {result && (titre || description) && (
-              <div className="mt-6 space-y-3 text-left">
-                {titre && <CopyField label="Titre généré" value={titre} />}
-                {description && (
-                  <CopyField label="Description générée" value={description} multiline />
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ÉTAPE 4 — Export */}
-        {step === 4 && article && result && (
-          <div className="flex flex-col gap-4 [animation:stepIn_.3s_both]">
-            <div className="flex items-center gap-2.5 rounded-[14px] border border-[var(--pos)] bg-[var(--pos-soft)] px-4 py-3.5">
-              <span className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full bg-[var(--acc)] text-[var(--acc-ink)]">
-                <Check className="h-4 w-4" strokeWidth={3} />
-              </span>
-              <span className="text-[14px] font-bold text-[var(--acc)]">
-                Annonce générée — relis, ajuste, publie.
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[1fr_340px]">
-              {/* Annonce en lecture seule : deux blocs prêts à coller. */}
-              <div className={`${cardCls} p-5 md:p-6`}>
-                <div className="rounded-[16px] border border-[var(--border)] bg-[var(--tint)] p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2.5">
-                    <span className={labelCls}>Titre</span>
-                    <button
-                      onClick={() => copier("titre")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
-                    >
-                      {copied === "titre" ? (
-                        <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" strokeWidth={2} />
-                      )}
-                      {copied === "titre" ? "Copié" : "Copier"}
-                    </button>
-                  </div>
-                  <p className="font-grotesk text-[16px] font-bold text-[var(--ink)]">
-                    {titre}
-                  </p>
-                </div>
-
-                {/* Contenu strictement identique à ce que copie le bouton. */}
-                <div className="mt-4 rounded-[16px] border border-[var(--border)] bg-[var(--tint)] p-4">
-                  <div className="mb-2 flex items-center justify-between gap-2.5">
-                    <span className={labelCls}>Description + Mots-clés</span>
-                    <button
-                      onClick={() => copier("annonce")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-surface px-3 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
-                    >
-                      {copied === "annonce" ? (
-                        <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" strokeWidth={2} />
-                      )}
-                      {copied === "annonce" ? "Copié" : "Copier"}
-                    </button>
-                  </div>
-                  <p className="whitespace-pre-wrap text-[14px] leading-[1.65] text-[var(--ink)]">
-                    {annonceComplete}
-                  </p>
-                </div>
-
-                {updateArticle.isError && (
-                  <p className="mt-3 rounded-[10px] border border-[var(--neg)] bg-[var(--neg-soft)] px-4 py-2.5 text-[13.5px] text-[var(--neg)]">
-                    {(updateArticle.error as Error).message}
-                  </p>
-                )}
-              </div>
-
-              {/* Photos + publication */}
-              <div className="flex flex-col gap-4">
-                {photos.length > 0 && (
-                  <div className={`${cardCls} p-5`}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h2 className="font-grotesk text-[15px] font-bold">
-                        Photos ({photos.length})
-                      </h2>
-                      <button
-                        onClick={downloadZip}
-                        disabled={isZipping}
-                        className="rounded-full border border-[var(--border)] bg-surface px-3.5 py-1.5 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-50"
-                      >
-                        {isZipping ? "Préparation…" : "ZIP"}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {photos.map((p, i) => (
-                        <button
-                          key={p.id}
-                          onClick={() => triggerDownload(p.blob, fileName(i))}
-                          className="aspect-square overflow-hidden rounded-[11px] border border-[var(--border)]"
-                          title={`Télécharger ${fileName(i)}`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={p.url}
-                            alt={fileName(i)}
-                            className="h-full w-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className={`${cardCls} p-5`}>
-                  <div className={`${labelCls} mb-3.5`}>Publier</div>
-                  <a
-                    href="https://www.vinted.fr/items/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mb-2.5 flex items-center gap-3 rounded-[15px] bg-[#09B1BA] px-4 py-3.5 shadow-[0_12px_24px_-12px_rgba(9,177,186,.75)] transition-transform hover:-translate-y-0.5"
-                  >
-                    <span className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[11px] bg-white/20 font-grotesk text-[19px] font-extrabold text-white">
-                      V
-                    </span>
-                    <span className="leading-tight">
-                      <span className="block text-[15px] font-extrabold text-white">
-                        Vinted
-                      </span>
-                      <span className="block text-[11.5px] font-medium text-white/85">
-                        Ouvrir le formulaire de vente
-                      </span>
-                    </span>
-                    <ArrowRight
-                      className="ml-auto h-5 w-5 flex-shrink-0 text-white"
-                      strokeWidth={2.4}
-                    />
-                  </a>
-                  <a
-                    href="https://www.vestiairecollective.com/sell/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-[15px] bg-[var(--ink)] px-4 py-3.5 shadow-[0_12px_24px_-14px_rgba(22,38,29,.85)] transition-transform hover:-translate-y-0.5"
-                  >
-                    <span className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[11px] bg-white/15 font-grotesk text-[14px] font-extrabold text-white">
-                      VC
-                    </span>
-                    <span className="leading-tight">
-                      <span className="block text-[15px] font-extrabold text-white">
-                        Vestiaire Collective
-                      </span>
-                      <span className="block text-[11.5px] font-medium text-white/70">
-                        Ouvrir le dépôt d’article
-                      </span>
-                    </span>
-                    <ArrowRight
-                      className="ml-auto h-5 w-5 flex-shrink-0 text-white"
-                      strokeWidth={2.4}
-                    />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Barre d'action collante — au-dessus de la bottom nav sur mobile ── */}
-      <div
-        className="sticky z-30 mx-auto mt-5 max-w-[1000px] md:bottom-5"
-        style={{ bottom: "calc(64px + env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-surface p-2.5 pl-3.5 shadow-[var(--shadow)] md:pl-5">
-          <div className="flex min-w-0 items-center gap-3">
-            {(step === 2 || step === 4) && (
-              <button onClick={() => setStep(step - 1)} className={btnGhost}>
-                <ArrowLeft className="h-4 w-4" strokeWidth={2.3} />
-                <span className="hidden sm:inline">Retour</span>
-              </button>
-            )}
-            <span
-              className={`truncate text-[12.5px] font-semibold md:text-[13px] ${
-                hintOk ? "text-[var(--acc)]" : "text-[var(--neg)]"
-              }`}
-            >
-              {hint}
-            </span>
-          </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1.5">
-            <button
-              onClick={resetAll}
-              title="Tout réinitialiser"
-              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-2.5 text-[13px] font-semibold text-[var(--faint)] transition-colors hover:text-[var(--acc)]"
-            >
-              <RefreshCw className="h-4 w-4" strokeWidth={2} />
-              <span className="hidden md:inline">Recommencer</span>
-            </button>
-            {step === 4 && article && result ? (
-              // Étape 4 : enregistrer l'annonce, avec 3 choix de statut d'un coup —
-              // sans changement, en brouillon, ou en vente.
-              saved ? (
-                <span className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[var(--pos-soft)] px-5 text-[14px] font-extrabold text-[var(--acc)] md:text-[15px]">
-                  <Check className="h-[17px] w-[17px]" strokeWidth={2.6} />
-                  Enregistré{savedStatut ? ` · ${savedStatut}` : ""}
-                </span>
-              ) : (
-                <>
-                  <button
-                    onClick={() => enregistrer()}
-                    disabled={updateArticle.isPending}
-                    title={`Enregistre l'annonce sans changer le statut (reste « ${article.statut} »)`}
-                    className={`${btnGhost} min-h-[48px] disabled:opacity-50`}
-                  >
-                    Enregistrer
-                  </button>
-                  <button
-                    onClick={() => enregistrer("Brouillon")}
-                    disabled={updateArticle.isPending}
-                    title="Enregistre l'annonce et passe l'article en brouillon"
-                    className={`${btnGhost} min-h-[48px] disabled:opacity-50`}
-                  >
-                    Brouillon
-                  </button>
-                  <button
-                    onClick={() => enregistrer("En vente")}
-                    disabled={updateArticle.isPending}
-                    className="inline-flex min-h-[48px] items-center gap-2 rounded-[13px] bg-[var(--acc)] px-5 text-[14px] font-extrabold text-[var(--acc-ink)] shadow-[var(--shadow)] transition-all hover:bg-[var(--acc-hover)] disabled:cursor-not-allowed disabled:opacity-60 md:text-[15px]"
-                  >
-                    {updateArticle.isPending ? "Enregistrement…" : "Mettre en vente"}
-                    <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />
-                  </button>
-                </>
-              )
-            ) : (
+        <Eyebrow>SKU → FICHES → GÉNÉRATION → ANNONCES</Eyebrow>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ETAPES.map((label, i) => {
+            const n = (i + 1) as 1 | 2 | 3 | 4;
+            // L'étape Annonces reste atteignable tant qu'une annonce existe :
+            // sinon, revenir corriger une fiche condamnait à tout regénérer
+            // pour relire un texte déjà écrit.
+            const fait =
+              n < etat.etape ||
+              (n === 4 && etat.fiches.some((f) => f.generation.phase === "ok"));
+            const courant = n === etat.etape;
+            return (
               <button
-                onClick={primaryAction}
-                disabled={!primaryEnabled}
-                className={`inline-flex min-h-[48px] items-center gap-2 rounded-[16px] px-5 text-[14px] font-bold transition-all md:text-[15px] ${
-                  primaryEnabled
-                    ? "bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)] hover:bg-[var(--acc-hover)]"
-                    : "cursor-not-allowed bg-[var(--border-strong)] text-[var(--faint)]"
+                key={label}
+                type="button"
+                disabled={!fait}
+                onClick={() => fait && dispatch({ type: "etape", etape: n })}
+                className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full px-3 font-mono text-[10.5px] uppercase tracking-[0.08em] transition-colors disabled:cursor-default ${
+                  courant
+                    ? "bg-[var(--acc)] font-bold text-[var(--acc-ink)]"
+                    : fait
+                      ? "bg-[var(--surface-2)] text-[var(--ink2)] hover:text-[var(--acc)]"
+                      : "text-[var(--faint-2)]"
                 }`}
               >
-                {primaryLabel}
-                {primaryIcon}
+                {n}. {label}
               </button>
-            )}
-          </div>
+            );
+          })}
         </div>
-      </div>
+      </header>
 
-      {/* Zoom photo : image réaffichée depuis sa source pleine résolution. */}
-      {zoomedPhoto && (
-        <div
-          onClick={() => setZoomedId(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Photo ${zoomedIdx + 1}`}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--ink)]/55 p-6 [animation:overlayIn_.2s_ease_both]"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[min(540px,92vw)] rounded-[22px] bg-surface p-4 shadow-[0_30px_80px_-18px_rgba(0,0,0,.5)] [animation:zoomCardIn_.28s_cubic-bezier(.16,.84,.44,1)_both]"
-          >
-            <button
-              onClick={() => setZoomedId(null)}
-              aria-label="Fermer"
-              className="absolute -right-3 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--acc)] text-[var(--acc-ink)] shadow-[var(--shadow)] transition-colors hover:bg-[var(--acc-hover)]"
-            >
-              <X className="h-[18px] w-[18px]" strokeWidth={2.4} />
-            </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={zoomedPhoto.url}
-              alt={fileName(zoomedIdx)}
-              className="max-h-[70vh] w-full rounded-[14px] object-contain"
+      <div className="mx-auto max-w-[1100px]">
+        {etat.etape === 1 && (
+          <EtapeSku
+            fiches={etat.fiches}
+            onSaisie={(id, sku) => dispatch({ type: "sku/saisie", id, sku })}
+            onChercher={(id) => void chercherSku(id)}
+            onAjout={() => dispatch({ type: "fiche/ajout", id: nouvelId() })}
+            onRetrait={(id) => dispatch({ type: "fiche/retrait", id })}
+          />
+        )}
+
+        {etat.etape === 2 && (
+          <div className="flex gap-[18px]">
+            <RailArticles
+              fiches={etat.fiches}
+              active={etat.active}
+              onActive={(id) => dispatch({ type: "fiche/active", id })}
+              onAjout={() => dispatch({ type: "fiche/ajout", id: nouvelId() })}
+              onRetrait={(id) => dispatch({ type: "fiche/retrait", id })}
             />
-            <div className="mt-3 flex items-center justify-between gap-3 px-1">
-              <span className="font-grotesk text-[14px] font-semibold text-[var(--ink2)]">
-                {fileName(zoomedIdx)}
-              </span>
-              <button onClick={() => setZoomedId(null)} className={btnGhost}>
-                Fermer
-              </button>
+            <div className="min-w-0 flex-1">
+              {/* Sous 768 px le rail est masqué : on affiche au moins de quel
+                  article il s'agit, sinon l'écran ne dit plus rien. */}
+              <div className="mb-3 flex items-center gap-2.5 md:hidden">
+                <span className="font-mono text-[12.5px] font-bold">
+                  {fiche.sku.trim() || "—"}
+                </span>
+                <span className="text-[12px] text-[var(--faint-2)]">
+                  fiche {etat.fiches.findIndex((f) => f.id === fiche.id) + 1} sur{" "}
+                  {etat.fiches.length}
+                </span>
+              </div>
+              {fiche.article ? (
+                <FicheArticle
+                  fiche={fiche}
+                  active
+                  prompts={prompts}
+                  nomPromptDetecte={nomPromptDetecte}
+                  onPhotos={(files) => void ajouterPhotos(fiche.id, files)}
+                  onRetraitPhoto={(photoId) =>
+                    dispatch({ type: "photo/retrait", id: fiche.id, photoId })
+                  }
+                  onRotation={(photoId, delta) => void tourner(fiche.id, photoId, delta)}
+                  onSelection={(photoId) =>
+                    dispatch({ type: "photo/selection", id: fiche.id, photoId })
+                  }
+                  onZoom={(photoId) => setZoom({ ficheId: fiche.id, photoId })}
+                  onQcm={(champ, valeur) =>
+                    dispatch({ type: "qcm", id: fiche.id, champ, valeur })
+                  }
+                  onPrompt={(promptId) =>
+                    dispatch({ type: "prompt", id: fiche.id, promptId })
+                  }
+                  montrerChoixPrompt={choixPrompt}
+                  onBasculerChoixPrompt={() => setChoixPrompt((v) => !v)}
+                />
+              ) : (
+                <div className={`${cardCls} px-6 py-12 text-center`}>
+                  <p className="text-[14px] font-medium text-[var(--muted)]">
+                    Cette fiche n&apos;a pas encore d&apos;article valide.
+                  </p>
+                  <button
+                    onClick={() => dispatch({ type: "etape", etape: 1 })}
+                    className={`${btnGhost} mx-auto mt-4`}
+                  >
+                    <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.3} />
+                    Revenir aux SKU
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+        )}
+
+        {etat.etape === 3 && (
+          <FileGeneration
+            fiches={etat.fiches.filter((f) => lotGeneration.includes(f.id))}
+            enCours={genEnCours}
+            onRelancer={(id) => void genererFiches([id])}
+            onRetour={() => dispatch({ type: "etape", etape: 2 })}
+            onVoirResultats={() => dispatch({ type: "etape", etape: 4 })}
+          />
+        )}
+
+        {etat.etape === 4 && (
+          <ExportAnnonces
+            fiches={etat.fiches}
+            doublons={doublons}
+            enregistrementEnCours={saveEnCours}
+            onEnregistrer={(id, statut) => void enregistrer([id], statut)}
+            onEnregistrerTout={(statut) =>
+              void enregistrer(
+                etat.fiches.filter((f) => f.generation.phase === "ok").map((f) => f.id),
+                statut,
+              )
+            }
+            onEditerAnnonce={(id, champ, valeur) =>
+              dispatch({ type: "annonce", id, champ, valeur })
+            }
+            onTelecharger={(ficheId, photoId) => {
+              const f = etat.fiches.find((x) => x.id === ficheId);
+              const p = f?.photos.find((x) => x.id === photoId);
+              const i = f?.photos.findIndex((x) => x.id === photoId) ?? 0;
+              if (!f || !p) return;
+              triggerDownload(
+                p.blob,
+                `${f.article?.sku ?? "PHOTO"}_${String(i + 1).padStart(2, "0")}.jpg`,
+              );
+            }}
+          />
+        )}
+      </div>
+
+      {/* Zoom photo */}
+      {photoZoomee && (
+        <div
+          onClick={() => setZoom(null)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--ink)]/80 p-6"
+        >
+          <button
+            onClick={() => setZoom(null)}
+            aria-label="Fermer"
+            className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[var(--ink)]"
+          >
+            <X className="h-5 w-5" strokeWidth={2.4} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoZoomee.url}
+            alt=""
+            className="max-h-full max-w-full rounded-[16px] object-contain"
+          />
         </div>
       )}
-    </main>
-  );
-}
 
-function CopyField({
-  label,
-  value,
-  multiline,
-}: {
-  label: string;
-  value: string;
-  multiline?: boolean;
-}) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="rounded-[16px] border border-[var(--border)] bg-surface p-4">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-[11.5px] font-bold uppercase tracking-[0.05em] text-[var(--faint)]">
-          {label}
-        </span>
-        <button
-          onClick={async () => {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-          className="rounded-full border border-[var(--border)] bg-surface px-3 py-1 text-[12px] font-semibold text-[var(--ink2)] transition-colors hover:bg-[var(--tint)]"
-        >
-          {copied ? "Copié ✓" : "Copier"}
-        </button>
+      {/* Barre d'action collante */}
+      {/* `bottom-[68px]` sous 768 px : le dock mobile occupe déjà le bas de
+          l'écran, et deux barres en `bottom-0` se recouvrent. */}
+      <div className="fixed bottom-[68px] left-0 z-40 w-full border-t border-[var(--border)] bg-surface/95 px-4 py-3 backdrop-blur-md md:bottom-0 md:pl-[calc(var(--sidebar-w)+18px)] md:pr-[18px]">
+        <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-4">
+          <span
+            className={`min-w-0 truncate text-[12.5px] font-medium ${
+              barre.ok ? "text-[var(--pos)]" : "text-[var(--faint-2)]"
+            }`}
+          >
+            {barre.indice}
+          </span>
+          <div className="flex flex-none items-center gap-2.5">
+            {barre.retourPossible && (
+              <button
+                onClick={() =>
+                  dispatch({
+                    type: "etape",
+                    etape: Math.max(1, etat.etape - 1) as 1 | 2 | 3,
+                  })
+                }
+                className={btnGhost}
+              >
+                <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.3} />
+                Retour
+              </button>
+            )}
+            <button
+              onClick={agir}
+              disabled={!barre.actif}
+              className="inline-flex min-h-[46px] items-center gap-2 rounded-xl bg-[var(--acc)] px-5 text-[14px] font-bold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-50"
+            >
+              {barre.label}
+              {barre.icone === "etincelles" ? (
+                <Sparkles className="h-[17px] w-[17px]" strokeWidth={2.2} />
+              ) : (
+                <ArrowRight className="h-[17px] w-[17px]" strokeWidth={2.3} />
+              )}
+            </button>
+          </div>
+        </div>
       </div>
-      <p
-        className={`text-[14px] text-[var(--ink)] ${
-          multiline ? "whitespace-pre-wrap" : "truncate"
-        }`}
-      >
-        {value || "—"}
-      </p>
-    </div>
+    </main>
   );
 }

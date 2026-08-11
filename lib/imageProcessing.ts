@@ -69,7 +69,7 @@ export async function correctImage(file: File): Promise<HTMLCanvasElement> {
 }
 
 /** Fallback universel (Safari) : charge un fichier image via HTMLImageElement. */
-function loadViaImageElement(file: File): Promise<HTMLCanvasElement> {
+function loadViaImageElement(file: Blob): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -105,7 +105,10 @@ function loadViaImageElement(file: File): Promise<HTMLCanvasElement> {
  * tente d'abord createImageBitmap(file) sans options, puis on retombe sur un
  * HTMLImageElement (fallback universel) en cas d'échec.
  */
-export async function loadImageDirect(file: File): Promise<HTMLCanvasElement> {
+// Accepte un Blob et pas seulement un File : la mise en vente libère le canvas
+// pleine résolution après l'étape photos (5 articles × 48 Mo, sinon), et doit
+// pouvoir re-décoder depuis le blob si une rotation arrive plus tard.
+export async function loadImageDirect(file: Blob): Promise<HTMLCanvasElement> {
   try {
     if (typeof createImageBitmap === "function") {
       const bitmap = await createImageBitmap(file);

@@ -64,7 +64,29 @@ export function useNotifications() {
     // Rappels : une donnée un peu fraîche suffit, on rafraîchit à l'ouverture.
     staleTime: 60_000,
     refetchOnWindowFocus: true,
+    // Le badge « à comptabiliser » de la sidebar lit cette requête. Sans
+    // intervalle, une carte étiquetée sur Trello ne se voyait qu'après un
+    // rechargement complet de la page : un compteur figé, peint en rouge.
+    // React Query met l'intervalle en pause quand la fenêtre perd le focus
+    // (`refetchIntervalInBackground` vaut false par défaut) — rien ne tourne
+    // pendant que l'onglet est en arrière-plan.
+    refetchInterval: 60_000,
   });
+}
+
+/**
+ * Nombre d'articles à comptabiliser, pour le badge de navigation.
+ *
+ * Lit la charge utile des notifications plutôt qu'un endpoint dédié : le
+ * compte y est déjà calculé (`/api/notifications`), et la clé `["notifications"]`
+ * est déjà invalidée par `useInvalidateAll` — une clé neuve ne l'aurait pas
+ * été, et le badge se serait figé après la première comptabilisation.
+ *
+ * La route omet les entrées à 0, d'où le repli.
+ */
+export function useCompteAComptabiliser(): number {
+  const { data } = useNotifications();
+  return data?.items.find((i) => i.key === "a-comptabiliser")?.count ?? 0;
 }
 
 // ---------- Articles ----------
@@ -97,6 +119,9 @@ export type ArticlePatch = Partial<{
   sku: string;
   marque: string;
   categorie: string;
+  /** Libellé du lot d'achat. Absent jusqu'au 11/08/2026 : corriger la marque
+   *  d'un article laissait un libellé de lot périmé, non réparable depuis l'UI. */
+  lot: string | null;
   grade: string | null;
   statut: string;
   prixAchat: number;
@@ -119,10 +144,28 @@ const AGGREGATE_KEYS: (keyof ArticlePatch)[] = [
   "canal",
 ];
 
+/**
+ * Variables de `useUpdateArticle`.
+ *
+ * `differerInvalidation` sert aux enregistrements en série (mise en vente, 5
+ * articles) : `statut` fait partie des `AGGREGATE_KEYS`, donc chaque patch
+ * invalide articles + dashboard + stats + calendrier. Cinq enregistrements =
+ * vingt invalidations, et l'app clignote pendant toute la série. L'appelant
+ * pose le drapeau, puis invalide UNE fois à la fin.
+ *
+ * Absent par défaut : `/stock` et `/a-comptabiliser` gardent le comportement
+ * exact qu'ils ont toujours eu.
+ */
+type UpdateArticleVars = {
+  id: string;
+  patch: ArticlePatch;
+  differerInvalidation?: boolean;
+};
+
 export function useUpdateArticle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: ArticlePatch }) =>
+    mutationFn: ({ id, patch }: UpdateArticleVars) =>
       jsonFetch<ArticleDTO>(`/api/articles/${id}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
@@ -147,7 +190,9 @@ export function useUpdateArticle() {
     },
     // Invalidation ciblée (cf. lot 1) — exécutée en succès comme en erreur, pour
     // resynchroniser les valeurs serveur (marges/coef recalculés notamment).
-    onSettled: (_data, _err, { patch }) => {
+    onSettled: (_data, _err, { patch, differerInvalidation }) => {
+      // L'appelant a pris la main : il invalidera une fois la série finie.
+      if (differerInvalidation) return;
       // Un patch touche toujours la liste des articles.
       qc.invalidateQueries({ queryKey: ["articles"] });
       // On ne recharge dashboard/stats/calendrier que si un champ financier ou

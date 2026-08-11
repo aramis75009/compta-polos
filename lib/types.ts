@@ -89,7 +89,23 @@ export type LotDTO = {
   prixTotal: number;
 };
 
+/**
+ * Une ligne du tableau de répartition d'une commande.
+ *
+ * Le regroupement se fait par LOT depuis le 11/08/2026, plus par catégorie :
+ * l'utilisateur veut lire « Polo Ralph Lauren », pas « Polo ». Voir
+ * `cleRegroupement` dans `lib/calc.ts` pour la cascade de replis.
+ */
 export type CommandeStatsRow = {
+  /** Identité de la ligne : un `Lot.id`, ou un libellé si l'article est orphelin. Jamais affichée. */
+  cle: string;
+  /** Ce qui s'affiche dans la colonne. */
+  libelle: string;
+  /**
+   * @deprecated Ancien nom de `libelle`, conservé peuplé le temps qu'un onglet
+   * servi par le bundle précédent finisse sa session. À retirer à la prochaine
+   * livraison — sans lui, ces onglets afficheraient des cellules vides.
+   */
   categorie: string;
   total: number;
   enStock: number;
@@ -150,8 +166,11 @@ export type CommandeResume = {
   canaux: CanalRow[];
   dormants: number; // en stock, photos pas prêtes
   caDormant: number | null;
-  meilleureCategorie: { categorie: string; coefMoyen: number } | null;
-  pireCategorie: { categorie: string; coefMoyen: number } | null;
+  // Depuis le 11/08/2026 ces deux champs portent un LOT, pas une catégorie :
+  // ils sont dérivés des mêmes lignes que `rows`. Renommés pour que le libellé
+  // affiché ne mente pas sur ce qu'il mesure.
+  meilleurLot: { libelle: string; coefMoyen: number } | null;
+  pireLot: { libelle: string; coefMoyen: number } | null;
 };
 
 export type CommandeStatsDTO = {

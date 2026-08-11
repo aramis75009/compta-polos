@@ -125,6 +125,64 @@ export function libelleLot(marque: string, categorie: string): string {
   return `${c} ${m}`;
 }
 
+/** Ce dont `cleRegroupement` a besoin. Volontairement structural : la fonction
+ *  reste pure et testable sans Prisma. */
+export type ArticleRegroupable = {
+  lotId: string | null;
+  /** Libellé recopié sur l'article à la création. NULL sur l'historique. */
+  lot: string | null;
+  /** Le lot joint (`include: { lotRef: { select: { nom: true } } }`). */
+  lotRef: { nom: string } | null;
+  marque: string;
+  categorie: string;
+};
+
+/** Libellé de repli quand un article n'a ni lot rattaché ni libellé propre. */
+export const LOT_INDETERMINE = "À définir";
+
+/**
+ * Sur quoi regrouper les articles d'une commande, et sous quel nom l'afficher.
+ *
+ * ```
+ *   a.lot ─────▶ LA SOURCE DE VÉRITÉ. Libellé porté par l'ARTICLE, donc
+ *     │          exact même quand une commande mêle plusieurs lots.
+ *     │
+ *     ├─ absent ─▶ a.lotRef.nom : le lot rattaché (repli)
+ *     └─ absent ─▶ libelleLot(marque, catégorie) : reconstruit
+ * ```
+ *
+ * ⚠️ **Ne PAS regrouper sur `lotId`.** La migration
+ * `20260808180000_lots:64-92` crée **un seul `Lot` par `Commande`**, nommé
+ * d'après le libellé le plus fréquent de ses articles, puis rattache tous les
+ * articles à ce lot unique (`:94-98`). Sur les données réelles, 473 articles
+ * sur 1 361 ont donc un `Lot.nom` qui ne correspond pas à leur `Article.lot`,
+ * et 6 commandes sur 22 seraient écrasées en une seule ligne :
+ *
+ * ```
+ *   Grossiste KZ, 20/01/2026 — regroupé sur lotId :
+ *     « Chemise Dickies »  231 articles   ◀── FAUX, absorbe 5 autres lots
+ *   regroupé sur a.lot :
+ *     Mix TNF/PAT/COL 31 · Crazy Polaires 30 · Pulls islandais 30
+ *     Mix Helly Hansen 50 · Crazy Coupe-vent 30 · Chemise Dickies 60
+ * ```
+ *
+ * `Lot.nom` reste un repli utile : `Article.lot` est nullable et éditable
+ * depuis le 11/08/2026, donc le cas vide est atteignable.
+ *
+ * Conséquence assumée : deux lots réellement homonymes dans une même commande
+ * fusionnent en une ligne. C'est un choix de nommage que l'utilisateur
+ * contrôle, alors que l'aplatissement ci-dessus, non.
+ */
+export function cleRegroupement(a: ArticleRegroupable): {
+  cle: string;
+  libelle: string;
+} {
+  const reconstruit = libelleLot(a.marque ?? "", a.categorie ?? "");
+  const libelle = a.lot || a.lotRef?.nom || reconstruit || LOT_INDETERMINE;
+  // Clé et libellé partagent la même cascade : le libellé EST l'identité.
+  return { cle: libelle, libelle };
+}
+
 /** Normalise un préfixe saisi à la main : lettres uniquement, 3 au maximum. */
 export function normaliserPrefixe(saisi: string): string {
   return saisi

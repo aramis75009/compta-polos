@@ -8,6 +8,9 @@ type PatchBody = {
   sku?: string;
   marque?: string;
   categorie?: string;
+  /** Libellé du lot d'achat. Éditable : corriger la marque d'un article
+   *  laissait jusqu'ici un libellé de lot périmé, irréparable depuis l'UI. */
+  lot?: string | null;
   grade?: string | null;
   statut?: string;
   prixAchat?: number;
@@ -45,6 +48,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     }
     if (body.marque !== undefined) data.marque = body.marque.trim();
     if (body.categorie !== undefined) data.categorie = body.categorie.trim();
+    // Chaîne vide = on efface le libellé, pas on l'écrase par du blanc :
+    // l'article retombe alors sur le nom du lot rattaché à l'affichage.
+    if (body.lot !== undefined)
+      data.lot = body.lot ? String(body.lot).trim() || null : null;
     if (body.grade !== undefined)
       data.grade = body.grade ? String(body.grade).trim() : null;
     if (body.canal !== undefined)

@@ -35,9 +35,16 @@ export async function POST(req: NextRequest) {
   const userId = await getUserId();
   if (!userId) return unauthorized();
 
+  // Hors du try : le bloc catch en a besoin pour identifier l'article fautif.
+  let sku: string | undefined;
+  let promptNom: string | undefined;
+  let nbImages = 0;
+
   try {
     const body = (await req.json()) as Body;
+    sku = body.sku;
     const images = (body.images ?? []).filter(Boolean);
+    nbImages = images.length;
     if (images.length === 0) {
       return NextResponse.json(
         { error: "Au moins une photo est requise." },
@@ -72,6 +79,7 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+    promptNom = tmpl.nom;
 
     const compiled = compilePrompt(tmpl.contenu, {
       marque: body.marque,
@@ -93,7 +101,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...result, promptNom: tmpl.nom });
   } catch (err) {
-    console.error("POST /api/listings/generate", err);
+    // Le SKU et le prompt dans le log : sans eux, une génération ratée parmi
+    // plusieurs ne se rattache à aucun article, et le log ne sert à rien.
+    console.error(
+      `POST /api/listings/generate sku=${sku ?? "?"} prompt=${promptNom ?? "?"} images=${nbImages}`,
+      err,
+    );
     const message =
       err instanceof Error ? err.message : "Erreur lors de la génération.";
     return NextResponse.json({ error: message }, { status: 500 });
