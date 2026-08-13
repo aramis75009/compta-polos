@@ -7,10 +7,11 @@
 // avec la même ref : ici chaque fiche a son propre input, monté une seule fois,
 // et les fichiers ne peuvent pas atterrir dans la mauvaise.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Plus, RotateCcw, RotateCw, Upload, X, ZoomIn } from "lucide-react";
 import { ETATS, MATIERES_SUGGESTIONS, TAILLES } from "@/lib/listingOptions";
 import type { PromptTemplateDTO } from "@/lib/types";
+import { fichiersImages } from "../_fichiers";
 import {
   MAX_PHOTOS,
   MAX_SELECT,
@@ -117,6 +118,34 @@ export default function FicheArticle({
     return () => window.removeEventListener("paste", onPaste);
   }, [active]);
 
+  // Glisser-déposer. Sans `preventDefault` sur `dragover`, le navigateur refuse
+  // le dépôt et se contente d'ouvrir le fichier à la place de la page — il
+  // n'existe pas de « zone de dépôt » par défaut.
+  //
+  // La fiche ENTIÈRE écoute, pas la seule carte photos : on vise une colonne de
+  // 340 px en glissant depuis Photos, et rater la cible ne doit pas être puni.
+  // Le surlignage, lui, reste sur la carte photos — il dit où ça atterrit.
+  const [survol, setSurvol] = useState(false);
+
+  function auSurvol(e: React.DragEvent) {
+    e.preventDefault();
+    setSurvol(true);
+  }
+
+  function auDepart(e: React.DragEvent) {
+    // `relatedTarget` est l'élément survolé après la sortie. S'il est encore
+    // dans la fiche, on n'a fait que passer d'une vignette à l'autre : le
+    // surlignage doit tenir.
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSurvol(false);
+  }
+
+  function auDepot(e: React.DragEvent) {
+    e.preventDefault();
+    setSurvol(false);
+    const images = fichiersImages(Array.from(e.dataTransfer.files));
+    if (images.length > 0) onPhotos(images);
+  }
+
   const marqueChips = useMemo(() => {
     const base = [...MARQUES_CHIPS];
     if (qcm.marque && !qcm.marqueCustom && !base.includes(qcm.marque))
@@ -144,9 +173,21 @@ export default function FicheArticle({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-[18px] [animation:stepIn_.3s_both] lg:grid-cols-[340px_1fr]">
-      {/* ── Photos ─────────────────────────────────────────────────────── */}
-      <div className={`${cardCls} p-5 lg:sticky lg:top-5`}>
+    <div
+      onDragEnter={auSurvol}
+      onDragOver={auSurvol}
+      onDragLeave={auDepart}
+      onDrop={auDepot}
+      className="grid grid-cols-1 items-start gap-[18px] [animation:stepIn_.3s_both] lg:grid-cols-[340px_1fr]"
+    >
+      {/* ── Photos : la fiche entière accepte le dépôt, la carte le signale ── */}
+      <div
+        className={`${cardCls} p-5 transition-[outline-color] lg:sticky lg:top-5 ${
+          survol
+            ? "outline outline-2 -outline-offset-2 outline-[var(--acc)]"
+            : "outline outline-2 -outline-offset-2 outline-transparent"
+        }`}
+      >
         <div className="mb-1 flex items-center justify-between">
           <h2 className="font-grotesk text-[16px] font-bold">Photos</h2>
           <span

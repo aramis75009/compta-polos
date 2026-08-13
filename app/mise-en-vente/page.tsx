@@ -135,6 +135,22 @@ export default function MiseEnVentePage() {
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [etat.fiches]);
 
+  // ── Filet contre le dépôt manqué ────────────────────────────────────────
+  // Comportement par défaut du navigateur : un fichier lâché n'importe où dans
+  // la fenêtre est OUVERT, ce qui quitte la page. Les photos ne sont pas
+  // persistées (un Blob ne rentre pas dans sessionStorage, cf. _persistance),
+  // donc viser à côté de la fiche coûtait tout ce qui était déjà chargé.
+  // Ici, un dépôt hors zone ne fait plus rien du tout.
+  useEffect(() => {
+    const neutraliser = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", neutraliser);
+    window.addEventListener("drop", neutraliser);
+    return () => {
+      window.removeEventListener("dragover", neutraliser);
+      window.removeEventListener("drop", neutraliser);
+    };
+  }, []);
+
   // ── Object URLs : révoqués ICI, jamais dans le reducer ──────────────────
   // Un reducer est invoqué DEUX FOIS en StrictMode React 18 : y révoquer une
   // URL la libérerait pendant que l'image l'affiche encore.
