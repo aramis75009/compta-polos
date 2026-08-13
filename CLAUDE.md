@@ -108,7 +108,7 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `/api/commandes`, `/api/commandes/[id]` — CRUD commandes
 - `/api/dashboard`, `/api/stats`, `/api/calendar` — données agrégées
 - `/api/prompts`, `/api/prompts/[id]` — CRUD prompts IA
-- `/api/listings/generate` — génération d'annonces (Anthropic/Gemini)
+- `/api/listings/generate` — génération d'annonces (OpenRouter, modèle au choix)
 - `/api/chat` — chatbot IA
 - `/api/webhooks/trello` — intégration Trello
 
@@ -218,15 +218,25 @@ Les IDs d'étiquettes se listent avec :
 Depuis le lot 3, les clés IA et Trello ci-dessous sont des **valeurs de repli** :
 elles servent aux comptes qui n'ont pas saisi les leurs dans `/compte`.
 
+⚠️ **`GEMINI_API_KEY` n'est plus lue** depuis le passage à OpenRouter (13/08/2026).
+La génération d'annonces appelle `lib/openrouter.ts` avec le modèle choisi dans
+`/compte` (`UserSettings.modeleIA`, repli `MODELE_PAR_DEFAUT` de `lib/modelesIA.ts`).
+La colonne `UserSettings.geminiKey` survit en base mais n'est lue nulle part —
+même consigne que `photosPretes` : `prisma db push` proposera de la dropper, refuser.
+
+**Ajouter un modèle à la liste courte** de `lib/modelesIA.ts` impose de vérifier
+sur `openrouter.ai/api/v1/models` qu'il a `input_modalities: image` ET
+`supported_parameters: structured_outputs`. Sans les deux, il échoue à *chaque*
+génération, pas une fois sur dix.
+
 ```
 AUTH_SECRET
 AUTH_TRUST_HOST=true
 NEXTAUTH_URL
 INVITE_CODES            # codes d'invitation acceptés sur /signup ; absente = aucune inscription
 ENCRYPTION_KEY          # 32 octets hex : chiffre les secrets de UserSettings (AES-256-GCM)
-ANTHROPIC_API_KEY
-GEMINI_API_KEY
-OPENROUTER_API_KEY      # facultative
+ANTHROPIC_API_KEY       # chatbot uniquement (/api/chat)
+OPENROUTER_API_KEY      # génération d'annonces : repli quand le compte n'a pas sa clé
 TRELLO_API_KEY
 TRELLO_TOKEN
 TRELLO_SECRET                 # secret d'API, vérification de signature du webhook

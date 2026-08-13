@@ -33,15 +33,14 @@ export type TrelloContexte = {
 };
 
 export type ReglagesResolus = {
-  geminiKey: string | null;
   anthropicKey: string | null;
   openrouterKey: string | null;
   trello: TrelloContexte | null;
+  /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
   objectifMensuel: number | null;
   /** Vrai si la valeur vient du compte, faux si elle vient de l'environnement. */
   source: {
-    gemini: "utilisateur" | "app" | "absente";
     anthropic: "utilisateur" | "app" | "absente";
     openrouter: "utilisateur" | "app" | "absente";
     trello: "utilisateur" | "app" | "absente";
@@ -78,10 +77,6 @@ export async function resoudreReglages(
     return env ? [env, "app"] : [null, "absente"];
   };
 
-  const [gemini, srcGemini] = cascade(
-    dechiffrerOuNull(s?.geminiKey),
-    process.env.GEMINI_API_KEY,
-  );
   const [anthropic, srcAnthropic] = cascade(
     dechiffrerOuNull(s?.anthropicKey),
     process.env.ANTHROPIC_API_KEY,
@@ -132,14 +127,12 @@ export async function resoudreReglages(
   }
 
   return {
-    geminiKey: gemini,
     anthropicKey: anthropic,
     openrouterKey: openrouter,
     trello,
     modeleIA: vide(s?.modeleIA),
     objectifMensuel: s?.objectifMensuel ?? null,
     source: {
-      gemini: srcGemini,
       anthropic: srcAnthropic,
       openrouter: srcOpenrouter,
       trello: srcTrello,

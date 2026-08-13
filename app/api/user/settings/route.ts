@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 // Champs chiffrés, et le nom sous lequel le client les envoie.
 const SECRETS = [
-  "geminiKey",
   "anthropicKey",
   "openrouterKey",
   "trelloKey",
@@ -63,7 +62,6 @@ export async function GET() {
     const resolus = await resoudreReglages(userId);
 
     const dto: UserSettingsDTO = {
-      gemini: etatSecret(s?.geminiKey),
       anthropic: etatSecret(s?.anthropicKey),
       openrouter: etatSecret(s?.openrouterKey),
       trelloKey: etatSecret(s?.trelloKey),

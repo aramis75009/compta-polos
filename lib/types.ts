@@ -332,7 +332,6 @@ export type SecretEtat = {
 export type SourceReglage = "utilisateur" | "app" | "absente";
 
 export type UserSettingsDTO = {
-  gemini: SecretEtat;
   anthropic: SecretEtat;
   openrouter: SecretEtat;
   trelloKey: SecretEtat;
@@ -341,13 +340,13 @@ export type UserSettingsDTO = {
   trelloBoardId: string | null;
   trelloLabelId: string | null;
   trelloComptabiliseLabelId: string | null;
+  /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
   objectifMensuel: number | null;
   /** Étape en cours du parcours de démarrage (1 à 4). */
   onboardingEtape: number;
   onboardingTermine: boolean;
   source: {
-    gemini: SourceReglage;
     anthropic: SourceReglage;
     openrouter: SourceReglage;
     trello: SourceReglage;

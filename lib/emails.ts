@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-// Client instancié paresseusement (même pattern que lib/gemini.ts).
+// Client instancié paresseusement.
 // Au niveau module, `new Resend()` s'exécuterait pendant `next build` — Next
 // charge les routes pour collecter leurs métadonnées — et ferait échouer le
 // build sur tout déploiement où RESEND_API_KEY n'est pas définie.

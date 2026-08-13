@@ -313,7 +313,7 @@ export default function MiseEnVentePage() {
           !res.motsCles.trim() && "les mots-clés",
         ].filter(Boolean) as string[];
         if (vides.length > 0) {
-          toast.warning(`${f.article.sku} : Gemini n'a pas rempli ${vides.join(" et ")}.`);
+          toast.warning(`${f.article.sku} : le modèle n'a pas rempli ${vides.join(" et ")}.`);
         } else if (res.titre.length > TITRE_MAX) {
           toast.warning(
             `${f.article.sku} : titre de ${res.titre.length} caractères (limite ${TITRE_MAX}).`,

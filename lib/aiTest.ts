@@ -4,7 +4,7 @@
 // Aucune génération n'est déclenchée — vérifier une clé ne doit rien coûter à
 // l'utilisateur ni consommer son quota.
 
-export type Fournisseur = "gemini" | "anthropic" | "openrouter";
+export type Fournisseur = "anthropic" | "openrouter";
 
 export type ResultatTest = { ok: boolean; message: string };
 
@@ -22,13 +22,6 @@ export async function testerCle(
 ): Promise<ResultatTest> {
   try {
     switch (fournisseur) {
-      case "gemini": {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(cle)}`,
-          { cache: "no-store" },
-        );
-        return verdict(res, "Clé Gemini valide.");
-      }
       case "anthropic": {
         const res = await fetch("https://api.anthropic.com/v1/models?limit=1", {
           headers: { "x-api-key": cle, "anthropic-version": "2023-06-01" },

@@ -52,7 +52,7 @@ export default function FileGeneration({
             ? erreurs > 0
               ? "Relance celles qui ont échoué, ou continue sans elles."
               : "Relis, ajuste, puis choisis le statut de chaque article."
-            : "MyFlip rédige tes annonces avec Gemini Flash, une par une."}
+            : "MyFlip rédige tes annonces une par une."}
         </p>
 
         <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">

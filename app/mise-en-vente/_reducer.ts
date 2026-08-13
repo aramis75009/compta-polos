@@ -334,7 +334,7 @@ export function reducerMev(etat: EtatMev, action: ActionMev): EtatMev {
 
     case "photo/liberer-base":
       // Coupe la référence au canvas pleine résolution sur TOUTES les fiches.
-      // Le blob reste : c'est lui qu'on envoie à Gemini et qu'on télécharge.
+      // Le blob reste : c'est lui qu'on envoie au modèle et qu'on télécharge.
       return {
         ...etat,
         fiches: etat.fiches.map((f) => ({

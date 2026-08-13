@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { ensureDefaultPrompt, toPromptDTO } from "@/lib/promptsServer";
 import { compilePrompt, pickPrompt } from "@/lib/promptSelect";
-import { generateListing, type GeminiImage } from "@/lib/gemini";
+import { generateListing, type ImageAnnonce } from "@/lib/openrouter";
 import { resoudreReglages } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // la génération Gemini peut être longue
+export const maxDuration = 60; // la génération peut être longue
 
 type Body = {
   sku?: string;
@@ -22,7 +22,7 @@ type Body = {
 };
 
 // Parse une image client (dataURL ou base64 brut) → { mimeType, data }.
-function parseImage(raw: string): GeminiImage {
+function parseImage(raw: string): ImageAnnonce {
   const m = raw.match(/^data:([^;]+);base64,([\s\S]*)$/);
   if (m) return { mimeType: m[1], data: m[2] };
   return { mimeType: "image/jpeg", data: raw };
@@ -30,8 +30,8 @@ function parseImage(raw: string): GeminiImage {
 
 // POST /api/listings/generate
 export async function POST(req: NextRequest) {
-  // Cette route consomme la clé Gemini du serveur : sans garde, n'importe qui
-  // pouvait générer des annonces aux frais du déploiement.
+  // Cette route consomme la clé OpenRouter du serveur : sans garde, n'importe
+  // qui pouvait générer des annonces aux frais du déploiement.
   const userId = await getUserId();
   if (!userId) return unauthorized();
 
@@ -91,12 +91,15 @@ export async function POST(req: NextRequest) {
       details: body.details,
     });
 
-    // Clé de l'utilisateur si elle existe, sinon celle de l'application.
+    // Clé de l'utilisateur si elle existe, sinon celle de l'application. Le
+    // modèle, lui, n'a pas de repli d'environnement : `generateListing` retombe
+    // sur MODELE_PAR_DEFAUT quand le compte n'a rien choisi.
     const reglages = await resoudreReglages(userId);
     const result = await generateListing(
       compiled,
       images.map(parseImage),
-      reglages.geminiKey,
+      reglages.openrouterKey,
+      reglages.modeleIA,
     );
 
     return NextResponse.json({ ...result, promptNom: tmpl.nom });

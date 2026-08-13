@@ -50,6 +50,9 @@ model UserSettings {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Clés IA, chiffrées. Absentes = on retombe sur la clé d'environnement.
+  // ⚠️ `geminiKey` n'est PLUS LUE : la génération passe par OpenRouter depuis le
+  // 13/08/2026. La colonne est conservée volontairement — une clé effacée ne se
+  // récupère pas, et `prisma db push` proposera de la dropper : refuser.
   geminiKey     String? @db.Text
   anthropicKey  String? @db.Text
   openrouterKey String? @db.Text
@@ -210,7 +213,7 @@ model Article {
   @@index([lotId])
 }
 
-// Prompt personnalisable pour la génération d'annonces via Gemini.
+// Prompt personnalisable pour la génération d'annonces.
 // Sélection par marque/catégorie (cf. lib/promptSelect), repli sur estDefaut.
 model PromptTemplate {
   id        String   @id @default(cuid())

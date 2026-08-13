@@ -9,11 +9,13 @@ import {
   useDeletePrompt,
   useObjectifMensuel,
   usePrompts,
+  useReglages,
   useSetObjectif,
   useUpdatePrompt,
 } from "@/lib/hooks";
 import type { PromptTemplateDTO } from "@/lib/types";
 import { euros } from "@/lib/calc";
+import { libelleModele } from "@/lib/modelesIA";
 import { useIdentite } from "@/lib/useIdentite";
 import Modal from "@/components/Modal";
 import MetaPrompt from "@/components/parametres/MetaPrompt";
@@ -162,6 +164,9 @@ function ObjectifMensuelCard() {
 export default function PromptsPage() {
   const { nom: NOM, email, initiale } = useIdentite();
   const { data: prompts = [], isLoading } = usePrompts();
+  // La tuile « Modèle IA » lisait « Gemini Flash » en dur. Depuis que le modèle
+  // se choisit dans /compte, une valeur figée y serait simplement fausse.
+  const { data: reglages } = useReglages();
   const create = useCreatePrompt();
   const update = useUpdatePrompt();
   const del = useDeletePrompt();
@@ -251,8 +256,8 @@ export default function PromptsPage() {
           <div className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-[var(--faint)]">
             MODÈLE IA
           </div>
-          <div className="mt-2 text-[30px] font-bold tracking-[-0.02em]">
-            Gemini Flash
+          <div className="mt-2 truncate text-[30px] font-bold tracking-[-0.02em]">
+            {libelleModele(reglages?.modeleIA ?? null)}
           </div>
         </Module>
         <Module className="p-[20px]">

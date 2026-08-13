@@ -5,9 +5,9 @@ import { testerCle, type Fournisseur } from "@/lib/aiTest";
 
 export const dynamic = "force-dynamic";
 
-const FOURNISSEURS: Fournisseur[] = ["gemini", "anthropic", "openrouter"];
+const FOURNISSEURS: Fournisseur[] = ["anthropic", "openrouter"];
 
-// POST /api/user/settings/test?fournisseur=gemini
+// POST /api/user/settings/test?fournisseur=openrouter
 //
 // Teste la clé RÉELLEMENT utilisée pour ce compte — celle de l'utilisateur si
 // elle existe, sinon celle de l'application. C'est la question qui intéresse
@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
   try {
     const reglages = await resoudreReglages(userId);
     const cle = {
-      gemini: reglages.geminiKey,
       anthropic: reglages.anthropicKey,
       openrouter: reglages.openrouterKey,
     }[fournisseur];

@@ -4,7 +4,7 @@
 // ⚠️ Ce texte décrit un CONTRAT TECHNIQUE réel. S'il diverge de ce que
 // l'application attend, il produit des prompts qui échouent en production :
 //   • les variables sont celles de `compilePrompt` (lib/promptSelect.ts) ;
-//   • le format de sortie est imposé par le `responseSchema` de lib/gemini.ts ;
+//   • le format de sortie est imposé par le `response_format` de lib/openrouter.ts ;
 //   • la génération est multimodale — les photos accompagnent le prompt
 //     (app/api/listings/generate/route.ts refuse une requête sans image).
 // Toute modification de l'un de ces trois points doit être répercutée ici.
@@ -28,8 +28,9 @@ export function metaPrompt(cible: CibleMetaPrompt = {}): string {
       : `Ce modèle servira de repli pour tous les articles, toutes marques et catégories confondues. Reste applicable à n'importe quel vêtement d'occasion.`;
 
   return `Tu vas rédiger un MODÈLE DE PROMPT destiné à une application de revente
-de vêtements d'occasion appelée MyFlip. Ce modèle sera envoyé tel quel à Gemini
-Flash, accompagné des photos d'un article, pour produire une annonce Vinted.
+de vêtements d'occasion appelée MyFlip. Ce modèle sera envoyé tel quel à un
+modèle multimodal, accompagné des photos d'un article, pour produire une
+annonce Vinted.
 
 ${visee}
 

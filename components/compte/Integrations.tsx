@@ -11,6 +11,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound, SquareKanban } from "lucide-react";
 import { toast } from "sonner";
 import { CardTitle, Module } from "@/components/console";
+import {
+  estModeleLibre,
+  MODELE_PAR_DEFAUT,
+  MODELES_PROPOSES,
+} from "@/lib/modelesIA";
 import type {
   SecretEtat,
   SourceReglage,
@@ -27,6 +32,9 @@ const boutonCls =
   "inline-flex min-h-[46px] items-center justify-center rounded-[16px] bg-[var(--acc)] px-5 text-[13.5px] font-semibold text-[var(--acc-ink)] transition-colors hover:bg-[var(--acc-hover)] disabled:opacity-60";
 const boutonSecondaireCls =
   "inline-flex min-h-[46px] items-center justify-center rounded-[16px] border border-[var(--border)] bg-[var(--surface-2)] px-5 text-[13.5px] text-[var(--ink2)] transition-colors hover:border-[var(--border-strong)] disabled:opacity-60";
+
+/** Valeur du menu qui ouvre la saisie manuelle. Jamais enregistrée telle quelle. */
+const AUTRE_MODELE = "__autre__";
 
 /** Pastille d'origine de la valeur utilisée à l'exécution. */
 function Origine({ source }: { source: SourceReglage }) {
@@ -170,9 +178,15 @@ export default function Integrations() {
   const [enCours, setEnCours] = useState(false);
 
   // Saisies en cours. Vides = « ne rien changer », jamais « effacer ».
-  const [gemini, setGemini] = useState("");
   const [anthropic, setAnthropic] = useState("");
   const [openrouter, setOpenrouter] = useState("");
+
+  // Modèle de rédaction. Deux états et non un : `choix` porte la valeur du menu
+  // (un id, ou la sentinelle AUTRE), `libre` porte la saisie manuelle. Les
+  // fondre en un seul champ ferait disparaître la saisie dès que le menu
+  // reprend la main, et l'utilisateur perdrait ce qu'il vient de taper.
+  const [choixModele, setChoixModele] = useState<string>(MODELE_PAR_DEFAUT);
+  const [modeleLibre, setModeleLibre] = useState("");
   const [trelloKey, setTrelloKey] = useState("");
   const [trelloToken, setTrelloToken] = useState("");
   const [trelloSecret, setTrelloSecret] = useState("");
@@ -188,6 +202,16 @@ export default function Integrations() {
     if (!res.ok) return;
     const json = (await res.json()) as UserSettingsDTO;
     setDto(json);
+    // Un modèle enregistré hors de la liste courte rouvre le champ libre :
+    // sinon le menu affichait le défaut et donnait à croire que le choix
+    // manuel avait été perdu.
+    if (estModeleLibre(json.modeleIA)) {
+      setChoixModele(AUTRE_MODELE);
+      setModeleLibre(json.modeleIA ?? "");
+    } else {
+      setChoixModele(json.modeleIA ?? MODELE_PAR_DEFAUT);
+      setModeleLibre("");
+    }
     setBoardId(json.trelloBoardId ?? "");
     setLabelId(json.trelloLabelId ?? "");
     setComptaLabelId(json.trelloComptabiliseLabelId ?? "");
@@ -298,14 +322,14 @@ export default function Integrations() {
 
   const secretsIA = [
     {
-      cle: "geminiKey",
-      titre: "Clé Google Gemini",
-      valeur: gemini,
-      set: setGemini,
-      etat: dto.gemini,
-      source: dto.source.gemini,
-      test: "gemini",
-      aide: "Elle rédige tes annonces à partir des photos. Où la trouver : aistudio.google.com/apikey, bouton « Create API key ».",
+      cle: "openrouterKey",
+      titre: "Clé OpenRouter",
+      valeur: openrouter,
+      set: setOpenrouter,
+      etat: dto.openrouter,
+      source: dto.source.openrouter,
+      test: "openrouter",
+      aide: "Elle rédige tes annonces à partir des photos, quel que soit le modèle choisi ci-dessous. Où la trouver : openrouter.ai/keys.",
     },
     {
       cle: "anthropicKey",
@@ -316,16 +340,6 @@ export default function Integrations() {
       source: dto.source.anthropic,
       test: "anthropic",
       aide: "Elle fait tourner l'assistant, la bulle en bas à droite. Où la trouver : console.anthropic.com, section API keys.",
-    },
-    {
-      cle: "openrouterKey",
-      titre: "Clé OpenRouter",
-      valeur: openrouter,
-      set: setOpenrouter,
-      etat: dto.openrouter,
-      source: dto.source.openrouter,
-      test: "openrouter",
-      aide: "Facultative aujourd'hui : elle servira à choisir un autre modèle que Gemini quand ce sera disponible. Tu peux la laisser vide.",
     },
   ] as const;
 
@@ -374,7 +388,6 @@ export default function Integrations() {
             disabled={enCours || !dto.chiffrementDisponible}
             onClick={async () => {
               const patch: Record<string, string> = {};
-              if (gemini.trim()) patch.geminiKey = gemini.trim();
               if (anthropic.trim()) patch.anthropicKey = anthropic.trim();
               if (openrouter.trim()) patch.openrouterKey = openrouter.trim();
               if (Object.keys(patch).length === 0) {
@@ -382,7 +395,6 @@ export default function Integrations() {
                 return;
               }
               if (await enregistrer(patch)) {
-                setGemini("");
                 setAnthropic("");
                 setOpenrouter("");
               }
@@ -391,6 +403,66 @@ export default function Integrations() {
           >
             Enregistrer mes clés
           </button>
+
+          <div className="h-px bg-[var(--border)]" />
+
+          {/* ── Modèle de rédaction ─────────────────────────────────────── */}
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} htmlFor="modele-ia">
+              Modèle qui rédige les annonces
+            </label>
+            <select
+              id="modele-ia"
+              value={choixModele}
+              onChange={(e) => setChoixModele(e.target.value)}
+              className={inputCls}
+            >
+              {MODELES_PROPOSES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.libelle} — {m.prix} $/M
+                  {m.id === MODELE_PAR_DEFAUT ? " (par défaut)" : ""}
+                </option>
+              ))}
+              <option value={AUTRE_MODELE}>Autre…</option>
+            </select>
+
+            <p className="text-[12px] leading-snug text-[var(--faint)]">
+              {choixModele === AUTRE_MODELE
+                ? "Identifiant OpenRouter exact, par exemple mistralai/mistral-medium-3.1. Il doit savoir lire des images et rendre du JSON structuré, sinon chaque génération échouera."
+                : (MODELES_PROPOSES.find((m) => m.id === choixModele)?.note ??
+                  "")}
+            </p>
+
+            {choixModele === AUTRE_MODELE && (
+              <input
+                value={modeleLibre}
+                onChange={(e) => setModeleLibre(e.target.value)}
+                placeholder="fournisseur/modele"
+                autoComplete="off"
+                spellCheck={false}
+                className={inputCls}
+              />
+            )}
+
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() => {
+                const id =
+                  choixModele === AUTRE_MODELE
+                    ? modeleLibre.trim()
+                    : choixModele;
+                if (!id) {
+                  toast.error("Saisis un identifiant de modèle.");
+                  return;
+                }
+                enregistrer({ modeleIA: id });
+              }}
+              className={`${boutonSecondaireCls} self-start`}
+            >
+              Enregistrer le modèle
+            </button>
+          </div>
         </div>
       </Module>
 
