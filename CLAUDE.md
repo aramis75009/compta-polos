@@ -188,6 +188,18 @@ et revient sur `/api/trello/callback`. Le jeton est chiffré dans
 `UserSettings.trelloOauthToken` et **ne transite jamais par le navigateur**. Aucun
 champ de saisie de clé/token/secret ne subsiste dans l'interface.
 
+⚠️ **L'origine de rappel DOIT être déclarée chez Trello.** Contrairement à ce qu'on
+pourrait croire d'un flux OAuth 1.0a où le `oauth_callback` est transmis à chaque
+demande, Trello le valide contre la liste **« Allowed Origins »** du Power-Up
+(trello.com/power-ups/admin → le Power-Up → onglet API key). Une origine absente
+donne, sur l'écran d'autorisation : *« Invalid return_url. The return URL should match
+the application's allowed origins. »* — après que le jeton de requête a été obtenu avec
+succès, ce qui fait croire à tort à un problème de signature.
+
+Origines à déclarer : `https://myflip-app.vercel.app` (l'hôte de l'application, celui
+d'où part la connexion), plus `http://localhost:3000` pour le développement. Les
+wildcards (`*`) sont dépréciés côté Trello et ne fonctionnent plus.
+
 **Pourquoi OAuth 1.0a et pas 2.0** : Trello n'a pas d'OAuth 2.0 sur son API REST. Le
 seul autre flux, `/1/authorize`, ne sait rendre le jeton qu'au navigateur (fragment
 d'URL ou `postMessage`) — d'où son rejet. Le protocole vit dans `lib/trelloOAuth.ts` ;
@@ -261,10 +273,23 @@ La génération d'annonces appelle `lib/openrouter.ts` avec le modèle choisi da
 La colonne `UserSettings.geminiKey` survit en base mais n'est lue nulle part —
 même consigne que `photosPretes` : `prisma db push` proposera de la dropper, refuser.
 
-**Ajouter un modèle à la liste courte** de `lib/modelesIA.ts` impose de vérifier
-sur `openrouter.ai/api/v1/models` qu'il a `input_modalities: image` ET
-`supported_parameters: structured_outputs`. Sans les deux, il échoue à *chaque*
-génération, pas une fois sur dix.
+⚠️ **`ANTHROPIC_API_KEY` n'est plus lue non plus**, depuis le passage de l'assistant
+(`/api/chat`) à OpenRouter (15/08/2026). L'assistant appelle `lib/openrouterChat.ts`
+avec le modèle choisi dans `/compte` (`UserSettings.modeleChatIA`, repli
+`MODELE_CHAT_PAR_DEFAUT` de `lib/modelesIA.ts`). Même consigne pour
+`UserSettings.anthropicKey` : la colonne survit en base, `prisma db push` proposera
+de la dropper, refuser.
+
+**Deux catalogues de modèles distincts dans `lib/modelesIA.ts`**, pas superposables :
+- `MODELES_PROPOSES` (génération d'annonces) — exige `input_modalities: image` ET
+  `supported_parameters: structured_outputs` sur `openrouter.ai/api/v1/models`. Sans
+  les deux, une génération échoue à *chaque* fois, pas une fois sur dix.
+- `MODELES_CHAT_PROPOSES` (assistant) — exige seulement `supported_parameters:
+  tools` : l'assistant appelle des outils, il ne lit ni image ni JSON forcé. C'est ce
+  qui permet d'y proposer des modèles texte-seul (DeepSeek, entre autres) qui
+  n'auraient jamais leur place dans le premier catalogue.
+
+Vérifier la bonne exigence avant d'ajouter une ligne à l'un ou l'autre.
 
 ```
 AUTH_SECRET
@@ -272,8 +297,7 @@ AUTH_TRUST_HOST=true
 NEXTAUTH_URL
 INVITE_CODES            # codes d'invitation acceptés sur /signup ; absente = aucune inscription
 ENCRYPTION_KEY          # 32 octets hex : chiffre les secrets de UserSettings (AES-256-GCM)
-ANTHROPIC_API_KEY       # chatbot uniquement (/api/chat)
-OPENROUTER_API_KEY      # génération d'annonces : repli quand le compte n'a pas sa clé
+OPENROUTER_API_KEY      # génération d'annonces + assistant : repli quand le compte n'a pas sa clé
 TRELLO_API_KEY          # clé de l'APPLICATION MyFlip (trello.com/power-ups/admin)
 TRELLO_API_SECRET       # « OAuth Secret » : signe l'OAuth et valide les webhooks
 RESEND_API_KEY

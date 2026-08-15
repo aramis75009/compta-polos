@@ -360,17 +360,17 @@ export type TrelloEtatDTO = {
 };
 
 export type UserSettingsDTO = {
-  anthropic: SecretEtat;
   openrouter: SecretEtat;
   trello: TrelloEtatDTO;
   /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
+  /** Identifiant OpenRouter du modèle de l'assistant conversationnel. */
+  modeleChatIA: string | null;
   objectifMensuel: number | null;
   /** Étape en cours du parcours de démarrage (1 à 3). */
   onboardingEtape: number;
   onboardingTermine: boolean;
   source: {
-    anthropic: SourceReglage;
     openrouter: SourceReglage;
     trello: SourceTrello;
   };

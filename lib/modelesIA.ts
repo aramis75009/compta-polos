@@ -37,8 +37,14 @@ export const MODELES_PROPOSES: ModelePropose[] = [
   {
     id: "google/gemini-3.6-flash",
     libelle: "Gemini 3.6 Flash",
-    prix: "1.50 / 7.50",
+    prix: "0.75 / 3.75",
     note: "Le modèle d'avant. Mêmes annonces, autre facture.",
+  },
+  {
+    id: "google/gemini-3.7-flash",
+    libelle: "Gemini 3.7 Flash",
+    prix: "0.38 / 1.88",
+    note: "Plus récent et moins cher que 3.6 Flash, même famille.",
   },
   {
     id: "google/gemini-3.5-flash-lite",
@@ -65,6 +71,61 @@ export const MODELES_PROPOSES: ModelePropose[] = [
     note: "Autre famille, utile en repli.",
   },
 ];
+
+/**
+ * Catalogue SÉPARÉ pour l'assistant conversationnel (bulle en bas à droite).
+ *
+ * L'assistant n'a besoin ni de lire des images ni de sortie JSON forcée : il
+ * lui faut seulement l'appel d'outils (`tools`, function calling). C'est une
+ * exigence plus large, mais pas superposable à `MODELES_PROPOSES` — DeepSeek,
+ * utile ici pour son prix, n'a AUCUNE capacité image sur OpenRouter et ne
+ * pourrait jamais figurer dans le catalogue des annonces.
+ *
+ * Vérifier `input_modalities` (peu importe pour ce catalogue) et
+ * `supported_parameters: tools` sur `openrouter.ai/api/v1/models` avant d'y
+ * ajouter une ligne.
+ */
+export const MODELES_CHAT_PROPOSES: ModelePropose[] = [
+  {
+    id: "anthropic/claude-sonnet-4.6",
+    libelle: "Claude Sonnet 4.6",
+    prix: "3.00 / 15.00",
+    note: "Le modèle qui faisait déjà tourner l'assistant, via Anthropic direct.",
+  },
+  {
+    id: "google/gemini-3.7-flash",
+    libelle: "Gemini 3.7 Flash",
+    prix: "0.38 / 1.88",
+    note: "Rapide et très économique pour des échanges courts.",
+  },
+  {
+    id: "deepseek/deepseek-v4-flash-0731",
+    libelle: "DeepSeek V4 Flash",
+    prix: "0.14 / 0.28",
+    note: "Le moins cher du lot. Pas d'image, sans importance ici.",
+  },
+  {
+    id: "openai/gpt-5.4-mini",
+    libelle: "GPT-5.4 mini",
+    prix: "0.75 / 4.50",
+    note: "Autre famille, utile en repli.",
+  },
+];
+
+/**
+ * Modèle utilisé par l'assistant quand le compte n'a rien choisi.
+ *
+ * C'est exactement le modèle codé en dur dans `/api/chat` avant le passage par
+ * OpenRouter (`claude-sonnet-4-6` côté SDK Anthropic) : le défaut ne change
+ * donc rien à la qualité des réponses, seule la facturation change de guichet.
+ */
+export const MODELE_CHAT_PAR_DEFAUT = "anthropic/claude-sonnet-4.6";
+
+/** Vrai si l'identifiant ne fait pas partie du catalogue chat. */
+export function estModeleChatLibre(id: string | null): boolean {
+  if (!id) return false;
+  return !MODELES_CHAT_PROPOSES.some((m) => m.id === id);
+}
 
 /** Vrai si l'identifiant ne fait pas partie de la liste courte. */
 export function estModeleLibre(id: string | null): boolean {

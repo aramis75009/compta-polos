@@ -54,15 +54,15 @@ export type ReglagesTrelloBruts = {
 };
 
 export type ReglagesResolus = {
-  anthropicKey: string | null;
   openrouterKey: string | null;
   trello: TrelloContexte | null;
   /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
+  /** Identifiant OpenRouter du modèle de l'assistant conversationnel. */
+  modeleChatIA: string | null;
   objectifMensuel: number | null;
-  /** Pour les clés IA : la valeur vient-elle du compte ou de l'application ? */
+  /** Pour la clé IA : la valeur vient-elle du compte ou de l'application ? */
   source: {
-    anthropic: "utilisateur" | "app" | "absente";
     openrouter: "utilisateur" | "app" | "absente";
     trello: SourceTrello;
   };
@@ -132,10 +132,6 @@ export async function resoudreReglages(userId: string): Promise<ReglagesResolus>
     return env ? [env, "app"] : [null, "absente"];
   };
 
-  const [anthropic, srcAnthropic] = cascade(
-    dechiffrerOuNull(s?.anthropicKey),
-    process.env.ANTHROPIC_API_KEY,
-  );
   const [openrouter, srcOpenrouter] = cascade(
     dechiffrerOuNull(s?.openrouterKey),
     process.env.OPENROUTER_API_KEY,
@@ -155,13 +151,12 @@ export async function resoudreReglages(userId: string): Promise<ReglagesResolus>
   );
 
   return {
-    anthropicKey: anthropic,
     openrouterKey: openrouter,
     trello,
     modeleIA: vide(s?.modeleIA),
+    modeleChatIA: vide(s?.modeleChatIA),
     objectifMensuel: s?.objectifMensuel ?? null,
     source: {
-      anthropic: srcAnthropic,
       openrouter: srcOpenrouter,
       trello: trello?.source ?? "absente",
     },

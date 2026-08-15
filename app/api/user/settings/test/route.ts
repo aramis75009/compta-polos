@@ -5,7 +5,7 @@ import { testerCle, type Fournisseur } from "@/lib/aiTest";
 
 export const dynamic = "force-dynamic";
 
-const FOURNISSEURS: Fournisseur[] = ["anthropic", "openrouter"];
+const FOURNISSEURS: Fournisseur[] = ["openrouter"];
 
 // POST /api/user/settings/test?fournisseur=openrouter
 //
@@ -24,10 +24,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const reglages = await resoudreReglages(userId);
-    const cle = {
-      anthropic: reglages.anthropicKey,
-      openrouter: reglages.openrouterKey,
-    }[fournisseur];
+    const cle = { openrouter: reglages.openrouterKey }[fournisseur];
 
     if (!cle) {
       return NextResponse.json({

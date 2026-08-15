@@ -1,92 +1,115 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { deriveVente, euros, STATUT_VENDU, STATUTS } from "@/lib/calc";
 import { resoudreReglages } from "@/lib/settings";
+import {
+  appelerChat,
+  appelsOutils,
+  construireCorpsChat,
+  ErreurAssistant,
+  messageAssistantBrut,
+  texteAssistant,
+  type MessageChat,
+  type OutilChat,
+} from "@/lib/openrouterChat";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const MODEL = "claude-sonnet-4-6";
 const MUTATING = new Set(["update_articles_status", "mark_articles_sold"]);
 
-// ---------- Définition des outils exposés à Claude ----------
+// ---------- Définition des outils exposés au modèle ----------
 
-const tools: Anthropic.Tool[] = [
+const tools: OutilChat[] = [
   {
-    name: "get_stats",
-    description:
-      "Récupère les indicateurs globaux : chiffre d'affaires total, marge nette totale, nombre d'articles en stock, nombre d'articles vendus et total d'articles.",
-    input_schema: { type: "object", properties: {} },
-  },
-  {
-    name: "get_articles",
-    description:
-      "Récupère la liste des articles, avec filtres optionnels. 'sku' accepte un SKU exact, un préfixe (ex. 'PRL') ou une liste séparée par des virgules.",
-    input_schema: {
-      type: "object",
-      properties: {
-        marque: { type: "string", description: "Nom exact de la marque" },
-        statut: { type: "string", description: "Statut exact" },
-        sku: { type: "string", description: "SKU exact, préfixe ou liste" },
-        limit: { type: "number", description: "Nombre max d'articles (défaut 50)" },
-      },
+    type: "function",
+    function: {
+      name: "get_stats",
+      description:
+        "Récupère les indicateurs globaux : chiffre d'affaires total, marge nette totale, nombre d'articles en stock, nombre d'articles vendus et total d'articles.",
+      parameters: { type: "object", properties: {} },
     },
   },
   {
-    name: "count_articles",
-    description:
-      "Compte les articles correspondant à un filtre (marque, statut, sku).",
-    input_schema: {
-      type: "object",
-      properties: {
-        marque: { type: "string" },
-        statut: { type: "string" },
-        sku: { type: "string", description: "SKU exact, préfixe ou liste" },
-      },
-    },
-  },
-  {
-    name: "update_articles_status",
-    description:
-      "Modifie le statut d'un ensemble d'articles. Ne pas utiliser pour le statut 'Vendu' (utiliser mark_articles_sold). Le filtre peut cibler par marque, statut actuel, sku (exact/préfixe/liste) et limiter le nombre.",
-    input_schema: {
-      type: "object",
-      properties: {
-        filtre: {
-          type: "object",
-          properties: {
-            marque: { type: "string" },
-            statut_actuel: { type: "string" },
-            sku: { type: "string", description: "SKU exact, préfixe ou liste" },
-            limit: { type: "number", description: "Nombre max d'articles à modifier" },
-          },
+    type: "function",
+    function: {
+      name: "get_articles",
+      description:
+        "Récupère la liste des articles, avec filtres optionnels. 'sku' accepte un SKU exact, un préfixe (ex. 'PRL') ou une liste séparée par des virgules.",
+      parameters: {
+        type: "object",
+        properties: {
+          marque: { type: "string", description: "Nom exact de la marque" },
+          statut: { type: "string", description: "Statut exact" },
+          sku: { type: "string", description: "SKU exact, préfixe ou liste" },
+          limit: { type: "number", description: "Nombre max d'articles (défaut 50)" },
         },
-        nouveau_statut: { type: "string", description: "Le nouveau statut" },
       },
-      required: ["filtre", "nouveau_statut"],
     },
   },
   {
-    name: "mark_articles_sold",
-    description:
-      "Marque des articles comme vendus avec un prix de vente et une date de vente (format ISO ou YYYY-MM-DD). Le filtre cible par marque, sku (exact/préfixe/liste) et limit.",
-    input_schema: {
-      type: "object",
-      properties: {
-        filtre: {
-          type: "object",
-          properties: {
-            marque: { type: "string" },
-            sku: { type: "string", description: "SKU exact, préfixe ou liste" },
-            limit: { type: "number" },
-          },
+    type: "function",
+    function: {
+      name: "count_articles",
+      description:
+        "Compte les articles correspondant à un filtre (marque, statut, sku).",
+      parameters: {
+        type: "object",
+        properties: {
+          marque: { type: "string" },
+          statut: { type: "string" },
+          sku: { type: "string", description: "SKU exact, préfixe ou liste" },
         },
-        prixVente: { type: "number" },
-        dateVente: { type: "string", description: "Date ISO ou YYYY-MM-DD" },
       },
-      required: ["prixVente", "dateVente"],
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_articles_status",
+      description:
+        "Modifie le statut d'un ensemble d'articles. Ne pas utiliser pour le statut 'Vendu' (utiliser mark_articles_sold). Le filtre peut cibler par marque, statut actuel, sku (exact/préfixe/liste) et limiter le nombre.",
+      parameters: {
+        type: "object",
+        properties: {
+          filtre: {
+            type: "object",
+            properties: {
+              marque: { type: "string" },
+              statut_actuel: { type: "string" },
+              sku: { type: "string", description: "SKU exact, préfixe ou liste" },
+              limit: { type: "number", description: "Nombre max d'articles à modifier" },
+            },
+          },
+          nouveau_statut: { type: "string", description: "Le nouveau statut" },
+        },
+        required: ["filtre", "nouveau_statut"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mark_articles_sold",
+      description:
+        "Marque des articles comme vendus avec un prix de vente et une date de vente (format ISO ou YYYY-MM-DD). Le filtre cible par marque, sku (exact/préfixe/liste) et limit.",
+      parameters: {
+        type: "object",
+        properties: {
+          filtre: {
+            type: "object",
+            properties: {
+              marque: { type: "string" },
+              sku: { type: "string", description: "SKU exact, préfixe ou liste" },
+              limit: { type: "number" },
+            },
+          },
+          prixVente: { type: "number" },
+          dateVente: { type: "string", description: "Date ISO ou YYYY-MM-DD" },
+        },
+        required: ["prixVente", "dateVente"],
+      },
     },
   },
 ];
@@ -339,12 +362,12 @@ export async function POST(req: NextRequest) {
 
   try {
     // Clé du compte si l'utilisateur en a saisi une, sinon celle de l'app.
-    const { anthropicKey } = await resoudreReglages(userId);
-    if (!anthropicKey) {
+    const { openrouterKey, modeleChatIA } = await resoudreReglages(userId);
+    if (!openrouterKey) {
       return NextResponse.json(
         {
           error:
-            "Aucune clé Anthropic : renseigne la tienne dans Mon compte, ou configure celle de l'application.",
+            "Aucune clé OpenRouter : renseigne la tienne dans Mon compte, ou configure celle de l'application.",
         },
         { status: 500 },
       );
@@ -370,73 +393,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message vide." }, { status: 400 });
     }
 
-    const client = new Anthropic({ apiKey: anthropicKey });
-    const messages: Anthropic.MessageParam[] = [
-      { role: "user", content: message },
-    ];
+    const historique: MessageChat[] = [{ role: "user", content: message }];
 
-    let response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system: SYSTEM,
-      tools,
-      messages,
-    });
+    let reponse = await appelerChat(
+      construireCorpsChat(SYSTEM, tools, historique, modeleChatIA),
+      openrouterKey,
+    );
 
-    // Boucle : on exécute les outils de LECTURE et on relance Claude ;
+    // Boucle : on exécute les outils de LECTURE et on relance le modèle ;
     // dès qu'un outil de MUTATION apparaît, on s'arrête et on attend confirmation.
     for (let i = 0; i < 5; i++) {
-      const toolUses = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-      );
-      const texte = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
+      const appels = appelsOutils(reponse);
+      const texte = texteAssistant(reponse);
 
-      if (toolUses.length === 0) {
+      if (appels.length === 0) {
         return NextResponse.json({ result: texte || "…" });
       }
 
-      const mutation = toolUses.find((t) => MUTATING.has(t.name));
+      const mutation = appels.find((t) => MUTATING.has(t.name));
       if (mutation) {
         return NextResponse.json({
-          plan: texte || defaultPlan(mutation.name, mutation.input as Record<string, unknown>),
-          pendingAction: {
-            tool: mutation.name,
-            input: mutation.input as Record<string, unknown>,
-          },
+          plan: texte || defaultPlan(mutation.name, mutation.input),
+          pendingAction: { tool: mutation.name, input: mutation.input },
         });
       }
 
       // Tous les outils sont en lecture : on les exécute et on continue.
-      messages.push({
-        role: "assistant",
-        content: response.content as Anthropic.ContentBlockParam[],
-      });
-      const toolResults: Anthropic.ContentBlockParam[] = [];
-      for (const t of toolUses) {
-        const data = await runRead(
-          t.name,
-          t.input as Record<string, unknown>,
-          userId,
-        );
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: t.id,
+      historique.push(messageAssistantBrut(reponse));
+      for (const appel of appels) {
+        const data = await runRead(appel.name, appel.input, userId);
+        historique.push({
+          role: "tool",
+          tool_call_id: appel.id,
           content: JSON.stringify(data),
         });
       }
-      messages.push({ role: "user", content: toolResults });
 
-      response = await client.messages.create({
-        model: MODEL,
-        max_tokens: 1024,
-        system: SYSTEM,
-        tools,
-        messages,
-      });
+      reponse = await appelerChat(
+        construireCorpsChat(SYSTEM, tools, historique, modeleChatIA),
+        openrouterKey,
+      );
     }
 
     return NextResponse.json({
@@ -444,22 +440,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("POST /api/chat", err);
-    // Erreurs renvoyées par l'API Anthropic (crédits, quota, clé…) :
-    // on remonte un message clair plutôt qu'un générique.
-    if (err instanceof Anthropic.APIError) {
-      const apiMsg =
-        (err as { error?: { error?: { message?: string } } }).error?.error
-          ?.message ?? err.message;
-      let friendly = `Assistant indisponible : ${apiMsg}`;
-      if (err.status === 400 && /credit balance/i.test(apiMsg)) {
-        friendly =
-          "Assistant indisponible : le solde de crédits du compte Anthropic est insuffisant. Ajoute des crédits sur console.anthropic.com (Plans & Billing).";
-      } else if (err.status === 401) {
-        friendly = "Assistant indisponible : clé API Anthropic invalide.";
-      } else if (err.status === 429) {
-        friendly = "Assistant indisponible : limite de requêtes atteinte, réessaie dans un instant.";
-      }
-      return NextResponse.json({ error: friendly }, { status: 502 });
+    // Seule une `ErreurAssistant` porte un message SÛR à renvoyer tel quel
+    // (clé refusée, crédits épuisés, modèle inconnu…) — cf. lib/openrouterChat.ts.
+    // Toute autre erreur (Prisma, bug interne) reste générique.
+    if (err instanceof ErreurAssistant) {
+      return NextResponse.json({ error: err.message }, { status: 502 });
     }
     return NextResponse.json(
       { error: "Erreur de l'assistant IA." },

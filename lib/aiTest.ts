@@ -4,7 +4,7 @@
 // Aucune génération n'est déclenchée — vérifier une clé ne doit rien coûter à
 // l'utilisateur ni consommer son quota.
 
-export type Fournisseur = "anthropic" | "openrouter";
+export type Fournisseur = "openrouter";
 
 export type ResultatTest = { ok: boolean; message: string };
 
@@ -22,13 +22,6 @@ export async function testerCle(
 ): Promise<ResultatTest> {
   try {
     switch (fournisseur) {
-      case "anthropic": {
-        const res = await fetch("https://api.anthropic.com/v1/models?limit=1", {
-          headers: { "x-api-key": cle, "anthropic-version": "2023-06-01" },
-          cache: "no-store",
-        });
-        return verdict(res, "Clé Anthropic valide.");
-      }
       case "openrouter": {
         const res = await fetch("https://openrouter.ai/api/v1/key", {
           headers: { Authorization: `Bearer ${cle}` },

@@ -12,8 +12,11 @@ import { KeyRound, SquareKanban } from "lucide-react";
 import { toast } from "sonner";
 import { CardTitle, Module } from "@/components/console";
 import {
+  estModeleChatLibre,
   estModeleLibre,
+  MODELE_CHAT_PAR_DEFAUT,
   MODELE_PAR_DEFAUT,
+  MODELES_CHAT_PROPOSES,
   MODELES_PROPOSES,
 } from "@/lib/modelesIA";
 import { type CodeErreurTrello, messageErreur } from "@/lib/trelloErreurs";
@@ -178,8 +181,7 @@ export default function Integrations() {
   const [dto, setDto] = useState<UserSettingsDTO | null>(null);
   const [enCours, setEnCours] = useState(false);
 
-  // Saisies en cours. Vides = « ne rien changer », jamais « effacer ».
-  const [anthropic, setAnthropic] = useState("");
+  // Saisie en cours. Vide = « ne rien changer », jamais « effacer ».
   const [openrouter, setOpenrouter] = useState("");
 
   // Modèle de rédaction. Deux états et non un : `choix` porte la valeur du menu
@@ -188,6 +190,11 @@ export default function Integrations() {
   // reprend la main, et l'utilisateur perdrait ce qu'il vient de taper.
   const [choixModele, setChoixModele] = useState<string>(MODELE_PAR_DEFAUT);
   const [modeleLibre, setModeleLibre] = useState("");
+
+  // Même logique, pour le modèle de l'assistant (catalogue séparé : pas
+  // d'exigence d'image, cf. lib/modelesIA.ts).
+  const [choixModeleChat, setChoixModeleChat] = useState<string>(MODELE_CHAT_PAR_DEFAUT);
+  const [modeleChatLibre, setModeleChatLibre] = useState("");
 
   const [boards, setBoards] = useState<TrelloBoardDTO[] | null>(null);
   const [labels, setLabels] = useState<TrelloLabelDTO[] | null>(null);
@@ -209,6 +216,13 @@ export default function Integrations() {
     } else {
       setChoixModele(json.modeleIA ?? MODELE_PAR_DEFAUT);
       setModeleLibre("");
+    }
+    if (estModeleChatLibre(json.modeleChatIA)) {
+      setChoixModeleChat(AUTRE_MODELE);
+      setModeleChatLibre(json.modeleChatIA ?? "");
+    } else {
+      setChoixModeleChat(json.modeleChatIA ?? MODELE_CHAT_PAR_DEFAUT);
+      setModeleChatLibre("");
     }
     setBoardId(json.trello.boardId ?? "");
     setLabelId(json.trello.labelId ?? "");
@@ -378,17 +392,7 @@ export default function Integrations() {
       etat: dto.openrouter,
       source: dto.source.openrouter,
       test: "openrouter",
-      aide: "Elle rédige tes annonces à partir des photos, quel que soit le modèle choisi ci-dessous. Où la trouver : openrouter.ai/keys.",
-    },
-    {
-      cle: "anthropicKey",
-      titre: "Clé Anthropic",
-      valeur: anthropic,
-      set: setAnthropic,
-      etat: dto.anthropic,
-      source: dto.source.anthropic,
-      test: "anthropic",
-      aide: "Elle fait tourner l'assistant, la bulle en bas à droite. Où la trouver : console.anthropic.com, section API keys.",
+      aide: "Elle rédige tes annonces à partir des photos et fait tourner l'assistant (la bulle en bas à droite), selon les modèles choisis ci-dessous. Où la trouver : openrouter.ai/keys.",
     },
   ] as const;
 
@@ -436,21 +440,18 @@ export default function Integrations() {
             type="button"
             disabled={enCours || !dto.chiffrementDisponible}
             onClick={async () => {
-              const patch: Record<string, string> = {};
-              if (anthropic.trim()) patch.anthropicKey = anthropic.trim();
-              if (openrouter.trim()) patch.openrouterKey = openrouter.trim();
-              if (Object.keys(patch).length === 0) {
+              const cle = openrouter.trim();
+              if (!cle) {
                 toast.error("Aucune clé saisie.");
                 return;
               }
-              if (await enregistrer(patch)) {
-                setAnthropic("");
+              if (await enregistrer({ openrouterKey: cle })) {
                 setOpenrouter("");
               }
             }}
             className={boutonCls}
           >
-            Enregistrer mes clés
+            Enregistrer ma clé
           </button>
 
           <div className="h-px bg-[var(--border)]" />
@@ -506,6 +507,66 @@ export default function Integrations() {
                   return;
                 }
                 enregistrer({ modeleIA: id });
+              }}
+              className={`${boutonSecondaireCls} self-start`}
+            >
+              Enregistrer le modèle
+            </button>
+          </div>
+
+          <div className="h-px bg-[var(--border)]" />
+
+          {/* ── Modèle de l'assistant ───────────────────────────────────── */}
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls} htmlFor="modele-chat-ia">
+              Modèle de l&apos;assistant
+            </label>
+            <select
+              id="modele-chat-ia"
+              value={choixModeleChat}
+              onChange={(e) => setChoixModeleChat(e.target.value)}
+              className={inputCls}
+            >
+              {MODELES_CHAT_PROPOSES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.libelle} — {m.prix} $/M
+                  {m.id === MODELE_CHAT_PAR_DEFAUT ? " (par défaut)" : ""}
+                </option>
+              ))}
+              <option value={AUTRE_MODELE}>Autre…</option>
+            </select>
+
+            <p className="text-[12px] leading-snug text-[var(--faint)]">
+              {choixModeleChat === AUTRE_MODELE
+                ? "Identifiant OpenRouter exact, par exemple deepseek/deepseek-v4-pro-0813. Il doit savoir appeler des outils (tool calling), sinon l'assistant ne pourra ni lire tes données ni agir."
+                : (MODELES_CHAT_PROPOSES.find((m) => m.id === choixModeleChat)
+                    ?.note ?? "")}
+            </p>
+
+            {choixModeleChat === AUTRE_MODELE && (
+              <input
+                value={modeleChatLibre}
+                onChange={(e) => setModeleChatLibre(e.target.value)}
+                placeholder="fournisseur/modele"
+                autoComplete="off"
+                spellCheck={false}
+                className={inputCls}
+              />
+            )}
+
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() => {
+                const id =
+                  choixModeleChat === AUTRE_MODELE
+                    ? modeleChatLibre.trim()
+                    : choixModeleChat;
+                if (!id) {
+                  toast.error("Saisis un identifiant de modèle.");
+                  return;
+                }
+                enregistrer({ modeleChatIA: id });
               }}
               className={`${boutonSecondaireCls} self-start`}
             >

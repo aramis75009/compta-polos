@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 // (/api/trello/connect), plus par saisie. Les colonnes existent toujours pour
 // les connexions héritées, mais plus rien ne doit pouvoir les ÉCRIRE — un
 // formulaire qui les repose contournerait tout le contrôle d'autorisation.
-const SECRETS = ["anthropicKey", "openrouterKey"] as const;
+const SECRETS = ["openrouterKey"] as const;
 
 /**
  * Enregistre le webhook Trello sur le board du compte, si possible.
@@ -71,6 +71,7 @@ const CLAIRS = [
   "trelloLabelId",
   "trelloComptabiliseLabelId",
   "modeleIA",
+  "modeleChatIA",
 ] as const;
 
 type Body = Partial<
@@ -106,7 +107,6 @@ export async function GET() {
     const resolus = await resoudreReglages(userId);
 
     const dto: UserSettingsDTO = {
-      anthropic: etatSecret(s?.anthropicKey),
       openrouter: etatSecret(s?.openrouterKey),
       trello: {
         connecte: resolus.trello !== null,
@@ -118,6 +118,7 @@ export async function GET() {
         webhookActif: Boolean(s?.trelloWebhookId),
       },
       modeleIA: s?.modeleIA ?? null,
+      modeleChatIA: s?.modeleChatIA ?? null,
       objectifMensuel: s?.objectifMensuel ?? null,
       onboardingEtape: s?.onboardingEtape ?? 1,
       onboardingTermine: s?.onboardingTermine ?? false,
