@@ -12,10 +12,11 @@ import { ArrowRight, Check } from "lucide-react";
 import { useReglages } from "@/lib/hooks";
 import { Module } from "@/components/console";
 
+// Trois étapes depuis le 15/08/2026. « Recevoir les événements » a disparu :
+// le webhook s'enregistre tout seul quand le board est choisi.
 const ETAPES = [
   "Connecter ton Trello",
   "Préparer le board",
-  "Recevoir les événements",
   "Ta première commande",
 ];
 

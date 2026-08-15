@@ -57,12 +57,34 @@ model UserSettings {
   anthropicKey  String? @db.Text
   openrouterKey String? @db.Text
 
-  // Accès Trello, chiffrés. `trelloSecret` est le « API Secret » de
-  // trello.com/app-key : il ne sert qu'à valider la signature des webhooks
-  // entrants, pas à appeler l'API.
+  // Accès Trello HÉRITÉ : clé, jeton et secret saisis à la main avant le
+  // 15/08/2026. Toujours lus — ils portent les connexions d'avant l'OAuth.
+  // ⚠️ Ne pas les dropper tant qu'un compte en dépend, et plus rien ne doit
+  // les ÉCRIRE : l'accès s'obtient désormais par /api/trello/connect.
   trelloKey    String? @db.Text
   trelloToken  String? @db.Text
   trelloSecret String? @db.Text
+
+  // ── Connexion OAuth 1.0a (15/08/2026) ──
+  // L'utilisateur ne saisit plus de clé : il autorise MyFlip chez Trello.
+  // Le jeton est chiffré et ne quitte jamais le serveur.
+  trelloOauthToken       String? @db.Text
+  trelloOauthTokenSecret String? @db.Text
+
+  // Éphémères : ils ne vivent qu'entre la redirection et le retour de Trello.
+  // `trelloOauthRequestToken` est en clair (Trello nous le renvoie dans l'URL),
+  // son secret est chiffré. Le rattachement au compte plus `trelloOauthExpire`
+  // forment la protection CSRF du parcours.
+  trelloOauthRequestToken  String?
+  trelloOauthRequestSecret String?   @db.Text
+  trelloOauthExpire        DateTime?
+
+  // Identité affichée dans l'écran de configuration.
+  trelloMembreId  String?
+  trelloMembreNom String?
+
+  // Webhook du board, gardé pour pouvoir le supprimer à la déconnexion.
+  trelloWebhookId String?
 
   // Identifiants Trello en clair. `trelloBoardId` est UNIQUE : c'est la clé de
   // routage du webhook entrant, qui n'a pas de session pour s'identifier.

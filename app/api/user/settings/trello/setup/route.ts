@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
     };
 
     const ctx = await contexteTrello(userId);
-    // `boardDuCompte` et pas seulement `boardId` : sans board explicitement
-    // choisi, la cascade retombe sur le board du déploiement, et on créerait
-    // des colonnes sur le Trello de quelqu'un d'autre.
-    if (!ctx?.boardId || !ctx.boardDuCompte) {
+    // Un `boardId` présent appartient forcément au compte depuis le 15/08/2026 :
+    // la cascade ne retombe plus sur le board du déploiement, on ne peut donc
+    // plus créer des colonnes sur le Trello de quelqu'un d'autre.
+    if (!ctx?.boardId) {
       return NextResponse.json(
         { error: "Choisis d'abord ton board Trello." },
         { status: 400 },

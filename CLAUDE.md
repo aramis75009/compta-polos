@@ -99,11 +99,16 @@ SDK Resend, expéditeur `onboarding@resend.dev`. Requiert `RESEND_API_KEY` dans 
 - `/api/auth/forgot-password` — génère un token, envoie l'email via Resend
 - `/api/auth/reset-password` — valide le token, met à jour le mot de passe
 - `/api/user/password` — changement de mot de passe (authentifié)
-- `/api/user/settings` — réglages du compte : clés IA et Trello (chiffrées), objectif
-  mensuel. Un secret n'est jamais renvoyé en clair, seulement « renseigné » + 4 derniers
-  caractères. Champ absent du corps = inchangé, champ vide = effacé.
+- `/api/user/settings` — réglages du compte : clés IA (chiffrées), board et étiquettes
+  Trello, objectif mensuel. Un secret n'est jamais renvoyé en clair, seulement
+  « renseigné » + 4 derniers caractères. Champ absent du corps = inchangé, champ vide =
+  effacé. **N'accepte plus aucun secret Trello** : l'accès passe par l'OAuth.
+  Enregistrer un board y déclenche la création du webhook.
 - `/api/user/settings/test` — teste la clé IA réellement utilisée (lecture seule)
-- `/api/user/settings/trello` — liste boards et étiquettes ; POST crée le webhook
+- `/api/user/settings/trello` — liste boards et étiquettes ; POST (re)crée le webhook
+- `/api/trello/connect` — démarre l'autorisation OAuth (302 vers Trello)
+- `/api/trello/callback` — retour de Trello : vérifie l'appartenance, échange et stocke
+- `/api/trello/disconnect` — supprime le webhook, révoque le jeton, efface tout
 - `/api/articles`, `/api/articles/[id]` — CRUD articles
 - `/api/commandes`, `/api/commandes/[id]` — CRUD commandes
 - `/api/dashboard`, `/api/stats`, `/api/calendar` — données agrégées
@@ -177,16 +182,41 @@ raison.
 
 ## 🔗 Intégration Trello
 
-⚠️ **Depuis le lot 3 (08/08/2026), les identifiants Trello sont PAR UTILISATEUR.**
-Ils vivent chiffrés dans `UserSettings` (clé, token, secret) avec les ids de board et
-d'étiquettes en clair. Les helpers de `lib/trello.ts` reçoivent tous un `TrelloContexte`
-— ils ne lisent plus `process.env`. La résolution se fait dans `lib/settings.ts`, en
-cascade : réglages du compte → variables d'environnement du déploiement.
+⚠️ **Depuis le 15/08/2026, l'accès Trello s'obtient par OAuth 1.0a.** L'utilisateur
+clique sur « Connecter Trello » (`/api/trello/connect`), autorise MyFlip chez Trello,
+et revient sur `/api/trello/callback`. Le jeton est chiffré dans
+`UserSettings.trelloOauthToken` et **ne transite jamais par le navigateur**. Aucun
+champ de saisie de clé/token/secret ne subsiste dans l'interface.
+
+**Pourquoi OAuth 1.0a et pas 2.0** : Trello n'a pas d'OAuth 2.0 sur son API REST. Le
+seul autre flux, `/1/authorize`, ne sait rendre le jeton qu'au navigateur (fragment
+d'URL ou `postMessage`) — d'où son rejet. Le protocole vit dans `lib/trelloOAuth.ts` ;
+le jeton obtenu s'utilise comme un `key=…&token=…` ordinaire, **donc `lib/trello.ts`
+n'a pas bougé**.
+
+**Cascade de résolution** (`lib/settings.ts`, `contexteDepuisReglages`, fonction pure
+et testée) : jeton OAuth → clés héritées du compte → **rien**.
+⚠️ **Il n'y a plus de repli sur les variables d'environnement.** C'est par lui qu'un
+utilisateur atteignait le board du propriétaire du déploiement. Ne pas le
+réintroduire « pour faire marcher un compte neuf » : un compte neuf se connecte, il
+n'emprunte pas. Le repli subsiste pour les clés IA, où il n'expose qu'un quota.
+
+Les **connexions héritées** sont les clé+token saisis à la main avant cette date. Elles
+restent lues ; `trelloKey`/`trelloToken`/`trelloSecret` ne doivent pas être supprimées
+tant qu'un compte en dépend, et **plus rien ne doit les écrire** (`SECRETS` de
+`/api/user/settings` ne les accepte plus).
 
 Le webhook entrant n'a pas de session : il s'identifie par `data.board.id`, résolu en
-`userId` via `UserSettings.trelloBoardId` (colonne **unique**). Sa signature
-`x-trello-webhook` est vérifiée dès qu'un secret d'API est configuré sur le compte ;
-sans secret, l'événement passe et l'absence de vérification est journalisée.
+`userId` via `UserSettings.trelloBoardId` (colonne **unique**). Le secret qui valide sa
+signature `x-trello-webhook` suit la connexion : `TRELLO_API_SECRET` (celui de
+l'application) pour l'OAuth, `UserSettings.trelloSecret` pour une connexion héritée.
+Sans secret, l'événement passe et l'absence de vérification est journalisée.
+
+Le webhook s'enregistre **automatiquement** à l'enregistrement du board
+(`brancherWebhook` dans `/api/user/settings`), et son id est conservé dans
+`trelloWebhookId` pour pouvoir le supprimer à la déconnexion. `/api/trello/disconnect`
+supprime le webhook **avant** de révoquer le jeton : un webhook appartient au jeton qui
+l'a créé, l'ordre inverse laisse un webhook orphelin impossible à effacer.
 
 Deux sens de synchronisation, à ne pas confondre :
 
@@ -215,8 +245,15 @@ Les IDs d'étiquettes se listent avec :
 
 ## 🔑 Variables d'environnement requises
 
-Depuis le lot 3, les clés IA et Trello ci-dessous sont des **valeurs de repli** :
-elles servent aux comptes qui n'ont pas saisi les leurs dans `/compte`.
+Les clés **IA** ci-dessous sont des **valeurs de repli** : elles servent aux comptes
+qui n'ont pas saisi les leurs dans `/compte`.
+
+⚠️ **Ce n'est PAS le cas de Trello.** `TRELLO_API_KEY` / `TRELLO_API_SECRET` sont les
+identifiants de l'*application*, pas un repli : elles servent à obtenir les jetons des
+utilisateurs, jamais à accéder à un board à leur place. Les six anciennes variables
+`TRELLO_TOKEN`, `TRELLO_SECRET`, `TRELLO_BOARD_ID`, `TRELLO_LABEL_ID`,
+`TRELLO_COMPTABILISE_LABEL_ID` et `TRELLO_OWNER_EMAIL` **ne sont plus lues par
+l'application** — seul `scripts/migrer-trello-env.ts` les consulte, une fois.
 
 ⚠️ **`GEMINI_API_KEY` n'est plus lue** depuis le passage à OpenRouter (13/08/2026).
 La génération d'annonces appelle `lib/openrouter.ts` avec le modèle choisi dans
@@ -237,13 +274,8 @@ INVITE_CODES            # codes d'invitation acceptés sur /signup ; absente = a
 ENCRYPTION_KEY          # 32 octets hex : chiffre les secrets de UserSettings (AES-256-GCM)
 ANTHROPIC_API_KEY       # chatbot uniquement (/api/chat)
 OPENROUTER_API_KEY      # génération d'annonces : repli quand le compte n'a pas sa clé
-TRELLO_API_KEY
-TRELLO_TOKEN
-TRELLO_SECRET                 # secret d'API, vérification de signature du webhook
-TRELLO_BOARD_ID
-TRELLO_LABEL_ID               # étiquette « À comptabiliser » (violette)
-TRELLO_COMPTABILISE_LABEL_ID  # étiquette « Comptabilisé » (verte)
-TRELLO_OWNER_EMAIL      # compte de repli pour le board du déploiement
+TRELLO_API_KEY          # clé de l'APPLICATION MyFlip (trello.com/power-ups/admin)
+TRELLO_API_SECRET       # « OAuth Secret » : signe l'OAuth et valide les webhooks
 RESEND_API_KEY
 DATABASE_URL            # Neon PostgreSQL (dans .env, géré par Vercel/Prisma)
 ```

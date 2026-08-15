@@ -16,6 +16,7 @@ import {
   MODELE_PAR_DEFAUT,
   MODELES_PROPOSES,
 } from "@/lib/modelesIA";
+import { type CodeErreurTrello, messageErreur } from "@/lib/trelloErreurs";
 import type {
   SecretEtat,
   SourceReglage,
@@ -187,9 +188,6 @@ export default function Integrations() {
   // reprend la main, et l'utilisateur perdrait ce qu'il vient de taper.
   const [choixModele, setChoixModele] = useState<string>(MODELE_PAR_DEFAUT);
   const [modeleLibre, setModeleLibre] = useState("");
-  const [trelloKey, setTrelloKey] = useState("");
-  const [trelloToken, setTrelloToken] = useState("");
-  const [trelloSecret, setTrelloSecret] = useState("");
 
   const [boards, setBoards] = useState<TrelloBoardDTO[] | null>(null);
   const [labels, setLabels] = useState<TrelloLabelDTO[] | null>(null);
@@ -212,14 +210,32 @@ export default function Integrations() {
       setChoixModele(json.modeleIA ?? MODELE_PAR_DEFAUT);
       setModeleLibre("");
     }
-    setBoardId(json.trelloBoardId ?? "");
-    setLabelId(json.trelloLabelId ?? "");
-    setComptaLabelId(json.trelloComptabiliseLabelId ?? "");
+    setBoardId(json.trello.boardId ?? "");
+    setLabelId(json.trello.labelId ?? "");
+    setComptaLabelId(json.trello.comptabiliseLabelId ?? "");
   }, []);
 
   useEffect(() => {
     charger();
   }, [charger]);
+
+  // Résultat de la tentative de connexion, transporté dans l'URL par
+  // /api/trello/callback. Lu une fois puis retiré de la barre d'adresse :
+  // recharger la page ne doit pas rejouer le message.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("trello");
+    if (!code) return;
+    if (code === "ok") toast.success("Trello est connecté.");
+    else toast.error(messageErreur(code as CodeErreurTrello));
+    params.delete("trello");
+    const reste = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + (reste ? `?${reste}` : ""),
+    );
+  }, []);
 
   /** N'envoie que les champs réellement saisis : le reste est laissé tel quel. */
   async function enregistrer(patch: Record<string, string | null>) {
@@ -235,7 +251,11 @@ export default function Integrations() {
         toast.error(json.error ?? "Enregistrement impossible.");
         return false;
       }
-      toast.success("Réglages enregistrés.");
+      // `webhook` porte l'avertissement du branchement automatique : réglages
+      // enregistrés, mais Trello pas joignable. Ce n'est pas un échec de
+      // l'enregistrement, c'en est une conséquence à signaler.
+      if (json.webhook) toast.warning(json.webhook);
+      else toast.success("Réglages enregistrés.");
       await charger();
       return true;
     } catch {
@@ -258,21 +278,28 @@ export default function Integrations() {
     else toast.error(json.message ?? json.error ?? "Test échoué.");
   }
 
-  async function chargerBoards() {
+  /**
+   * `silencieux` : au chargement automatique de la page, l'utilisateur n'a rien
+   * demandé — lui annoncer « 4 boards accessibles » serait du bruit. Le toast
+   * n'a de sens qu'après un clic explicite sur « Recharger mes boards ».
+   */
+  const chargerBoards = useCallback(async (silencieux = false) => {
     setEnCours(true);
     try {
       const res = await fetch("/api/user/settings/trello");
       const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error ?? "Trello n'a pas répondu.");
+        if (!silencieux) toast.error(json.error ?? "Trello n'a pas répondu.");
         return;
       }
       setBoards(json.boards);
-      toast.success(`${json.boards.length} board(s) accessibles.`);
+      if (silencieux) return;
+      if (json.boards.length === 0) toast.error(messageErreur("aucun-board"));
+      else toast.success(`${json.boards.length} board(s) accessibles.`);
     } finally {
       setEnCours(false);
     }
-  }
+  }, []);
 
   const chargerLabels = useCallback(async (id: string) => {
     if (!id) return;
@@ -287,24 +314,46 @@ export default function Integrations() {
   // invisibles au rechargement de la page.
   const boardCharge = useRef<string | null>(null);
   useEffect(() => {
-    const id = dto?.trelloBoardId;
+    const id = dto?.trello.boardId;
     if (!id || boardCharge.current === id) return;
     boardCharge.current = id;
     chargerLabels(id);
-  }, [dto?.trelloBoardId, chargerLabels]);
+  }, [dto?.trello.boardId, chargerLabels]);
 
-  async function connecterWebhook() {
+  // Les boards se chargent seuls dès qu'on est connecté. Avant la connexion
+  // Trello, il fallait cliquer pour valider les clés saisies ; il n'y a plus de
+  // clé à valider, donc plus de raison d'exiger un clic pour voir sa liste.
+  const boardsCharges = useRef(false);
+  useEffect(() => {
+    if (!dto?.trello.connecte || boardsCharges.current) return;
+    boardsCharges.current = true;
+    chargerBoards(true);
+  }, [dto?.trello.connecte, chargerBoards]);
+
+  async function deconnecter() {
+    if (
+      !window.confirm(
+        "Déconnecter Trello ? MyFlip ne recevra plus rien de ton tableau, et l'autorisation sera révoquée chez Trello.",
+      )
+    )
+      return;
     setEnCours(true);
     try {
-      const res = await fetch("/api/user/settings/trello", { method: "POST" });
+      const res = await fetch("/api/trello/disconnect", { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error ?? "Connexion impossible.");
+        toast.error(json.error ?? "Déconnexion impossible.");
         return;
       }
-      toast.success(
-        json.deja ? "Ce board était déjà connecté." : "Trello connecté.",
-      );
+      toast.success("Trello déconnecté.");
+      setBoards(null);
+      setLabels(null);
+      setBoardId("");
+      setLabelId("");
+      setComptaLabelId("");
+      boardsCharges.current = false;
+      boardCharge.current = null;
+      await charger();
     } finally {
       setEnCours(false);
     }
@@ -476,143 +525,138 @@ export default function Integrations() {
           <CardTitle>Mon Trello</CardTitle>
         </div>
 
-        <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--faint)]">
-          Les trois se récupèrent sur trello.com/app-key. Une fois connecté,
-          poser l&apos;étiquette « À comptabiliser » sur une carte fait basculer
-          les articles dont le SKU figure dans son titre — c&apos;est ce qui
-          alimente ta page À comptabiliser.
-        </p>
+        {!dto.trello.connecte ? (
+          <>
+            <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--faint)]">
+              Trello n&apos;est pas connecté. Une fois branché, poser
+              l&apos;étiquette « À comptabiliser » sur une carte fait basculer
+              les articles dont le SKU figure dans son titre — c&apos;est ce qui
+              alimente ta page À comptabiliser.
+            </p>
+            <a href="/api/trello/connect" className={boutonCls}>
+              Connecter Trello
+            </a>
+            <p className="mt-3 text-[12px] leading-snug text-[var(--faint)]">
+              Tu seras redirigé vers Trello pour autoriser MyFlip à lire tes
+              tableaux et à modifier tes cartes. Aucune clé à recopier.
+            </p>
+          </>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-[16px] bg-[var(--surface-2)] px-3.5 py-3">
+              <span className="text-[13px] text-[var(--ink2)]">
+                Trello connecté
+                {dto.trello.membreNom ? ` — ${dto.trello.membreNom}` : ""}
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--faint)]">
+                {dto.trello.source === "heritee"
+                  ? "Connexion par clés API"
+                  : "Connexion Trello"}
+              </span>
+            </div>
 
-        <div className="flex flex-col gap-4">
-          <ChampSecret
-            titre="Clé d'API"
-            aide="Le champ « Key » en haut de trello.com/app-key."
-            etat={dto.trelloKey}
-            source={dto.source.trello}
-            valeur={trelloKey}
-            onChange={setTrelloKey}
-            testable={false}
-          />
-          <ChampSecret
-            titre="Token"
-            aide="Sur la même page, clique sur le lien « Token » puis autorise l'accès. C'est lui qui donne à MyFlip le droit de lire et modifier tes cartes."
-            etat={dto.trelloToken}
-            valeur={trelloToken}
-            onChange={setTrelloToken}
-            testable={false}
-          />
-          <ChampSecret
-            titre="Secret d'API"
-            aide="Il authentifie les messages que Trello envoie à MyFlip. Sans lui, quelqu'un qui connaît l'identifiant de ton board peut faire basculer tes articles en « à comptabiliser »."
-            etat={dto.trelloSecret}
-            valeur={trelloSecret}
-            onChange={setTrelloSecret}
-            testable={false}
-          />
+            {dto.trello.source === "heritee" && (
+              <div className="rounded-[16px] border border-[var(--border)] p-3.5">
+                <p className="mb-2.5 text-[12.5px] leading-snug text-[var(--faint)]">
+                  Cette connexion utilise une clé d&apos;API saisie à la main.
+                  Elle continue de fonctionner ; la connexion Trello, elle, se
+                  révoque d&apos;un clic et ne dépend d&apos;aucune clé à
+                  recopier.
+                </p>
+                <a href="/api/trello/connect" className={boutonSecondaireCls}>
+                  Passer à la connexion Trello
+                </a>
+              </div>
+            )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={enCours || !dto.chiffrementDisponible}
-              onClick={async () => {
-                const patch: Record<string, string> = {};
-                if (trelloKey.trim()) patch.trelloKey = trelloKey.trim();
-                if (trelloToken.trim()) patch.trelloToken = trelloToken.trim();
-                if (trelloSecret.trim())
-                  patch.trelloSecret = trelloSecret.trim();
-                if (Object.keys(patch).length === 0) {
-                  toast.error("Aucun identifiant saisi.");
-                  return;
-                }
-                if (await enregistrer(patch)) {
-                  setTrelloKey("");
-                  setTrelloToken("");
-                  setTrelloSecret("");
-                }
+            {!dto.trello.webhookActif && dto.trello.boardId && (
+              <p
+                role="alert"
+                className="text-[12.5px] leading-snug text-[var(--warn)]"
+              >
+                Aucun webhook enregistré : rien ne remonte de Trello pour
+                l&apos;instant. Réenregistre ton board pour le rebrancher.
+              </p>
+            )}
+
+            {/* Ces trois champs sont rendus en permanence, jamais sous
+                condition. Ils ne l'étaient qu'une fois la liste des boards
+                chargée : au rechargement de la page, les deux étiquettes de
+                comptabilité disparaissaient, et on ne pouvait plus relire son
+                propre réglage. Sans liste disponible, on retombe sur la saisie
+                de l'identifiant — moins agréable, mais jamais invisible. */}
+            <ChampChoix
+              id="board"
+              titre="Board surveillé"
+              valeur={boardId}
+              onChange={(v) => {
+                setBoardId(v);
+                setLabels(null);
+                chargerLabels(v);
               }}
-              className={boutonCls}
-            >
-              Enregistrer l&apos;accès
-            </button>
-            <button
-              type="button"
-              disabled={enCours}
-              onClick={chargerBoards}
-              className={boutonSecondaireCls}
-            >
-              Tester et lister mes boards
-            </button>
-          </div>
-
-          {/* Ces trois champs sont rendus en permanence, jamais sous condition.
-              Ils ne l'étaient qu'une fois la liste des boards chargée : au
-              rechargement de la page, les deux étiquettes de comptabilité
-              disparaissaient, et on ne pouvait plus relire son propre réglage.
-              Sans liste disponible, on retombe sur la saisie de l'identifiant —
-              moins agréable, mais jamais invisible. */}
-          <ChampChoix
-            id="board"
-            titre="Board surveillé"
-            valeur={boardId}
-            onChange={(v) => {
-              setBoardId(v);
-              setLabels(null);
-              chargerLabels(v);
-            }}
-            options={boards}
-            placeholder="Identifiant du board"
-            aide={
-              boards
-                ? "Le tableau que MyFlip surveille."
-                : "Enregistre ta clé et ton token, puis « Tester et lister mes boards » pour choisir dans une liste."
-            }
-          />
-
-          <ChampChoix
-            id="label-compta"
-            titre="Étiquette « À comptabiliser »"
-            valeur={labelId}
-            onChange={setLabelId}
-            options={optionsEtiquettes}
-            placeholder="Identifiant de l'étiquette"
-            aide="Quand tu la poses sur une carte, les articles dont le SKU figure dans le titre passent en « À comptabiliser »."
-          />
-
-          <ChampChoix
-            id="label-comptabilise"
-            titre="Étiquette « Comptabilisé »"
-            valeur={comptaLabelId}
-            onChange={setComptaLabelId}
-            options={optionsEtiquettes}
-            placeholder="Identifiant de l'étiquette"
-            aide="MyFlip la pose lui-même sur la carte quand tu valides la vente."
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={enCours}
-              onClick={() =>
-                enregistrer({
-                  trelloBoardId: boardId || null,
-                  trelloLabelId: labelId || null,
-                  trelloComptabiliseLabelId: comptaLabelId || null,
-                })
+              options={boards}
+              placeholder="Identifiant du board"
+              aide={
+                boards
+                  ? "Le tableau que MyFlip surveille."
+                  : "Clique sur « Recharger mes boards » pour choisir dans une liste."
               }
-              className={boutonCls}
-            >
-              Enregistrer le board
-            </button>
-            <button
-              type="button"
-              disabled={enCours || !dto.trelloBoardId}
-              onClick={connecterWebhook}
-              className={boutonSecondaireCls}
-            >
-              Connecter mon Trello
-            </button>
+            />
+
+            <ChampChoix
+              id="label-compta"
+              titre="Étiquette « À comptabiliser »"
+              valeur={labelId}
+              onChange={setLabelId}
+              options={optionsEtiquettes}
+              placeholder="Identifiant de l'étiquette"
+              aide="Quand tu la poses sur une carte, les articles dont le SKU figure dans le titre passent en « À comptabiliser »."
+            />
+
+            <ChampChoix
+              id="label-comptabilise"
+              titre="Étiquette « Comptabilisé »"
+              valeur={comptaLabelId}
+              onChange={setComptaLabelId}
+              options={optionsEtiquettes}
+              placeholder="Identifiant de l'étiquette"
+              aide="MyFlip la pose lui-même sur la carte quand tu valides la vente."
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={() =>
+                  enregistrer({
+                    trelloBoardId: boardId || null,
+                    trelloLabelId: labelId || null,
+                    trelloComptabiliseLabelId: comptaLabelId || null,
+                  })
+                }
+                className={boutonCls}
+              >
+                Enregistrer
+              </button>
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={() => chargerBoards()}
+                className={boutonSecondaireCls}
+              >
+                Recharger mes boards
+              </button>
+              <button
+                type="button"
+                disabled={enCours}
+                onClick={deconnecter}
+                className={`${boutonSecondaireCls} text-[var(--neg)]`}
+              >
+                Déconnecter Trello
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </Module>
     </section>
   );

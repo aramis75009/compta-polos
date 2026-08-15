@@ -1,13 +1,20 @@
 // Réglages par utilisateur (serveur uniquement) : lecture, déchiffrement et
-// résolution en cascade « clé de l'utilisateur → clé d'environnement ».
+// résolution de l'accès Trello.
 //
-// Le repli sur l'environnement est ce qui rend un nouveau compte opérationnel
-// avant d'avoir saisi la moindre clé. Il n'est pas une position tenable à
-// grande échelle — les appels d'un utilisateur sont alors facturés à l'app.
+// ⚠️ Depuis le 15/08/2026, IL N'Y A PLUS DE REPLI SUR L'ENVIRONNEMENT pour
+// Trello. Jusque-là, un compte sans réglages retombait sur `TRELLO_API_KEY` /
+// `TRELLO_TOKEN` / `TRELLO_BOARD_ID` du déploiement : n'importe quel
+// utilisateur lisait et écrivait sur le board du propriétaire. Le repli reste
+// en place pour les clés IA, où il n'expose que le quota de l'application —
+// pas les données d'un tiers.
 
 import { prisma } from "@/lib/prisma";
 import { dechiffrerOuNull } from "@/lib/crypto";
+import { credentialsApp } from "@/lib/trelloOAuth";
 import type { UserSettings } from "@prisma/client";
+
+/** D'où vient l'accès Trello réellement utilisé. */
+export type SourceTrello = "oauth" | "heritee" | "absente";
 
 /** Tout ce qu'il faut pour appeler l'API Trello au nom d'un utilisateur. */
 export type TrelloContexte = {
@@ -16,19 +23,33 @@ export type TrelloContexte = {
   /** Secret d'API, uniquement pour valider la signature des webhooks entrants. */
   secret: string | null;
   boardId: string | null;
-  /**
-   * Vrai seulement si le board vient des réglages DE CE COMPTE.
-   *
-   * ⚠️ Garde-fou indispensable pour toute ÉCRITURE sur Trello. Sans board
-   * choisi, la cascade retombe sur `TRELLO_BOARD_ID`, c'est-à-dire le board du
-   * propriétaire du déploiement : un compte neuf qui demande la création des
-   * colonnes les créerait sur le Trello de quelqu'un d'autre. Les lectures
-   * peuvent se contenter du repli ; les écritures, jamais.
-   */
-  boardDuCompte: boolean;
   /** Étiquette « À comptabiliser » : celle qui déclenche l'entrée en compta. */
   labelId: string | null;
   /** Étiquette « Comptabilisé » : posée après validation. */
+  comptabiliseLabelId: string | null;
+  /**
+   * « oauth » : jeton obtenu par le parcours de connexion, associé à la clé de
+   * l'application. « heritee » : clé et jeton saisis à la main avant le
+   * 15/08/2026. La distinction compte à la déconnexion — seul un jeton OAuth
+   * appartient à MyFlip et peut être révoqué par elle.
+   */
+  source: "oauth" | "heritee";
+};
+
+/**
+ * Réglages Trello d'un compte, secrets DÉJÀ DÉCHIFFRÉS.
+ *
+ * Ce type existe pour que `contexteDepuisReglages` soit pure : le déchiffrement
+ * lit `process.env`, la cascade non. C'est la cascade qu'on veut pouvoir
+ * tester, parce que c'est elle qui décide qui accède à quel board.
+ */
+export type ReglagesTrelloBruts = {
+  oauthToken: string | null;
+  heriteeKey: string | null;
+  heriteeToken: string | null;
+  heriteeSecret: string | null;
+  boardId: string | null;
+  labelId: string | null;
   comptabiliseLabelId: string | null;
 };
 
@@ -39,16 +60,15 @@ export type ReglagesResolus = {
   /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
   objectifMensuel: number | null;
-  /** Vrai si la valeur vient du compte, faux si elle vient de l'environnement. */
+  /** Pour les clés IA : la valeur vient-elle du compte ou de l'application ? */
   source: {
     anthropic: "utilisateur" | "app" | "absente";
     openrouter: "utilisateur" | "app" | "absente";
-    trello: "utilisateur" | "app" | "absente";
+    trello: SourceTrello;
   };
 };
 
-const vide = (s: string | null | undefined) =>
-  s && s.trim() ? s.trim() : null;
+const vide = (s: string | null | undefined) => (s && s.trim() ? s.trim() : null);
 
 /** Ligne brute des réglages, secrets encore chiffrés. */
 export function reglagesBruts(userId: string): Promise<UserSettings | null> {
@@ -56,16 +76,51 @@ export function reglagesBruts(userId: string): Promise<UserSettings | null> {
 }
 
 /**
+ * Cascade Trello : jeton OAuth → clés héritées du compte → rien.
+ *
+ * ⚠️ Ne pas réintroduire de repli sur l'environnement ici sous prétexte de
+ * « faire marcher un compte neuf ». Un compte neuf doit se connecter, pas
+ * emprunter l'accès de quelqu'un d'autre. C'est exactement le trou qui a été
+ * fermé le 15/08/2026.
+ */
+export function contexteDepuisReglages(
+  s: ReglagesTrelloBruts | null,
+  app: { key: string; secret: string } | null,
+): TrelloContexte | null {
+  const ids = {
+    boardId: vide(s?.boardId),
+    labelId: vide(s?.labelId),
+    comptabiliseLabelId: vide(s?.comptabiliseLabelId),
+  };
+
+  const oauth = vide(s?.oauthToken);
+  if (oauth) {
+    // Un jeton OAuth n'est utilisable qu'avec la clé de l'application qui l'a
+    // émis : sans elle, il ne sert à rien de tenter l'appel.
+    if (!app) return null;
+    return { key: app.key, token: oauth, secret: app.secret, ...ids, source: "oauth" };
+  }
+
+  // Connexion héritée : clé ET jeton vont ensemble, ils forment un même accès.
+  const key = vide(s?.heriteeKey);
+  const token = vide(s?.heriteeToken);
+  if (key && token) {
+    return { key, token, secret: vide(s?.heriteeSecret), ...ids, source: "heritee" };
+  }
+
+  return null;
+}
+
+/**
  * Résout la configuration effective d'un utilisateur.
  *
  * Un secret illisible (clé maîtresse changée, colonne corrompue) ne fait pas
- * échouer l'appel : `dechiffrerOuNull` journalise et renvoie null, ce qui fait
- * retomber la cascade sur l'environnement. Le contraire priverait l'utilisateur
- * de génération d'annonces à cause d'un champ facultatif.
+ * échouer l'appel : `dechiffrerOuNull` journalise et renvoie null. Pour les
+ * clés IA, la cascade retombe alors sur l'environnement ; pour Trello, elle
+ * rend « non connecté », ce qui est le comportement voulu — mieux vaut demander
+ * une reconnexion que synchroniser sur le board d'autrui.
  */
-export async function resoudreReglages(
-  userId: string,
-): Promise<ReglagesResolus> {
+export async function resoudreReglages(userId: string): Promise<ReglagesResolus> {
   const s = await reglagesBruts(userId);
 
   const cascade = (
@@ -86,45 +141,18 @@ export async function resoudreReglages(
     process.env.OPENROUTER_API_KEY,
   );
 
-  // Trello : clé ET token vont ensemble. Une clé d'utilisateur avec un token
-  // d'environnement n'aurait aucun sens — les deux forment un même accès.
-  const trelloKeyCompte = dechiffrerOuNull(s?.trelloKey);
-  const trelloTokenCompte = dechiffrerOuNull(s?.trelloToken);
-  let trello: TrelloContexte | null = null;
-  let srcTrello: "utilisateur" | "app" | "absente" = "absente";
-
-  if (trelloKeyCompte && trelloTokenCompte) {
-    srcTrello = "utilisateur";
-    trello = {
-      key: trelloKeyCompte,
-      token: trelloTokenCompte,
-      secret: dechiffrerOuNull(s?.trelloSecret),
-      boardId: vide(s?.trelloBoardId),
-      boardDuCompte: Boolean(vide(s?.trelloBoardId)),
-      labelId: vide(s?.trelloLabelId),
-      comptabiliseLabelId: vide(s?.trelloComptabiliseLabelId),
-    };
-  } else {
-    const key = vide(process.env.TRELLO_API_KEY);
-    const token = vide(process.env.TRELLO_TOKEN);
-    if (key && token) {
-      srcTrello = "app";
-      trello = {
-        key,
-        token,
-        secret:
-          dechiffrerOuNull(s?.trelloSecret) ?? vide(process.env.TRELLO_SECRET),
-        // Les ids du compte l'emportent même quand l'accès vient de l'app :
-        // Aramis peut viser son board avec les clés du déploiement.
-        boardId: vide(s?.trelloBoardId) ?? vide(process.env.TRELLO_BOARD_ID),
-        boardDuCompte: Boolean(vide(s?.trelloBoardId)),
-        labelId: vide(s?.trelloLabelId) ?? vide(process.env.TRELLO_LABEL_ID),
-        comptabiliseLabelId:
-          vide(s?.trelloComptabiliseLabelId) ??
-          vide(process.env.TRELLO_COMPTABILISE_LABEL_ID),
-      };
-    }
-  }
+  const trello = contexteDepuisReglages(
+    {
+      oauthToken: dechiffrerOuNull(s?.trelloOauthToken),
+      heriteeKey: dechiffrerOuNull(s?.trelloKey),
+      heriteeToken: dechiffrerOuNull(s?.trelloToken),
+      heriteeSecret: dechiffrerOuNull(s?.trelloSecret),
+      boardId: s?.trelloBoardId ?? null,
+      labelId: s?.trelloLabelId ?? null,
+      comptabiliseLabelId: s?.trelloComptabiliseLabelId ?? null,
+    },
+    credentialsApp(),
+  );
 
   return {
     anthropicKey: anthropic,
@@ -135,7 +163,7 @@ export async function resoudreReglages(
     source: {
       anthropic: srcAnthropic,
       openrouter: srcOpenrouter,
-      trello: srcTrello,
+      trello: trello?.source ?? "absente",
     },
   };
 }
@@ -145,9 +173,7 @@ export async function resoudreReglages(
  * Les appels Trello sont best-effort (cf. CLAUDE.md) : l'absence de contexte
  * doit faire renoncer à la synchro, jamais échouer l'opération métier.
  */
-export async function contexteTrello(
-  userId: string,
-): Promise<TrelloContexte | null> {
+export async function contexteTrello(userId: string): Promise<TrelloContexte | null> {
   return (await resoudreReglages(userId)).trello;
 }
 
@@ -156,26 +182,16 @@ export async function contexteTrello(
  *
  * C'est le routage du webhook entrant, qui n'a pas de session : il ne porte que
  * l'id du board. `UserSettings.trelloBoardId` est unique, donc la réponse est
- * sans ambiguïté. Repli sur `TRELLO_BOARD_ID` + `TRELLO_OWNER_EMAIL` tant que
- * l'utilisateur historique n'a pas basculé sur ses propres réglages.
+ * sans ambiguïté.
+ *
+ * ⚠️ Plus de repli sur `TRELLO_BOARD_ID` + `TRELLO_OWNER_EMAIL` depuis le
+ * 15/08/2026 : un board non rattaché à un compte est un board qu'on ignore. Le
+ * compte historique a été migré en base par `scripts/migrer-trello-env.ts`.
  */
-export async function utilisateurDuBoard(
-  boardId: string,
-): Promise<string | null> {
+export async function utilisateurDuBoard(boardId: string): Promise<string | null> {
   const parReglages = await prisma.userSettings.findUnique({
     where: { trelloBoardId: boardId },
     select: { userId: true },
   });
-  if (parReglages) return parReglages.userId;
-
-  if (vide(process.env.TRELLO_BOARD_ID) !== boardId) return null;
-
-  const email = vide(process.env.TRELLO_OWNER_EMAIL);
-  const proprietaire = email
-    ? await prisma.user.findUnique({ where: { email }, select: { id: true } })
-    : await prisma.user.findFirst({
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      });
-  return proprietaire?.id ?? null;
+  return parReglages?.userId ?? null;
 }

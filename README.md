@@ -33,7 +33,7 @@ par authentification.
 | État client | TanStack Query (+ TanStack Virtual pour la liste du stock) |
 | IA | Google Gemini (génération d'annonces) · Anthropic Claude (chatbot) |
 | Emails | Resend (bienvenue, réinitialisation de mot de passe) |
-| Intégration | Webhook Trello (cartes articles) |
+| Intégration | Trello : connexion OAuth par utilisateur + webhook (cartes articles) |
 | Hébergement | Vercel |
 
 ---
@@ -71,6 +71,9 @@ par authentification.
 | `/api/auth/forgot-password`, `/api/auth/reset-password` | Réinitialisation par email |
 | `/api/user/password` | Changement de mot de passe (authentifié) |
 | `/api/webhooks/trello` | Webhook Trello entrant |
+| `/api/trello/connect` | Démarre l'autorisation Trello (redirection) |
+| `/api/trello/callback` | Retour de Trello : échange et stocke le jeton |
+| `/api/trello/disconnect` | Révoque l'autorisation et efface la configuration |
 
 ### Composants clés
 
@@ -141,7 +144,7 @@ bienvenue. Il est volontairement non versionné.
 | `GEMINI_API_KEY` | Génération d'annonces |
 | `ANTHROPIC_API_KEY` | Chatbot |
 | `RESEND_API_KEY` | Emails transactionnels |
-| `TRELLO_API_KEY`, `TRELLO_TOKEN`, `TRELLO_BOARD_ID`, `TRELLO_LABEL_ID` | Intégration Trello |
+| `TRELLO_API_KEY`, `TRELLO_API_SECRET` | Identifiants de l'application Trello (parcours OAuth). Les utilisateurs ne saisissent aucune clé. |
 | `NEXT_PUBLIC_USER_NAME` | Prénom affiché dans le dashboard |
 
 Les identifiants de connexion vivent **en base** (table `User`), pas dans
@@ -156,7 +159,8 @@ l'environnement.
 | `npm run start` | Serveur de production |
 | `npm run lint` | ESLint |
 | `npm run seed` | Alimente la base (`prisma/seed.ts`) |
-| `npm run setup-trello` | (Re)configure le webhook Trello — à relancer si le board change |
+| `npm run setup-trello` | Hérité : configure le webhook du board du déploiement. Le webhook des comptes se crée seul. |
+| `npm run migrer-trello` | One-shot : recopie l'accès Trello des variables d'env vers le compte propriétaire |
 
 ---
 
@@ -204,8 +208,12 @@ fusionner.
 
 ### Scripts
 
-- `scripts/setup-trello-webhook.ts` — (re)configure le webhook Trello
-  (`npm run setup-trello`).
+- `scripts/setup-trello-webhook.ts` — hérité : (re)configure le webhook du board
+  du déploiement (`npm run setup-trello`). Depuis le 15/08/2026, le webhook d'un
+  compte se crée tout seul à l'enregistrement de son board.
+- `scripts/migrer-trello-env.ts` — one-shot idempotent : recopie l'accès Trello
+  des variables d'environnement vers le compte propriétaire, avant la suppression
+  du repli (`npm run migrer-trello`).
 - `scripts/init-user.mjs` — crée le compte propriétaire et envoie l'email de
   bienvenue. One-shot, non versionné.
 - `scripts/organiser_annonces.py` — utilitaire **local macOS**, sans lien avec
