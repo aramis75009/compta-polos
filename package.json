@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "seed": "tsx prisma/seed.ts",
     "setup-trello": "npx tsx scripts/setup-trello-webhook.ts",
+    "migrer-trello": "tsx scripts/migrer-trello-env.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

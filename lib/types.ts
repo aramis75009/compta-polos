@@ -331,25 +331,48 @@ export type SecretEtat = {
 /** D'où vient la valeur réellement utilisée à l'exécution. */
 export type SourceReglage = "utilisateur" | "app" | "absente";
 
+/**
+ * D'où vient l'accès Trello du compte.
+ *
+ * « heritee » = clé et jeton saisis à la main avant le 15/08/2026. Ils
+ * fonctionnent toujours ; l'écran propose de basculer sur la connexion Trello.
+ */
+export type SourceTrello = "oauth" | "heritee" | "absente";
+
+/**
+ * État de la connexion Trello, vu du client.
+ *
+ * Aucun jeton ici, ni même son aperçu : contrairement aux clés IA, l'accès
+ * Trello n'est jamais saisi par l'utilisateur, donc il n'a rien à y
+ * reconnaître. Ce qu'il veut savoir, c'est « suis-je connecté, et à quel
+ * compte ».
+ */
+export type TrelloEtatDTO = {
+  connecte: boolean;
+  source: SourceTrello;
+  /** Nom du membre Trello, pour « connecté en tant que … ». */
+  membreNom: string | null;
+  boardId: string | null;
+  labelId: string | null;
+  comptabiliseLabelId: string | null;
+  /** Vrai si un webhook est enregistré : sinon rien ne remonte de Trello. */
+  webhookActif: boolean;
+};
+
 export type UserSettingsDTO = {
   anthropic: SecretEtat;
   openrouter: SecretEtat;
-  trelloKey: SecretEtat;
-  trelloToken: SecretEtat;
-  trelloSecret: SecretEtat;
-  trelloBoardId: string | null;
-  trelloLabelId: string | null;
-  trelloComptabiliseLabelId: string | null;
+  trello: TrelloEtatDTO;
   /** Identifiant OpenRouter du modèle qui rédige les annonces. */
   modeleIA: string | null;
   objectifMensuel: number | null;
-  /** Étape en cours du parcours de démarrage (1 à 4). */
+  /** Étape en cours du parcours de démarrage (1 à 3). */
   onboardingEtape: number;
   onboardingTermine: boolean;
   source: {
     anthropic: SourceReglage;
     openrouter: SourceReglage;
-    trello: SourceReglage;
+    trello: SourceTrello;
   };
   /** Faux si ENCRYPTION_KEY manque : aucun secret ne peut être enregistré. */
   chiffrementDisponible: boolean;

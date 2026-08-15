@@ -36,7 +36,12 @@ function parseSkus(cardName: string): string[] {
 
 /**
  * Valide la signature `x-trello-webhook` : HMAC-SHA1, en base64, du corps brut
- * concaténé à l'URL de rappel, avec le secret d'API du compte.
+ * concaténé à l'URL de rappel.
+ *
+ * Le secret vient de la CONNEXION, pas d'un champ saisi : `TRELLO_API_SECRET`
+ * (celui de l'application) pour une connexion OAuth, `UserSettings.trelloSecret`
+ * pour une connexion héritée. C'est `contexteDepuisReglages` qui tranche, cf.
+ * `lib/settings.ts` — rien à décider ici.
  *
  * L'endpoint est public et route désormais vers un compte d'après l'id du
  * board : sans cette vérification, une requête forgée ferait basculer les

@@ -7,13 +7,14 @@
 // l'arrivée n'est pas de créer une commande : c'est de brancher Trello, dont
 // dépend toute l'entrée en comptabilité.
 //
-// L'avancement vit sur le compte, pas dans le navigateur : les étapes 2 et 3 se
-// terminent sur Trello, dans un autre onglet, souvent sur un autre appareil.
+// L'avancement vit sur le compte, pas dans le navigateur : l'autorisation et la
+// préparation du board passent par Trello, dans un autre onglet, souvent sur un
+// autre appareil.
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CardTitle, Frame, Module } from "@/components/console";
 import Integrations from "@/components/compte/Integrations";
@@ -24,11 +25,14 @@ import {
   TRANSPORTEURS,
 } from "@/lib/trelloConstantes";
 
+// Trois étapes depuis le 15/08/2026. L'ancienne étape « Recevoir les
+// événements » a disparu : le webhook s'enregistre tout seul à l'enregistrement
+// du board. C'était une étape que l'utilisateur pouvait passer, et il se
+// retrouvait alors entièrement configuré sans que rien ne remonte.
 const ETAPES = [
-  { n: 1, titre: "Connecter ton Trello", resume: "Clé, token et board" },
+  { n: 1, titre: "Connecter ton Trello", resume: "Autorisation et board" },
   { n: 2, titre: "Préparer le board", resume: "Colonnes et étiquettes" },
-  { n: 3, titre: "Recevoir les événements", resume: "Connexion du webhook" },
-  { n: 4, titre: "Ta première commande", resume: "Et c'est parti" },
+  { n: 3, titre: "Ta première commande", resume: "Et c'est parti" },
 ];
 
 const boutonCls =
@@ -48,7 +52,9 @@ export default function DemarragePage() {
     if (!res.ok) return;
     const json = (await res.json()) as UserSettingsDTO;
     setDto(json);
-    setEtape(json.onboardingEtape);
+    // Écrêté : un compte resté à l'étape 4 de l'ancien parcours atterrirait
+    // sur un écran qui n'existe plus.
+    setEtape(Math.min(json.onboardingEtape, ETAPES.length));
   }, []);
 
   useEffect(() => {
@@ -100,29 +106,11 @@ export default function DemarragePage() {
     }
   }
 
-  async function connecterWebhook() {
-    setEnCours(true);
-    try {
-      const res = await fetch("/api/user/settings/trello", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? "Connexion impossible.");
-        return;
-      }
-      toast.success(
-        json.deja ? "Ce board était déjà connecté." : "Trello connecté.",
-      );
-      await enregistrerEtape(4);
-    } finally {
-      setEnCours(false);
-    }
-  }
-
   if (!dto) return null;
 
-  const trelloPret = Boolean(dto.trelloBoardId);
+  const trelloPret = Boolean(dto.trello.connecte && dto.trello.boardId);
   const etiquettesPretes = Boolean(
-    dto.trelloLabelId && dto.trelloComptabiliseLabelId,
+    dto.trello.labelId && dto.trello.comptabiliseLabelId,
   );
 
   return (
@@ -181,20 +169,11 @@ export default function DemarragePage() {
           <>
             <Module className="p-[24px]">
               <CardTitle className="mb-2">Connecter ton Trello</CardTitle>
-              <p className="mb-4 text-[13.5px] leading-relaxed text-[var(--muted)]">
+              <p className="text-[13.5px] leading-relaxed text-[var(--muted)]">
                 MyFlip lit ton tableau Trello pour savoir quand un article part
-                en comptabilité. Il te faut trois valeurs, toutes sur la même
-                page, puis le choix de ton tableau.
+                en comptabilité. Un clic, tu autorises MyFlip chez Trello, et tu
+                choisis ton tableau. Rien à recopier.
               </p>
-              <a
-                href="https://trello.com/app-key"
-                target="_blank"
-                rel="noreferrer"
-                className={`${boutonSecondaireCls} mb-1`}
-              >
-                Ouvrir trello.com/app-key
-                <ExternalLink className="h-4 w-4" />
-              </a>
             </Module>
 
             {/* Le même écran que /compte, plutôt qu'un formulaire jumeau qui
@@ -210,7 +189,7 @@ export default function DemarragePage() {
               >
                 {trelloPret
                   ? "Mon board est choisi, continuer"
-                  : "Choisis d'abord ton board"}
+                  : "Connecte Trello et choisis ton board"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </Module>
@@ -313,40 +292,6 @@ export default function DemarragePage() {
 
         {etape === 3 && (
           <Module className="p-[24px]">
-            <CardTitle className="mb-2">Recevoir les événements</CardTitle>
-            <p className="mb-4 text-[13.5px] leading-relaxed text-[var(--muted)]">
-              Dernière connexion : Trello doit prévenir MyFlip quand tu poses
-              une étiquette. Sans elle, rien ne remonte et la page « À
-              comptabiliser » reste vide.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={enCours}
-                onClick={connecterWebhook}
-                className={boutonCls}
-              >
-                {enCours && <Loader2 className="h-4 w-4 animate-spin" />}
-                Connecter mon Trello
-              </button>
-              <button
-                type="button"
-                onClick={() => enregistrerEtape(4)}
-                className={boutonSecondaireCls}
-              >
-                Passer
-              </button>
-            </div>
-            <p className="mt-3 text-[12.5px] leading-relaxed text-[var(--faint)]">
-              En développement local, cette connexion échoue : Trello ne sait
-              pas appeler une adresse qui n&apos;est pas publique. Elle se fait
-              depuis l&apos;application en ligne.
-            </p>
-          </Module>
-        )}
-
-        {etape === 4 && (
-          <Module className="p-[24px]">
             <CardTitle className="mb-2">Ta première commande</CardTitle>
             <p className="mb-4 text-[13.5px] leading-relaxed text-[var(--muted)]">
               Tout est branché. Une commande contient un ou plusieurs lots : un
@@ -358,7 +303,7 @@ export default function DemarragePage() {
               <button
                 type="button"
                 onClick={async () => {
-                  await enregistrerEtape(4, true);
+                  await enregistrerEtape(3, true);
                   router.push("/commandes");
                 }}
                 className={boutonCls}
@@ -369,7 +314,7 @@ export default function DemarragePage() {
               <button
                 type="button"
                 onClick={async () => {
-                  await enregistrerEtape(4, true);
+                  await enregistrerEtape(3, true);
                   router.push("/dashboard");
                 }}
                 className={boutonSecondaireCls}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getUserId, unauthorized } from "@/lib/apiAuth";
 import { contexteTrello } from "@/lib/settings";
 import { origineDe } from "@/lib/hosts";
@@ -62,10 +63,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const ctx = await contexteTrello(userId);
-    // Même garde-fou que la préparation du board : enregistrer un webhook est
-    // une écriture, et sans board choisi la cascade viserait celui du
-    // déploiement.
-    if (!ctx?.boardId || !ctx.boardDuCompte) {
+    // Un `boardId` présent appartient forcément au compte depuis le 15/08/2026 :
+    // la cascade ne retombe plus sur le board du déploiement. Le garde-fou
+    // `boardDuCompte` qui protégeait cette écriture est devenu structurel.
+    if (!ctx?.boardId) {
       return NextResponse.json(
         { error: "Choisis d'abord ton board Trello." },
         { status: 400 },
@@ -91,6 +92,16 @@ export async function POST(req: NextRequest) {
       `${base}/api/webhooks/trello`,
       ctx.boardId,
     )) as { id?: string };
+
+    // L'id est conservé pour pouvoir SUPPRIMER le webhook à la déconnexion.
+    // Sans lui, un compte déconnecté laisse derrière lui un webhook orphelin
+    // qui continue de frapper l'application jusqu'à ce que Trello le désactive.
+    if (webhook.id) {
+      await prisma.userSettings.update({
+        where: { userId },
+        data: { trelloWebhookId: webhook.id },
+      });
+    }
 
     return NextResponse.json({ ok: true, webhookId: webhook.id ?? null });
   } catch (err) {
